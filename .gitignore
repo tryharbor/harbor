@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+.DS_Store
+
+# Embedded Postgres (PGlite) data dirs
+.pglite/
+**/.pglite/
+pglite-data/
+
+# Secrets: only .env.example is committed
+.env
+.env.*
+!.env.example

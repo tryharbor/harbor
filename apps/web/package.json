@@ -1,0 +1,25 @@
+{
+  "name": "@harbor/web",
+  "version": "0.0.1",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 4801",
+    "build": "next build",
+    "start": "next start --port 4801",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@harbor/core": "workspace:*",
+    "next": "16.3.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "5.9.3"
+  }
+}

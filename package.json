@@ -1,0 +1,20 @@
+{
+  "name": "harbor",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.30.3",
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @harbor/api --filter @harbor/web dev",
+    "dev:api": "pnpm --filter @harbor/api dev",
+    "dev:web": "pnpm --filter @harbor/web dev",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

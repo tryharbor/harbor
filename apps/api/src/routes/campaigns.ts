@@ -24,9 +24,9 @@ import {
   SELECT_CAMPAIGNS,
   absOf,
   checkParent,
+  claimForCampaign,
   columnStart,
   findFrame,
-  gridInFrame,
   gridRightOfAll,
   insertItem,
   itemData,
@@ -36,6 +36,7 @@ import {
   loadCampaignRow,
   loadItemRow,
   orderForCanvas,
+  placeCards,
   sizeOf,
   toCampaign,
   toEdge,
@@ -45,8 +46,6 @@ import {
   type CampaignRow,
   type EdgeRow,
   type ItemRow,
-  type Point,
-  type Size,
 } from '../services/campaigns.ts';
 import { generateDrafts } from '../services/drafts.ts';
 import { generateIdeas, insertIdea } from '../services/ideas.ts';
@@ -149,12 +148,6 @@ async function refBrand(db: Db, kind: CanvasRefKind, refId: string): Promise<str
   const [row] = await db.query<{ brand_id: string }>(`SELECT brand_id FROM ${table} WHERE id = $1`, [refId]);
   if (!row) throw new HarborError('NOT_FOUND', `${kind[0]!.toUpperCase()}${kind.slice(1)} ${refId} not found.`);
   return row.brand_id;
-}
-
-/** Ideas and posts put on a campaign's canvas join that campaign, unless they already belong to one. */
-async function claimForCampaign(db: Db, kind: CanvasRefKind, refId: string, campaignId: string): Promise<void> {
-  if (kind === 'idea') await db.query('UPDATE ideas SET campaign_id = $2 WHERE id = $1 AND campaign_id IS NULL', [refId, campaignId]);
-  if (kind === 'post') await db.query('UPDATE posts SET campaign_id = $2 WHERE id = $1 AND campaign_id IS NULL', [refId, campaignId]);
 }
 
 interface AgentResult {
@@ -375,36 +368,6 @@ export function registerCampaigns(app: App, deps: AppDeps) {
   // ---- Agent ----
 
   /**
-   * Place `refs.length` new cards: in a grid inside `frame` (growing it when they don't fit), or with `fallback`
-   * positions (absolute, no parent) when there is no frame.
-   */
-  const place = async (
-    campaignId: string,
-    rows: ItemRow[],
-    kind: CanvasRefKind,
-    refs: string[],
-    card: Size,
-    frame: ItemRow | undefined,
-    opts: { cols?: number; fallback: () => Point[] },
-  ): Promise<ItemRow[]> => {
-    if (refs.length === 0) return [];
-    let positions: Point[];
-    let parentId: string | null = null;
-    if (frame) {
-      const grid = gridInFrame(frame, rows, refs.length, card, opts.cols);
-      positions = grid.positions;
-      parentId = frame.id;
-      if (grid.grow) await updateItemGeometry(db, { ...frame, width: grid.grow.w, height: grid.grow.h });
-    } else positions = opts.fallback();
-    const out: ItemRow[] = [];
-    for (const [i, refId] of refs.entries()) {
-      await claimForCampaign(db, kind, refId, campaignId);
-      out.push(await insertItem(db, { campaignId, kind, refId, parentId, x: positions[i]!.x, y: positions[i]!.y, width: card.w, height: card.h }));
-    }
-    return out;
-  };
-
-  /**
    * Canvas agent actions. New cards come back already placed (and saved): suggest_ideas (model), draft (model,
    * with connected post/signal/note cards as context), add_top_posts, add_signals.
    */
@@ -419,8 +382,8 @@ export function registerCampaigns(app: App, deps: AppDeps) {
     switch (input.action) {
       case 'suggest_ideas': {
         const frame = input.frameId ? frameIn(byId, input.frameId) : findFrame(rows, 'Ideas');
-        const { ids, run } = await generateIdeas(deps, brand, input.count, { campaignId: campaign.id });
-        const items = await place(campaign.id, rows, 'idea', ids, CARD.idea, frame, { cols: 2, fallback: () => gridRightOfAll(rows, ids.length, CARD.idea, 2) });
+        const { ids, run } = await generateIdeas(deps, brand, input.count, { campaignId: campaign.id, run: { source: 'canvas' } });
+        const items = await placeCards(db, campaign.id, rows, 'idea', ids, CARD.idea, frame, { cols: 2, fallback: () => gridRightOfAll(rows, ids.length, CARD.idea, 2) });
         result = { items, edges: [], run };
         break;
       }
@@ -449,11 +412,11 @@ export function registerCampaigns(app: App, deps: AppDeps) {
           ...items.filter((i) => i.kind === 'signal' && i.entity).map((i) => ({ kind: 'signal' as const, text: (i.entity as { summary: string }).summary })),
         ].filter((x) => x.text.trim());
 
-        const { ids, run } = await generateDrafts(deps, brand, idea, input.platforms, context);
+        const { ids, run } = await generateDrafts(deps, brand, idea, input.platforms, context, { run: { source: 'canvas' } });
         const frame = findFrame(rows, 'Drafts');
         const ideaAbs = absOf(ideaItem, byId);
         const ideaSize = sizeOf(ideaItem);
-        const placed = await place(campaign.id, rows, 'draft', ids, CARD.draft, frame, {
+        const placed = await placeCards(db, campaign.id, rows, 'draft', ids, CARD.draft, frame, {
           cols: 1,
           fallback: () => ids.map((_, i) => ({ x: ideaAbs.x + ideaSize.w + 80, y: ideaAbs.y + i * (CARD.draft.h + GAP) })),
         });
@@ -472,7 +435,7 @@ export function registerCampaigns(app: App, deps: AppDeps) {
         );
         const ids = top.map((p) => p.id);
         const cols = frame ? undefined : 1;
-        const items = await place(campaign.id, rows, 'post', ids, CARD.post, frame, { cols, fallback: () => gridRightOfAll(rows, ids.length, CARD.post, 1) });
+        const items = await placeCards(db, campaign.id, rows, 'post', ids, CARD.post, frame, { cols, fallback: () => gridRightOfAll(rows, ids.length, CARD.post, 1) });
         result = { items, edges: [] };
         break;
       }
@@ -493,7 +456,7 @@ export function registerCampaigns(app: App, deps: AppDeps) {
             : { x: 0, y: 0 };
         const x = anchor.x - 320;
         const y0 = columnStart(rows, x, CARD.signal.w, anchor.y);
-        const items = await place(campaign.id, rows, 'signal', ids, CARD.signal, undefined, {
+        const items = await placeCards(db, campaign.id, rows, 'signal', ids, CARD.signal, undefined, {
           fallback: () => ids.map((_, i) => ({ x, y: y0 + i * (CARD.signal.h + GAP) })),
         });
         result = { items, edges: [] };

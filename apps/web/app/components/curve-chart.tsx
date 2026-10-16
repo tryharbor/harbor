@@ -14,7 +14,8 @@ export function CurveChart({ points, baseline, metric }: { points: { ageHours: n
   const [hover, setHover] = useState<number | null>(null);
   const W = 560, H = 230, L = 48, R = 96, T = 16, B = 30;
   const maxY = Math.max(1, ...points.map((p) => p.value), ...baseline.map((p) => p.value)) * 1.08;
-  const x = (h: number) => L + (Math.log(Math.max(h, 0.5) / 0.5) / Math.log(168 / 0.5)) * (W - L - R);
+  // Rounded so server and client render identical attributes (no hydration mismatch from float noise).
+  const x = (h: number) => Math.round((L + (Math.log(Math.max(h, 0.5) / 0.5) / Math.log(168 / 0.5)) * (W - L - R)) * 10) / 10;
   const y = (v: number) => T + (1 - v / maxY) * (H - T - B);
   const path = (ps: { ageHours: number; value: number }[]) => ps.map((p, i) => `${i ? 'L' : 'M'}${x(p.ageHours).toFixed(1)} ${y(p.value).toFixed(1)}`).join(' ');
   const ticks = [0, 0.5, 1].map((f) => Math.round((maxY / 1.08) * f));

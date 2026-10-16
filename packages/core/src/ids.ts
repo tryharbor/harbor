@@ -15,6 +15,10 @@ export const ID_PREFIX = {
   campaign: 'cpg',
   canvasItem: 'cvi',
   canvasEdge: 'cve',
+  approval: 'apr',
+  automation: 'aut',
+  apiKey: 'key',
+  agentEvent: 'evt',
   request: 'req',
 } as const;
 

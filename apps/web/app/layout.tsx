@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies } from 'next/headers';
-import { getBrands, getMode, type BrandView, type Mode } from './api';
+import { getApprovals, getBrands, getMode, type BrandView, type Mode } from './api';
 import { Icon } from './icons';
 import { NavLink } from './nav-link';
 import { SidebarToggle } from './sidebar-toggle';
@@ -19,8 +19,10 @@ export const dynamic = 'force-dynamic';
 const NAV = [
   { href: '/', label: 'Home', icon: Icon.home, exact: true },
   { href: '/hub', label: 'Hub', icon: Icon.hub },
+  { href: '/approvals', label: 'Approvals', icon: Icon.approvals, count: 'approvals' as const },
   { href: '/campaigns', label: 'Campaigns', icon: Icon.campaigns },
   { href: '/studio', label: 'Studio', icon: Icon.studio },
+  { href: '/agents', label: 'Agents', icon: Icon.agents },
   { href: '/performance', label: 'Performance', icon: Icon.performance },
   { href: '/insights', label: 'Insights', icon: Icon.insights },
 ];
@@ -28,8 +30,13 @@ const NAV = [
 export default async function RootLayout({ children }: { children: ReactNode }) {
   let brands: BrandView[] = [];
   let mode: Mode | undefined;
+  let pending = 0;
   try {
-    [brands, mode] = await Promise.all([getBrands(), getMode().catch(() => undefined)]);
+    [brands, mode, pending] = await Promise.all([
+      getBrands(),
+      getMode().catch(() => undefined),
+      getApprovals({ status: 'pending' }).then((r) => r.counts.pending).catch(() => 0),
+    ]);
   } catch {
     // Pages show the connection error themselves; the sidebar renders without brands.
   }
@@ -51,8 +58,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <Link href="/compose" className="button primary new-post" title="New post"><Icon.plus /><span className="nav-text">New post</span></Link>
             <nav className="nav-group" aria-label="Workspace">
               {NAV.map((n) => (
-                <NavLink key={n.href} href={n.href} exact={n.exact} title={n.label}>
+                <NavLink key={n.href} href={n.href} exact={n.exact} title={n.count && pending ? `${n.label} · ${pending} waiting` : n.label}>
                   <n.icon /><span className="nav-text">{n.label}</span>
+                  {n.count && pending ? <span className="nav-count" aria-label={`${pending} waiting`}>{pending}</span> : null}
                 </NavLink>
               ))}
             </nav>

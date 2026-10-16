@@ -51,11 +51,12 @@ export function registerSandbox(app: App, deps: AppDeps) {
    * Move sandbox time forward by `hours`: published sandbox posts (and their snapshots) and pending snapshot jobs
    * are shifted into the past, then the worker runs. Time moves in steps that stop at each due snapshot, so every
    * snapshot is taken at its real age (1h, 6h, 24h …) and the growth curve looks like it would in real time.
+   * Automations fire along the way, as they would in real time.
    */
   app.post('/v1/sandbox/advance', async (c) => {
     requireSandbox();
     const { hours } = await body(c, advanceSchema);
-    const publishDeps = deps.publishDeps();
+    const workerDeps = deps.workerDeps();
     const [{ n: snapsBefore } = { n: 0 }] = await db.query<{ n: number }>('SELECT count(*)::int AS n FROM snapshots');
     const [{ n: posts } = { n: 0 }] = await db.query<{ n: number }>(
       `SELECT count(*)::int AS n FROM posts p WHERE p.status = 'published' AND p.published_at IS NOT NULL AND ${SANDBOX_POST}`,
@@ -87,7 +88,7 @@ export function registerSandbox(app: App, deps: AppDeps) {
 
     // Instagram/Threads posts still processing go live before the clock moves, so their curves start now.
     await db.query(`UPDATE posts SET next_check_at = now() WHERE status = 'pending' AND next_check_at > now()`);
-    await tick(publishDeps);
+    await tick(workerDeps);
 
     let remaining = hours * 3600;
     for (let step = 0; step < 500 && remaining > 0; step++) {
@@ -99,13 +100,13 @@ export function registerSandbox(app: App, deps: AppDeps) {
       const sec = Math.min(remaining, wait + 1);
       await shift(sec);
       remaining -= sec;
-      await tick(publishDeps);
+      await tick(workerDeps);
     }
     // Catch any jobs that became due in the last step.
     for (let i = 0; i < 20; i++) {
       const [due] = await db.query(`SELECT 1 FROM snapshot_jobs WHERE done_at IS NULL AND due_at <= now() LIMIT 1`);
       if (!due) break;
-      await tick(publishDeps);
+      await tick(workerDeps);
     }
     const [{ n: snapsAfter } = { n: 0 }] = await db.query<{ n: number }>('SELECT count(*)::int AS n FROM snapshots');
     return c.json({ hours, shiftedPosts: Number(posts), snapshotsTaken: Number(snapsAfter) - Number(snapsBefore) });

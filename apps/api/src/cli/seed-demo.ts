@@ -1,11 +1,12 @@
 import type { Platform, PostPart } from '@harbor/core';
 import { createApp, createDeps } from '../app.ts';
 import { openDb } from '../db/client.ts';
+import { loadAutomationRow, runAutomation } from '../services/automations.ts';
 import { insertHistoricalPost } from '../services/sandbox-history.ts';
 
 /**
  * Fill a throwaway database with sample brands, Brand Memory, competitors, sandbox channels, posts with growth
- * curves, ideas and drafts, so the UI can be seen with data. Everything goes through Harbor's own API in sandbox
+ * curves, ideas and drafts, campaigns, digests, agent runs, automations and approvals, so the UI can be seen with data. Everything goes through Harbor's own API in sandbox
  * mode with the simulated model: no network, no keys. Sandbox channel tokens are fake but stored encrypted like real
  * ones (HARBOR_SECRET_KEY, or the sandbox dev key when unset), so publishing from the demo works.
  *
@@ -29,7 +30,9 @@ if (existing) {
   const [campaign] = await db.query("SELECT 1 FROM campaigns WHERE brand_id = $1 AND name = 'Launch week' LIMIT 1", [existing.id]);
   // Demo data from before the insight engine has no post history or digest.
   const [digest] = await db.query('SELECT 1 FROM digests WHERE brand_id = $1 LIMIT 1', [existing.id]).catch(() => []);
-  if (usable && campaign && digest) {
+  // Demo data from before agents has no automations or approvals.
+  const [automation] = await db.query('SELECT 1 FROM automations WHERE brand_id = $1 LIMIT 1', [existing.id]).catch(() => []);
+  if (usable && campaign && digest && automation) {
     console.log('Demo data already present.');
     await db.close();
     process.exit(0);
@@ -345,6 +348,56 @@ for (const b of [harbor, tidewater]) {
   const digest = await call('POST', `/v1/brands/${b.id}/digest`, { days: 7 });
   console.log(`${b.name}: ${digest.headline}`);
 }
+
+// ---- Agents: two automations, a weekly plan waiting for approval, and a winner repurposed two days ago ----
+
+// Harbor plans its week every Monday at 8:00. This week's plan already ran: its posts wait in the approval queue.
+const weekly = await call('POST', '/v1/automations', {
+  brandId: harbor.id, agentId: 'weekly_plan', name: 'Monday plan', trigger: { type: 'schedule', weekday: 1, hour: 8 }, inputs: { postsPerPlatform: 2 },
+});
+const plan = await call('POST', `/v1/automations/${weekly.id}/run`);
+console.log(`Harbor (demo) weekly plan: ${plan.summary}`);
+
+// Tidewater repurposes any post that outperforms. It already ran once, on its best Instagram post (so the drafts go
+// to Threads, which needs no photo).
+const repurpose = await call('POST', '/v1/automations', {
+  brandId: tidewater.id, agentId: 'repurpose_winner', name: 'Repurpose winners', trigger: { type: 'event', event: 'post_outperformed' },
+});
+const [winner] = await db.query<{ id: string }>(
+  `SELECT p.id FROM posts p JOIN channels ch ON ch.id = p.channel_id LEFT JOIN outcomes o ON o.post_id = p.id
+   WHERE p.brand_id = $1 AND p.status = 'published' AND ch.platform = 'instagram'
+   ORDER BY (o.verdict = 'outperformed') DESC NULLS LAST, o.ratio DESC NULLS LAST, p.published_at DESC LIMIT 1`,
+  [tidewater.id],
+);
+const repurposeRunId = await runAutomation(deps, await loadAutomationRow(db, repurpose.id), { postId: winner!.id });
+// The worker never repurposes the same post twice for this automation.
+await db.query('INSERT INTO automation_refs (automation_id, ref_id, run_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [repurpose.id, winner!.id, repurposeRunId]);
+const repurposed = await call('GET', `/v1/agent-runs/${repurposeRunId}`);
+console.log(`Tidewater Coffee (demo) repurpose: ${repurposed.summary}`);
+
+// Decisions, so the history isn't empty: the repurposed post was approved, one planned post was sent back.
+for (const a of repurposed.approvals) await call('POST', `/v1/approvals/${a.id}/approve`, {});
+const planned = plan.approvals.filter((a: any) => a.channel.platform === 'linkedin');
+if (planned[0]) await call('POST', `/v1/approvals/${planned[0].id}/reject`, { note: 'Too close to the launch thread. Save this angle for next week.' });
+
+/** Move a run (with its children, steps and approvals) `hours` into the past. */
+async function backdate(runId: string, hours: number) {
+  const shift = (v: unknown) => (typeof v === 'string' ? new Date(new Date(v).getTime() - hours * 3_600_000).toISOString() : v);
+  const [run] = await db.query<{ steps: Record<string, unknown>[] }>('SELECT steps FROM agent_runs WHERE id = $1', [runId]);
+  const steps = (run?.steps ?? []).map((st) => ({ ...st, startedAt: shift(st.startedAt), finishedAt: shift(st.finishedAt) }));
+  await db.query('UPDATE agent_runs SET steps = $2 WHERE id = $1', [runId, JSON.stringify(steps)]);
+  await db.query(
+    `UPDATE agent_runs SET started_at = started_at - make_interval(hours => $2), finished_at = finished_at - make_interval(hours => $2)
+     WHERE id = $1 OR parent_run_id = $1`,
+    [runId, hours],
+  );
+  await db.query(
+    `UPDATE approvals SET created_at = created_at - make_interval(hours => $2), decided_at = decided_at - make_interval(hours => $2 - 2) WHERE run_id = $1`,
+    [runId, hours],
+  );
+  await db.query('UPDATE automations SET last_run_at = last_run_at - make_interval(hours => $2) WHERE last_run_id = $1', [runId, hours]);
+}
+await backdate(repurposeRunId, 48);
 
 console.log('Seeded demo data (sandbox channels, simulated model).');
 await db.close();

@@ -123,7 +123,7 @@ export function registerDrafts(app: App, deps: AppDeps) {
       }
       const value = [join(rewritten)];
       return { value, calls, output: { variations: value } };
-    });
+    }, { source: 'studio' });
     return c.json({ variations, run });
   });
 }

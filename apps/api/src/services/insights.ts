@@ -4,7 +4,7 @@ import type { AppDeps } from '../app.ts';
 import type { Db } from '../db/client.ts';
 import { bestTimesForBrand } from './best-times.ts';
 import { loadHistory, median, refreshBrandOutcomes, valueAt, type HistoryPost, type OutcomeView } from './outcomes.ts';
-import { withRun, type RunInfo } from './runs.ts';
+import { withRun, type RunInfo, type RunOpts } from './runs.ts';
 import { derivePerformanceSignals } from './signals.ts';
 
 export interface Digest {
@@ -85,7 +85,12 @@ const KIND_OF: Record<'wins' | 'misses' | 'patterns' | 'recommendations', string
  * citation resolves), ask the model, then store the digest and one insight per finding that cites a signal.
  * Recorded as an 'insights' agent run.
  */
-export async function generateDigest(deps: Pick<AppDeps, 'db' | 'model'>, brand: Brand, days = 7): Promise<{ digest: Digest; run: RunInfo }> {
+export async function generateDigest(
+  deps: Pick<AppDeps, 'db' | 'model'>,
+  brand: Brand,
+  days = 7,
+  opts: { run?: RunOpts } = {},
+): Promise<{ digest: Digest; run: RunInfo }> {
   const { db, model } = deps;
   const to = Date.now();
   const from = to - days * DAY_MS;
@@ -133,13 +138,21 @@ export async function generateDigest(deps: Pick<AppDeps, 'db' | 'model'>, brand:
       }
     }
     return { value: digest, calls: [res], output: { digestId, insightIds } };
-  });
+  }, opts.run);
   return { digest, run };
 }
 
 export async function latestDigest(db: Db, brandId: string): Promise<Digest | undefined> {
-  const [row] = await db.query<{ data: Digest }>('SELECT data FROM digests WHERE brand_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1', [brandId]);
-  return row?.data;
+  return (await latestDigestRow(db, brandId))?.data;
+}
+
+/** The latest digest with its id and when it was written. */
+export async function latestDigestRow(db: Db, brandId: string): Promise<{ id: string; data: Digest; created_at: Date | string } | undefined> {
+  const [row] = await db.query<{ id: string; data: Digest; created_at: Date | string }>(
+    'SELECT id, data, created_at FROM digests WHERE brand_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1',
+    [brandId],
+  );
+  return row;
 }
 
 export interface OverviewBrand {

@@ -3,7 +3,7 @@ import { HarborError, citationSchema, newId, type Brand, type Idea, type IdeaSta
 import type { AppDeps } from '../app.ts';
 import type { Db } from '../db/client.ts';
 import { iso } from '../lib/http.ts';
-import { withRun, type RunInfo } from './runs.ts';
+import { withRun, type RunInfo, type RunOpts } from './runs.ts';
 import { derivePerformanceSignals, ensureMemorySignals, latestSignals, publishedPostsWithMetrics } from './signals.ts';
 
 export interface IdeaRow {
@@ -67,13 +67,14 @@ export async function insertIdea(
 /**
  * Generate ideas for a brand. First refreshes the brand's signals (one post_performance signal per published post
  * with snapshots, plus manual signals from audience pain points), then asks the model; every idea cites at least
- * one of those signals. Recorded as an 'ideas' agent run.
+ * one of those signals. Recorded as an 'ideas' agent run. `guidance` (e.g. a digest's recommendations) goes to the
+ * model as extra direction; `run` says where the run came from.
  */
 export async function generateIdeas(
   deps: Pick<AppDeps, 'db' | 'model'>,
   brand: Brand,
   count: number,
-  opts: { campaignId?: string } = {},
+  opts: { campaignId?: string; guidance?: string[]; run?: RunOpts } = {},
 ): Promise<{ ids: string[]; run: RunInfo }> {
   const { db, model } = deps;
   await derivePerformanceSignals(db, brand.id);
@@ -81,9 +82,13 @@ export async function generateIdeas(
   const signals = await latestSignals(db, brand.id, 100);
   const recentPosts = (await publishedPostsWithMetrics(db, brand.id, 20)).map((p) => ({ text: p.text, platform: p.platform, metrics: p.metrics }));
   const known = new Set(signals.map((s) => s.id));
-  const input = { count, signals: signals.length, recentPosts: recentPosts.length, ...(opts.campaignId ? { campaignId: opts.campaignId } : {}) };
+  const guidance = opts.guidance?.filter((g) => g.trim()) ?? [];
+  const input = {
+    count, signals: signals.length, recentPosts: recentPosts.length,
+    ...(opts.campaignId ? { campaignId: opts.campaignId } : {}), ...(guidance.length ? { guidance: guidance.length } : {}),
+  };
   const { value: ids, run } = await withRun(db, brand, 'ideas', input, model.name, async (runId) => {
-    const res = await model.generateIdeas({ brand, signals, recentPosts, count });
+    const res = await model.generateIdeas({ brand, signals, recentPosts, count, ...(guidance.length ? { guidance } : {}) });
     const ids: string[] = [];
     for (const idea of res.result) {
       let basis = idea.basis.filter((b) => known.has(b.signalId));
@@ -91,6 +96,6 @@ export async function generateIdeas(
       ids.push(await insertIdea(db, { brandId: brand.id, title: idea.title.slice(0, 300), angle: idea.angle.slice(0, 4000), basis, agentRunId: runId, campaignId: opts.campaignId }));
     }
     return { value: ids, calls: [res], output: { ideaIds: ids } };
-  });
+  }, opts.run);
   return { ids, run };
 }

@@ -9,6 +9,7 @@ import {
   type PostPart,
 } from '@harbor/core';
 import type { Db } from '../db/client.ts';
+import { emitEvent } from './events.ts';
 
 /**
  * Outcomes: how a published post did against the brand's median for the same platform at the same post age.
@@ -203,6 +204,7 @@ async function upsertOutcome(db: Db, post: HistoryPost, o: OutcomeView): Promise
       o.atAgeHours, notes, o.metric, o.ratio, o.comparablePosts,
     ],
   );
+  if (o.verdict === 'outperformed') await emitEvent(db, 'post_outperformed', post.brandId, post.id);
 }
 
 /** Re-evaluate one post (e.g. right after a snapshot). */

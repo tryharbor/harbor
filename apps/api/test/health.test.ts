@@ -33,7 +33,8 @@ describe('migrations', () => {
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`,
     );
     expect(rows.map((r) => r.table_name)).toEqual([
-      'agent_runs', 'brands', 'campaigns', 'canvas_edges', 'canvas_items', 'channels', 'competitors', 'digests', 'drafts', 'ideas', 'insights', 'oauth_states',
+      'agent_events', 'agent_runs', 'api_keys', 'approvals', 'automation_refs', 'automations', 'brands', 'campaigns', 'canvas_edges', 'canvas_items', 'channels',
+      'competitors', 'digests', 'drafts', 'ideas', 'insights', 'oauth_states',
       'outcomes', 'posts', 'schema_migrations', 'secrets', 'signals', 'snapshot_jobs', 'snapshots', 'workspaces',
     ]);
   });

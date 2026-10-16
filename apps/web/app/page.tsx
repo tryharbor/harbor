@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Channel } from '@harbor/core';
-import { getBrands, getChannels, getIdeas, getOverview, getPosts, loadAll, type BrandView, type IdeaView, type OverviewBrand, type PostView } from './api';
+import { getApprovals, getBrands, getChannels, getIdeas, getOverview, getPosts, loadAll, type Approval, type BrandView, type IdeaView, type OverviewBrand, type PostView } from './api';
 import { BrandMark, Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, Upcoming, when } from './ui';
 
 export const dynamic = 'force-dynamic';
@@ -9,10 +9,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const flash = await searchParams;
   const now = new Date();
   const weekAhead = new Date(now.getTime() + 7 * 86_400_000).toISOString();
-  const res = await loadAll<[BrandView[], Channel[], PostView[], IdeaView[], OverviewBrand[]]>([getBrands(), getChannels(), getPosts({ limit: '200' }), getIdeas(), getOverview().catch(() => [])]);
+  const res = await loadAll<[BrandView[], Channel[], PostView[], IdeaView[], OverviewBrand[], Approval[]]>([
+    getBrands(), getChannels(), getPosts({ limit: '200' }), getIdeas(), getOverview().catch(() => []),
+    getApprovals({ status: 'pending' }).then((r) => r.data).catch(() => []),
+  ]);
   const today = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   if (!res.ok) return (<><PageHeader title="Home" sub={today} /><LoadError message={res.error} /></>);
-  const [brands, channels, posts, ideas, overview] = res.data;
+  const [brands, channels, posts, ideas, overview, approvals] = res.data;
 
   if (brands.length === 0) {
     return (
@@ -44,6 +47,18 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         actions={<><Link className="button" href="/hub">Open the hub</Link><Link className="button primary" href="/compose">New post</Link></>}
       />
       <Flash params={flash} />
+
+      {approvals.length ? (
+        <Link href="/approvals" className="approve-all" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <span className="row small" style={{ gap: 10 }}>
+            <span className="pixels" aria-hidden="true" />
+            <span><strong>{approvals.length} post{approvals.length === 1 ? '' : 's'} waiting for approval</strong>{' '}
+              <span className="muted">across {new Set(approvals.map((a) => a.brandId)).size} brand{new Set(approvals.map((a) => a.brandId)).size === 1 ? '' : 's'}, first one {when(approvals[0]!.proposedFor, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}.</span>
+            </span>
+          </span>
+          <span className="button primary">Review</span>
+        </Link>
+      ) : null}
 
       {needsCheck.length + staleChannels.length > 0 ? (
         <section className="attention stack" aria-label="Needs attention">

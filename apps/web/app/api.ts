@@ -265,3 +265,108 @@ export const getDigest = (brandId: string) => api<Digest>(`/v1/brands/${brandId}
   throw err;
 });
 export const getOverview = () => api<{ brands: OverviewBrand[] }>('/v1/insights/overview').then((r) => r.brands);
+
+// ---- Agents, automations, approvals, API keys, MCP (docs/design/agents-mcp.md) ----
+
+export type AgentId = 'weekly_plan' | 'repurpose_winner' | 'voice_check' | 'digest' | (string & {});
+export type TriggerKind = 'manual' | 'schedule' | 'post_published' | 'post_outperformed';
+export interface AgentInput { key: string; label: string; type: 'brand' | 'campaign' | 'post' | 'draft' | 'platforms' | 'number'; required: boolean; default?: unknown; min?: number; max?: number; help?: string }
+export interface AgentDef {
+  id: AgentId;
+  name: string;
+  tagline: string;
+  description: string;
+  category: 'plan' | 'repurpose' | 'review' | 'insights';
+  inputs: AgentInput[];
+  produces: ('digest' | 'ideas' | 'drafts' | 'approvals' | 'report')[];
+  triggers: TriggerKind[];
+  steps: { key: string; label: string }[];
+  lastRun?: AgentRun;
+  automations: number;
+}
+export type RunSource = 'ui' | 'mcp' | 'automation' | 'canvas' | 'studio';
+export interface RunRef { kind: 'idea' | 'draft' | 'post' | 'digest' | 'approval' | 'run' | 'campaign'; id: string; label?: string }
+export interface RunStep { key: string; label: string; status: 'running' | 'succeeded' | 'failed' | 'skipped'; startedAt: string; finishedAt?: string; detail?: string; refs?: RunRef[] }
+export interface AgentRun {
+  id: string;
+  kind: string;
+  agentId?: AgentId;
+  brandId?: string;
+  brandName?: string;
+  status: 'running' | 'succeeded' | 'failed';
+  source: RunSource;
+  automationId?: string;
+  parentRunId?: string;
+  model?: string;
+  simulated: boolean;
+  usage?: { inputTokens: number; outputTokens: number };
+  summary?: string;
+  startedAt: string;
+  finishedAt?: string;
+  error?: string;
+  stepCount: number;
+  approvalCount: number;
+}
+export interface AgentRunDetail extends AgentRun {
+  inputs: Record<string, unknown>;
+  steps: RunStep[];
+  children: AgentRun[];
+  approvals: Approval[];
+  output?: unknown;
+}
+export interface Check { key: string; ok: boolean; severity: 'info' | 'warn' | 'fail'; label: string; detail: string }
+export interface Approval {
+  id: string;
+  brandId: string;
+  brandName: string;
+  runId?: string;
+  agentId?: AgentId;
+  source: string;
+  status: 'pending' | 'approved' | 'rejected';
+  draft: DraftView;
+  ideaId?: string;
+  ideaTitle?: string;
+  channel: { id: string; platform: Platform; handle: string; displayName?: string; status: string };
+  proposedFor: string;
+  slotScore?: number;
+  reason: string;
+  checks: Check[];
+  createdAt: string;
+  decidedAt?: string;
+  decidedNote?: string;
+  postId?: string;
+}
+export type Trigger = { type: 'schedule'; weekday: number; hour: number } | { type: 'event'; event: 'post_published' | 'post_outperformed' };
+export interface Automation {
+  id: string;
+  brandId: string;
+  brandName: string;
+  agentId: AgentId;
+  name: string;
+  trigger: Trigger;
+  inputs: Record<string, unknown>;
+  enabled: boolean;
+  status: 'active' | 'paused' | 'failing';
+  maxRunsPerDay: number;
+  runsToday: number;
+  consecutiveFailures: number;
+  nextRunAt?: string;
+  lastRunAt?: string;
+  lastRunId?: string;
+  lastRunStatus?: string;
+  createdAt: string;
+}
+export interface ApiKey { id: string; name: string; prefix: string; scopes: ('read' | 'write')[]; createdAt: string; lastUsedAt?: string; revokedAt?: string }
+export interface McpInfo { url: string; transport: string; tools: { name: string; description: string; scope: 'read' | 'write' }[]; resources: { uri: string; name: string }[] }
+export type ApprovalCounts = { pending: number; approved: number; rejected: number };
+
+export const getAgents = () => api<{ data: AgentDef[] }>('/v1/agents').then(data);
+export const getAgent = (id: string) => api<AgentDef>(`/v1/agents/${id}`);
+export const getRuns = (params: { brandId?: string; agentId?: string; source?: string; topLevel?: string; limit?: string } = {}) =>
+  api<{ data: AgentRun[] }>(`/v1/agent-runs${qs(params)}`).then(data);
+export const getRun = (id: string) => api<AgentRunDetail>(`/v1/agent-runs/${id}`);
+export const getApprovals = (params: { status?: string; brandId?: string; runId?: string } = {}) =>
+  api<{ data: Approval[]; counts: ApprovalCounts }>(`/v1/approvals${qs(params)}`);
+export const getAutomations = (brandId?: string) => api<{ data: Automation[] }>(`/v1/automations${qs({ brandId })}`).then(data);
+export const getApiKeys = () => api<{ data: ApiKey[] }>('/v1/api-keys').then(data);
+export const getMcpInfo = () => api<McpInfo>('/v1/mcp');

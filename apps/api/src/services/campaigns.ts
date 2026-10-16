@@ -133,6 +133,12 @@ export async function insertItem(db: Db, i: NewItem): Promise<ItemRow> {
   return row!;
 }
 
+/** Ideas and posts put on a campaign's canvas join that campaign, unless they already belong to one. */
+export async function claimForCampaign(db: Db, kind: CanvasRefKind, refId: string, campaignId: string): Promise<void> {
+  if (kind === 'idea') await db.query('UPDATE ideas SET campaign_id = $2 WHERE id = $1 AND campaign_id IS NULL', [refId, campaignId]);
+  if (kind === 'post') await db.query('UPDATE posts SET campaign_id = $2 WHERE id = $1 AND campaign_id IS NULL', [refId, campaignId]);
+}
+
 export async function updateItemGeometry(db: Db, r: Pick<ItemRow, 'id' | 'x' | 'y' | 'width' | 'height' | 'parent_id'>): Promise<void> {
   await db.query('UPDATE canvas_items SET x = $2, y = $3, width = $4, height = $5, parent_id = $6, updated_at = now() WHERE id = $1', [
     r.id, r.x, r.y, r.width, r.height, r.parent_id,
@@ -322,4 +328,35 @@ export function gridRightOfAll(rows: ItemRow[], n: number, card: Size, cols: num
 export function columnStart(rows: ItemRow[], x: number, w: number, top: number): number {
   const inColumn = rows.filter((r) => !r.parent_id && Number(r.x) < x + w && Number(r.x) + sizeOf(r).w > x);
   return Math.max(top, ...inColumn.map((r) => Number(r.y) + sizeOf(r).h + GAP));
+}
+
+/**
+ * Place `refs.length` new cards: in a grid inside `frame` (growing it when they don't fit), or with `fallback`
+ * positions (absolute, no parent) when there is no frame.
+ */
+export async function placeCards(
+  db: Db,
+  campaignId: string,
+  rows: ItemRow[],
+  kind: CanvasRefKind,
+  refs: string[],
+  card: Size,
+  frame: ItemRow | undefined,
+  opts: { cols?: number; fallback: () => Point[] },
+): Promise<ItemRow[]> {
+  if (refs.length === 0) return [];
+  let positions: Point[];
+  let parentId: string | null = null;
+  if (frame) {
+    const grid = gridInFrame(frame, rows, refs.length, card, opts.cols);
+    positions = grid.positions;
+    parentId = frame.id;
+    if (grid.grow) await updateItemGeometry(db, { ...frame, width: grid.grow.w, height: grid.grow.h });
+  } else positions = opts.fallback();
+  const out: ItemRow[] = [];
+  for (const [i, refId] of refs.entries()) {
+    await claimForCampaign(db, kind, refId, campaignId);
+    out.push(await insertItem(db, { campaignId, kind, refId, parentId, x: positions[i]!.x, y: positions[i]!.y, width: card.w, height: card.h }));
+  }
+  return out;
 }

@@ -3,7 +3,7 @@ import type { DraftContextItem, ModelResult } from '@harbor/ai';
 import type { AppDeps } from '../app.ts';
 import type { Db } from '../db/client.ts';
 import { iso } from '../lib/http.ts';
-import { withRun, type RunInfo } from './runs.ts';
+import { withRun, type RunInfo, type RunOpts } from './runs.ts';
 
 export interface DraftRow {
   id: string;
@@ -71,7 +71,8 @@ export const DEFAULT_MAX: Record<Platform, number> = { x: 280, linkedin: 3000, i
 
 /**
  * Write one agent draft per platform for an idea, each a new version, recorded as one 'draft' agent run.
- * `context` (e.g. cards connected to the idea on a canvas) is passed to the model as extra material.
+ * `context` (e.g. cards connected to the idea on a canvas) is passed to the model as extra material; `opts.run` says
+ * where the run came from.
  */
 export async function generateDrafts(
   deps: Pick<AppDeps, 'db' | 'model' | 'registry'>,
@@ -79,6 +80,7 @@ export async function generateDrafts(
   idea: { id: string; title: string; angle: string },
   platforms: Platform[],
   context: DraftContextItem[] = [],
+  opts: { run?: RunOpts } = {},
 ): Promise<{ ids: string[]; run: RunInfo }> {
   const { db, model } = deps;
   const input = { ideaId: idea.id, platforms, ...(context.length ? { context: context.map((c) => c.kind) } : {}) };
@@ -92,6 +94,6 @@ export async function generateDrafts(
       ids.push(await insertDraft(db, { brandId: brand.id, ideaId: idea.id, platform, parts: res.result, author: 'agent', agentRunId: runId }));
     }
     return { value: ids, calls, output: { draftIds: ids } };
-  });
+  }, opts.run);
   return { ids, run };
 }

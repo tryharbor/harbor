@@ -14,7 +14,8 @@ export function splitSentences(text: string, source = 0): Sentence[] {
   const out: Sentence[] = [];
   let index = 0;
   for (const line of text.split(/\n+/)) {
-    const re = /[^.!?…]+(?:[.!?…]+["'’”)\]]*|$)/g;
+    // A period touching a letter or digit (1.7x, github.com) isn't a sentence end.
+    const re = /(?:[^.!?…]|\.(?=[\p{L}\p{N}]))+(?:[.!?…]+["'’”)\]]*|$)/gu;
     for (const m of line.matchAll(re)) {
       const s = m[0].trim();
       if (s && /[\p{L}\p{N}]/u.test(s)) out.push({ text: s, source, index: index++ });

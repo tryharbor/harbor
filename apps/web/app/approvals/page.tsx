@@ -1,0 +1,99 @@
+import Link from 'next/link';
+import { bulkApprovals } from '../agent-actions';
+import { getAgents, getApprovals, getBrands, loadAll, type AgentDef, type Approval, type ApprovalCounts, type BrandView } from '../api';
+import { checksPass } from '../agents/agent-ui';
+import { Flash, LoadError, PageHeader } from '../ui';
+import { ApprovalCard } from './approval-card';
+
+export const dynamic = 'force-dynamic';
+
+type Status = 'pending' | 'approved' | 'rejected';
+
+export default async function ApprovalsPage({ searchParams }: { searchParams: Promise<{ status?: string; brand?: string; run?: string; notice?: string; error?: string }> }) {
+  const s = await searchParams;
+  const status: Status = s.status === 'approved' || s.status === 'rejected' ? s.status : 'pending';
+  const res = await loadAll<[{ data: Approval[]; counts: ApprovalCounts }, AgentDef[], BrandView[]]>([
+    getApprovals({ status, brandId: s.brand, runId: s.run }),
+    getAgents(),
+    getBrands(),
+  ]);
+  if (!res.ok) return (<><PageHeader title="Approvals" /><LoadError message={res.error} /></>);
+  const [{ data: approvals, counts }, agents, brands] = res.data;
+  const agentName = new Map(agents.map((a) => [a.id, a.name]));
+  const params = (p: Record<string, string | undefined>) => {
+    const q = new URLSearchParams(Object.entries({ status: status === 'pending' ? undefined : status, brand: s.brand, run: s.run, ...p }).filter((e): e is [string, string] => !!e[1]));
+    return q.size ? `/approvals?${q}` : '/approvals';
+  };
+  const here = params({});
+  const passing = approvals.filter((a) => checksPass(a.checks) && new Date(a.proposedFor).getTime() > Date.now());
+
+  // Pending posts grouped by the day they'd go out.
+  const groups = new Map<string, Approval[]>();
+  for (const a of approvals) {
+    const key = status === 'pending' ? new Date(a.proposedFor).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'all';
+    groups.set(key, [...(groups.get(key) ?? []), a]);
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Approvals"
+        title={counts.pending ? `${counts.pending} post${counts.pending === 1 ? '' : 's'} waiting for you` : 'Nothing waiting'}
+        sub="Agents propose; you decide. Each post comes with the slot it was given, why, and how it did against Brand Memory. Approving schedules it."
+      />
+      <Flash params={s} />
+
+      <div className="spread" style={{ flexWrap: 'wrap', gap: 12 }}>
+        <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
+          <nav className="segmented" aria-label="Status">
+            <Link href={params({ status: undefined })} aria-current={status === 'pending' ? 'page' : undefined}>Waiting · {counts.pending}</Link>
+            <Link href={params({ status: 'approved' })} aria-current={status === 'approved' ? 'page' : undefined}>Approved · {counts.approved}</Link>
+            <Link href={params({ status: 'rejected' })} aria-current={status === 'rejected' ? 'page' : undefined}>Rejected · {counts.rejected}</Link>
+          </nav>
+          {brands.length > 1 ? (
+            <nav className="segmented" aria-label="Brand">
+              <Link href={params({ brand: undefined })} aria-current={!s.brand ? 'page' : undefined}>All brands</Link>
+              {brands.map((b) => <Link key={b.id} href={params({ brand: b.id })} aria-current={s.brand === b.id ? 'page' : undefined}>{b.name}</Link>)}
+            </nav>
+          ) : null}
+          {s.run ? <Link href={params({ run: undefined })} className="tag signal">From one run · clear ✕</Link> : null}
+        </div>
+        {status === 'pending' && approvals.length ? (
+          <form id="bulk" action={bulkApprovals} className="row" style={{ gap: 6 }}>
+            <input type="hidden" name="returnTo" value={here} />
+            <button type="submit" name="action" value="reject">Reject selected</button>
+            <button type="submit" name="action" value="approve">Approve selected</button>
+          </form>
+        ) : null}
+      </div>
+
+      {status === 'pending' && passing.length > 1 ? (
+        <form action={bulkApprovals} className="approve-all">
+          <input type="hidden" name="returnTo" value={here} />
+          <input type="hidden" name="action" value="approve" />
+          {passing.map((a) => <input key={a.id} type="hidden" name="ids" value={a.id} />)}
+          <span className="small"><strong>{passing.length} of {approvals.length}</strong> <span className="muted">pass every voice check and have a slot still ahead.</span></span>
+          <button type="submit" className="primary">Approve those {passing.length}</button>
+        </form>
+      ) : null}
+
+      {approvals.length ? (
+        [...groups].map(([day, items]) => (
+          <div key={day} className="stack" style={{ gap: 10 }}>
+            {status === 'pending' ? <span className="label">{day}</span> : null}
+            <div className="approval-list">
+              {items.map((a) => <ApprovalCard key={a.id} a={a} agentName={a.agentId ? agentName.get(a.agentId) : undefined} returnTo={here} selectable={status === 'pending'} />)}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="empty">
+          <span className="muted">
+            {status === 'pending' ? 'Nothing to review. Run the weekly plan, or set it to run every Monday, and its drafts will wait here.' : `No ${status} posts${s.brand || s.run ? ' for this filter' : ''} yet.`}
+          </span>
+          {status === 'pending' ? <span className="row" style={{ gap: 6 }}><Link className="button primary" href="/agents/weekly_plan">Run the weekly plan</Link><Link className="button" href="/agents/automations?agent=weekly_plan#new">Automate it</Link></span> : null}
+        </div>
+      )}
+    </>
+  );
+}

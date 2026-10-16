@@ -34,6 +34,8 @@ export interface GenerateIdeasInput {
   signals: Signal[];
   recentPosts: RecentPost[];
   count: number;
+  /** Extra direction for this batch (e.g. a digest's recommendations), most important first. */
+  guidance?: string[];
 }
 
 export interface IdeaSuggestion {

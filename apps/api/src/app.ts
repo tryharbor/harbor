@@ -7,6 +7,9 @@ import type { Db } from './db/client.ts';
 import { publishModeFromEnv, sandboxSecretKey, type PublishMode } from './lib/modes.ts';
 import { SecretStore } from './lib/secrets.ts';
 import { registerAgentRuns } from './routes/agent-runs.ts';
+import { registerApiKeys } from './routes/api-keys.ts';
+import { registerApprovals } from './routes/approvals.ts';
+import { registerAutomations } from './routes/automations.ts';
 import { registerBrands } from './routes/brands.ts';
 import { registerCampaigns } from './routes/campaigns.ts';
 import { registerChannels } from './routes/channels.ts';
@@ -14,9 +17,11 @@ import { registerCompetitors } from './routes/competitors.ts';
 import { registerDrafts } from './routes/drafts.ts';
 import { registerIdeas } from './routes/ideas.ts';
 import { registerInsights } from './routes/insights.ts';
+import { registerMcp } from './routes/mcp.ts';
 import { registerPosts } from './routes/posts.ts';
 import { registerSandbox } from './routes/sandbox.ts';
 import type { PublishDeps } from './services/publisher.ts';
+import type { WorkerDeps } from './worker.ts';
 
 export type Vars = { requestId: string };
 export type App = Hono<{ Variables: Vars }>;
@@ -48,6 +53,8 @@ export interface AppDeps {
   secrets: () => SecretStore;
   webUrl: string;
   publishDeps: () => PublishDeps;
+  /** What the worker needs: publishing plus the model for automations. */
+  workerDeps: () => WorkerDeps;
 }
 
 export function createDeps(db: Db, opts: AppOptions = {}): AppDeps {
@@ -67,6 +74,7 @@ export function createDeps(db: Db, opts: AppOptions = {}): AppDeps {
     secrets,
     webUrl: opts.webUrl ?? process.env.HARBOR_WEB_URL ?? 'http://localhost:4801',
     publishDeps: () => ({ db, registry, secrets: secrets() }),
+    workerDeps: () => ({ db, registry, secrets: secrets(), agents: { db, model, registry, publishMode, modelMode } }),
   };
 }
 
@@ -78,6 +86,7 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
     await next();
     c.header('Harbor-Request-Id', c.get('requestId'));
   });
+  // /mcp is for agents, not browsers, so it stays out of the web app's CORS rule (and authenticates with API keys).
   app.use('/v1/*', cors({ origin: opts.corsOrigins ?? [deps.webUrl] }));
 
   app.onError((err, c) => {
@@ -108,5 +117,9 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerAgentRuns(app, deps);
   registerCampaigns(app, deps);
   registerInsights(app, deps);
+  registerApprovals(app, deps);
+  registerAutomations(app, deps);
+  registerApiKeys(app, deps);
+  registerMcp(app, deps);
   return app;
 }

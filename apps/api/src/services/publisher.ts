@@ -16,6 +16,7 @@ import type { ProviderRegistry } from '@harbor/providers';
 import type { Db } from '../db/client.ts';
 import type { SecretStore } from '../lib/secrets.ts';
 import { getChannelRow, providerContext, setChannelStatus, type ChannelRow } from './channels.ts';
+import { emitEvent } from './events.ts';
 import { refreshOutcome } from './outcomes.ts';
 
 export interface PublishDeps {
@@ -128,6 +129,7 @@ async function markPublished(
     [post.id, result.platformPostId, result.url ?? null, error ? JSON.stringify(error) : null],
   );
   if (post.idea_id) await db.query("UPDATE ideas SET status = 'live', updated_at = now() WHERE id = $1", [post.idea_id]);
+  await emitEvent(db, 'post_published', post.brand_id, post.id);
 
   // Thread replies: each extra part answers the previous one. The post is already live, so a failure here is
   // recorded on the post, never retried as a new publish.

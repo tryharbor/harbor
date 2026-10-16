@@ -8,10 +8,10 @@ const db = await openDb();
 const deps = createDeps(db);
 const app = createApp(db, { corsOrigins: [deps.webUrl] }, deps);
 
-// The worker publishes scheduled posts and takes growth-curve snapshots. It needs the token key.
+// The worker publishes scheduled posts, takes growth-curve snapshots and runs automations. It needs the token key.
 let stopWorker: (() => Promise<void>) | undefined;
 try {
-  stopWorker = startWorker(deps.publishDeps());
+  stopWorker = startWorker(deps.workerDeps());
 } catch (err) {
   console.warn(`Background worker off: ${err instanceof Error ? err.message : err}`);
 }

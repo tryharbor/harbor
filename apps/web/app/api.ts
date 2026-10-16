@@ -22,6 +22,17 @@ export interface BrandVoice {
   sources: { kind: 'example' | 'url' | 'post'; label: string; ref?: string }[];
   learnedAt?: string;
   learnedBy?: string;
+  /** What each rule rests on (docs/design/memory-that-learns.md §1). */
+  evidence?: Evidence[];
+}
+export interface Evidence {
+  rule: string;
+  kind: 'do' | 'avoid' | 'banned' | 'value' | 'excerpt';
+  posts: string[];
+  signals: string[];
+  note?: string;
+  source: 'learned' | 'refresh' | 'saved' | 'owner';
+  at: string;
 }
 export interface Audience { id: string; name: string; description: string; painPoints: string[]; goals: string[] }
 export interface Product { id: string; name: string; summary: string; url?: string; cta?: string; proofPoints: string[] }
@@ -122,6 +133,8 @@ export interface PlatformInfo {
   platform: Platform;
   name: string;
   reportsMetrics: boolean;
+  /** Whether Harbor can read replies on this platform (X only with HARBOR_X_READ_REPLIES). */
+  reportsReplies?: boolean;
 }
 
 // ---- Transport ----
@@ -285,7 +298,7 @@ export interface AgentDef {
   automations: number;
 }
 export type RunSource = 'ui' | 'mcp' | 'automation' | 'canvas' | 'studio';
-export interface RunRef { kind: 'idea' | 'draft' | 'post' | 'digest' | 'approval' | 'run' | 'campaign'; id: string; label?: string }
+export interface RunRef { kind: 'idea' | 'draft' | 'post' | 'digest' | 'approval' | 'run' | 'campaign' | 'proposal'; id: string; label?: string }
 export interface RunStep { key: string; label: string; status: 'running' | 'succeeded' | 'failed' | 'skipped'; startedAt: string; finishedAt?: string; detail?: string; refs?: RunRef[] }
 export interface AgentRun {
   id: string;
@@ -370,3 +383,34 @@ export const getApprovals = (params: { status?: string; brandId?: string; runId?
 export const getAutomations = (brandId?: string) => api<{ data: Automation[] }>(`/v1/automations${qs({ brandId })}`).then(data);
 export const getApiKeys = () => api<{ data: ApiKey[] }>('/v1/api-keys').then(data);
 export const getMcpInfo = () => api<McpInfo>('/v1/mcp');
+
+// ---- Brand Memory that learns (docs/design/memory-that-learns.md) ----
+
+export interface MemoryChange {
+  id: string;
+  op: 'add' | 'remove';
+  target: 'voice.do' | 'voice.avoid' | 'voice.excerpts' | 'voice.bannedWords' | 'knowledge' | 'examplePosts';
+  text: string;
+  why: string;
+  lift?: number;
+  evidence: { posts: { id: string; text: string; platform: Platform; ratio?: number; verdict?: string }[]; signals: string[] };
+  status: 'pending' | 'accepted' | 'rejected';
+}
+export interface MemoryProposal { id: string; brandId: string; brandName: string; runId?: string; agentId?: string; status: 'pending' | 'applied' | 'rejected'; changes: MemoryChange[]; createdAt: string; decidedAt?: string }
+export type ProposalCounts = { pending: number; applied: number; rejected: number };
+
+export type ReplyKind = 'question' | 'objection' | 'praise' | 'request' | 'other';
+export interface ReplyView { id: string; postId: string; author: { handle: string; displayName?: string }; text: string; createdAt: string; likes?: number; kind: ReplyKind; themeId?: string }
+export interface Theme { id: string; label: string; kind: ReplyKind; keyword?: string; count: number; posts: string[]; sample: ReplyView[] }
+export interface Conversation { themes: Theme[]; total: number; byKind: Record<ReplyKind, number> }
+
+export type AppliedRule = { kind: 'do' | 'avoid' | 'banned' | 'excerpt' | 'term' | 'product' | 'audience' | 'value'; text: string; evidence?: Evidence };
+export interface MemoryPreview { platform: Platform; with: { parts: PostPart[] }; without: { parts: PostPart[] }; applied: AppliedRule[]; run: RunInfo }
+
+export interface ScannedPost { platformPostId: string; text: string; publishedAt: string; url?: string; metrics?: NormalizedMetrics; alreadyImported: boolean }
+export interface ImportScan { scanId: string; channelId: string; supported: boolean; found: ScannedPost[] }
+
+export const getMemoryProposals = (params: { status?: string; brandId?: string } = {}) =>
+  api<{ data: MemoryProposal[]; counts: ProposalCounts }>(`/v1/memory-proposals${qs(params)}`);
+export const getReplies = (postId: string) => api<{ data: ReplyView[]; themes: Theme[]; supported: boolean }>(`/v1/posts/${postId}/replies`);
+export const getConversation = (brandId: string, days?: string) => api<Conversation>(`/v1/brands/${brandId}/conversation${qs({ days })}`);

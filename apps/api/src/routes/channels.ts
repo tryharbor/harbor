@@ -1,7 +1,14 @@
+import { z } from 'zod';
 import { HarborError, PLATFORM_METRICS, platformSchema } from '@harbor/core';
 import { getProvider } from '@harbor/providers';
 import type { App, AppDeps } from '../app.ts';
+import { body, check } from '../lib/http.ts';
 import { getChannelRow, toChannel, upsertChannel, type ChannelRow } from '../services/channels.ts';
+import { SCAN_DEFAULT, SCAN_MAX, importScanned, scanChannel } from '../services/imports.ts';
+import { supportsReplies } from '../services/replies.ts';
+
+const scanSchema = z.object({ limit: z.number().int().min(1).max(SCAN_MAX).default(SCAN_DEFAULT) }).strict();
+const importSchema = z.object({ scanId: z.string().min(1), include: z.array(z.string().min(1)).max(SCAN_MAX) }).strict();
 
 /** An OAuth handshake must finish within this window. */
 const STATE_TTL_MIN = 15;
@@ -18,6 +25,7 @@ export function registerChannels(app: App, deps: AppDeps) {
         name: p.name,
         metrics: PLATFORM_METRICS[p.identifier],
         reportsMetrics: typeof p.fetchPostMetrics === 'function',
+        reportsReplies: supportsReplies(p),
       })),
     }),
   );
@@ -80,6 +88,19 @@ export function registerChannels(app: App, deps: AppDeps) {
     } catch (err) {
       return c.redirect(back(brandId, { error: `Connecting ${provider.name} failed: ${err instanceof Error ? err.message : 'unknown error'}` }), 302);
     }
+  });
+
+  /** Scan the channel's recent posts for import ({ limit ≤ 50, default 30 }). The scan is kept for an hour. */
+  app.post('/v1/channels/:id/import/scan', async (c) => {
+    const raw = await c.req.json().catch(() => ({}));
+    const { limit } = check(scanSchema, raw ?? {});
+    return c.json(await scanChannel(deps.publishDeps(), c.req.param('id'), limit));
+  });
+
+  /** Import the reviewed posts of a scan (`include`: platform post ids) as published posts with origin 'imported'. */
+  app.post('/v1/channels/:id/import', async (c) => {
+    const input = await body(c, importSchema);
+    return c.json(await importScanned(deps.publishDeps(), c.req.param('id'), input));
   });
 
   /** Disconnect in Harbor: forgets the token. (Revoke access on the platform's own settings page too.) */

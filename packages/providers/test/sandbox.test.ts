@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PLATFORM_METRICS, PLATFORMS, PublishOutcomeUnknown, RateLimited, type ProviderContext } from '@harbor/core';
-import { SANDBOX_PEAK_HOUR, SandboxProvider, createSandboxRegistry, sandboxMetricsAt, sandboxPostTime, sandboxTraitMultiplier, sandboxTraits } from '../src/index.ts';
+import { SANDBOX_PEAK_HOUR, SandboxProvider, createSandboxRegistry, sandboxHistory, sandboxMetricsAt, sandboxPostTime, sandboxReplies, sandboxTraitMultiplier, sandboxTraits } from '../src/index.ts';
 
 const ctx: ProviderContext = { accessToken: 'sbx_access', account: { platformAccountId: 'sbx_1', handle: 'harbor' } };
 const text = (t: string) => [{ text: t, media: [] }];
@@ -139,6 +139,62 @@ describe('sandbox provider', () => {
       const thread = await x.fetchPostMetrics!(settings([{ text: 'Hello', media: [] }, { text: 'More', media: [] }]), 'sbx_same_1');
       expect(thread.metrics.views! / single.metrics.views!).toBeCloseTo(1.4, 1);
       expect((thread.raw as { curve: { factors: Record<string, number> } }).curve.factors.thread).toBe(1.4);
+    });
+  });
+
+  describe('replies and history', () => {
+    const t0 = Date.UTC(2026, 9, 1, 9);
+    const parts = text('Growth curves beat totals: the snapshot poller checks every post.');
+
+    it('reports replies where the real platform does (not LinkedIn)', () => {
+      const reg = createSandboxRegistry();
+      expect(Object.fromEntries([...reg.values()].map((p) => [p.identifier, p.reportsReplies]))).toEqual({ x: true, linkedin: false, instagram: true, threads: true });
+      expect(reg.get('linkedin')!.fetchReplies).toBeUndefined();
+      expect(reg.get('linkedin')!.listRecentPosts).toBeUndefined();
+    });
+
+    it('writes deterministic replies that echo the post and grow with its comment count', async () => {
+      const id = `sbx_${t0.toString(36)}_abcd`;
+      const later = t0 + 72 * 3_600_000;
+      const a = sandboxReplies('x', id, parts, t0, later);
+      expect(a).toEqual(sandboxReplies('x', id, parts, t0, later));
+      const comments = sandboxMetricsAt('x', id, 72, sandboxTraits(parts, t0)).metrics.comments!;
+      expect(a).toHaveLength(Math.min(25, comments));
+      expect(a.length).toBeGreaterThan(0);
+      for (const r of a) {
+        expect(r.platformReplyId).toMatch(new RegExp(`^${id}_r\\d+$`));
+        expect(/snapshot|growth/.test(r.text)).toBe(true); // the opening's two longest words
+        expect(Date.parse(r.createdAt)).toBeGreaterThanOrEqual(t0);
+        expect(Date.parse(r.createdAt)).toBeLessThanOrEqual(later);
+      }
+      expect(sandboxReplies('x', id, parts, t0, later, 2)).toHaveLength(Math.min(2, a.length));
+      expect(sandboxReplies('x', `sbx_${t0.toString(36)}_ffff`, parts, t0, later)).not.toEqual(a);
+
+      const p = new SandboxProvider('threads', { now: () => later });
+      const viaProvider = await p.fetchReplies!({ ...ctx, settings: { publishedAt: new Date(t0).toISOString(), parts } }, id, {});
+      expect(viaProvider).toEqual(sandboxReplies('threads', id, parts, t0, later));
+    });
+
+    it('lists 20–40 past posts over 60 days, with the same ids from one scan to the next', async () => {
+      const now = Date.UTC(2026, 9, 15, 12);
+      const all = sandboxHistory('threads', 'sbx_threads_acct', now, 100);
+      expect(all.length).toBeGreaterThanOrEqual(19);
+      expect(all.length).toBeLessThanOrEqual(40);
+      for (const p of all) {
+        expect(now - Date.parse(p.publishedAt)).toBeLessThan(60 * 86_400_000);
+        expect(p.metrics?.views).toBeGreaterThan(0);
+        expect(sandboxPostTime(p.platformPostId)).toBe(Date.parse(p.publishedAt));
+      }
+      expect(all.map((p) => p.publishedAt)).toEqual([...all.map((p) => p.publishedAt)].sort().reverse());
+      // An hour later the same posts keep their ids; only their metrics move.
+      const next = sandboxHistory('threads', 'sbx_threads_acct', now + 3_600_000, 100);
+      expect(next.map((p) => p.platformPostId)).toEqual(all.map((p) => p.platformPostId));
+      expect(sandboxHistory('threads', 'sbx_threads_acct', now, 5)).toEqual(all.slice(0, 5));
+      expect(sandboxHistory('threads', 'sbx_other', now, 100).map((p) => p.platformPostId)).not.toEqual(all.map((p) => p.platformPostId));
+
+      const examples = ['Roasting batch 41 today: cherry, cocoa and honey.'];
+      const voiced = await new SandboxProvider('instagram', { now: () => now }).listRecentPosts!({ ...ctx, settings: { examples } }, { limit: 40 });
+      expect(voiced.some((p) => p.text === examples[0])).toBe(true);
     });
   });
 });

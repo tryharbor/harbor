@@ -1,6 +1,7 @@
 import type { Channel } from '@harbor/core';
 import { disconnectChannel } from '../../../actions';
 import { API_PUBLIC_URL, getChannels, getMode, getPlatforms, loadAll, type Mode, type PlatformInfo } from '../../../api';
+import { ImportPosts } from '../../../components/import-posts';
 import { SandboxConnect } from '../../../components/sandbox-connect';
 import { Flash, LoadError, PLATFORM_NAME, PlatformTag, when } from '../../../ui';
 import { PlatformIcon } from '../../../platform-icon';
@@ -49,6 +50,7 @@ export default async function ChannelsPage({ params, searchParams }: { params: P
                 <div key={c.id} className="stack" style={{ borderTop: '1px solid var(--line)', paddingTop: 12, gap: 8 }}>
                   <span className="row"><PlatformTag platform={c.platform} handle={c.account.handle} /> <span className={`pill s-${c.status}`}>{c.status.replace('_', ' ')}</span></span>
                   {c.tokenExpiresAt ? <span className="dim small">Access until {when(c.tokenExpiresAt, { dateStyle: 'medium' })}</span> : null}
+                  {c.status === 'connected' ? <ImportPosts channelId={c.id} brandId={id} supported={sandbox || p.platform === 'instagram' || p.platform === 'threads' || (p.platform === 'x' && !!p.reportsReplies)} /> : null}
                   <div className="row">
                     {c.status !== 'connected' && !sandbox ? <a className="button primary" href={connectUrl(p.platform)}>Reconnect</a> : null}
                     <form action={disconnectChannel}>

@@ -27,16 +27,20 @@ import {
   type Sentence,
 } from './text.ts';
 import { digest } from './digest.ts';
+import { refineVoiceChanges } from './refine.ts';
 import type {
   ContentModel,
   DigestInput,
   DigestResult,
+  DraftChange,
   DraftInput,
   GenerateIdeasInput,
   IdeaSuggestion,
   LearnVoiceInput,
   ModelResult,
+  RefineVoiceChangesInput,
   RewriteInput,
+  TraceItem,
 } from './types.ts';
 
 export const SIMULATED_MODEL_NAME = 'simulated-v1';
@@ -72,7 +76,8 @@ export class SimulatedModel implements ContentModel {
   }
 
   async draft(input: DraftInput): Promise<ModelResult<PostPart[]>> {
-    return this.wrap({ ...input, brand: input.brand.memory }, draft(input));
+    const { parts, trace } = draftWithTrace(input);
+    return { ...this.wrap({ ...input, brand: input.brand.memory }, parts), trace };
   }
 
   async rewrite(input: RewriteInput): Promise<ModelResult<string[]>> {
@@ -81,6 +86,10 @@ export class SimulatedModel implements ContentModel {
 
   async digest(input: DigestInput): Promise<ModelResult<DigestResult>> {
     return this.wrap(input, digest(input));
+  }
+
+  async refineVoiceChanges(input: RefineVoiceChangesInput): Promise<ModelResult<DraftChange[]>> {
+    return this.wrap(input, refineVoiceChanges(input));
   }
 }
 
@@ -267,6 +276,8 @@ export function learnVoice(input: LearnVoiceInput, now: Date): BrandVoice {
     sources,
     learnedAt: now.toISOString(),
     learnedBy: SIMULATED_MODEL_NAME,
+    // Evidence for rules that survive the relearn is kept; the rest is dropped when the voice is saved.
+    evidence: prior?.evidence ?? [],
   };
 }
 
@@ -454,19 +465,40 @@ export function generateIdeas(input: GenerateIdeasInput): IdeaSuggestion[] {
 // Drafting
 // =====================================================================================================================
 
-/** Apply the brand's style rules and banned words to generated text. */
-export function applyStyle(brand: Brand, text: string): string {
+/**
+ * Apply the brand's style rules and banned words to generated text. With `trace`, records each rule that changed
+ * the text: preferred terms, banned words, and the voice's avoid rules (hype words, exclamation marks, hashtags, emoji).
+ */
+export function applyStyle(brand: Brand, text: string, trace?: TraceItem[]): string {
   const m = brand.memory;
   let out = text;
+  const note = (item: TraceItem, before: string) => {
+    if (trace && before !== out && !trace.some((t) => t.kind === item.kind && t.text === item.text)) trace.push(item);
+  };
   for (const t of m.styleRules.terms) {
+    const before = out;
     out = out.replace(wordRe(t.insteadOf), (hit) => (/^[A-Z]/.test(hit) ? upperFirst(t.use) : t.use));
+    note({ kind: 'term', text: `"${t.use}" instead of "${t.insteadOf}"` }, before);
   }
   const banned = dedupeStrings([...m.voice.bannedWords, ...hypeWordsIn(m.voice.avoid)]);
-  for (const w of banned) out = out.replace(wordRe(w), '').replace(/ {2,}/g, ' ').replace(/ ([,.;:!?])/g, '$1');
+  for (const w of banned) {
+    const before = out;
+    out = out.replace(wordRe(w), '').replace(/ {2,}/g, ' ').replace(/ ([,.;:!?])/g, '$1');
+    const own = m.voice.bannedWords.find((b) => b.trim().toLowerCase() === w.trim().toLowerCase());
+    const rule = own ? undefined : m.voice.avoid.find((r) => containsWord(r, w));
+    note(own ? { kind: 'banned', text: own } : { kind: 'avoid', text: rule ?? w }, before);
+  }
   const avoid = [...m.voice.avoid, ...m.styleRules.formatting].join(' ').toLowerCase();
-  if (/exclamation/.test(avoid)) out = out.replace(/!+/g, '.');
-  if (/hashtag/.test(avoid)) out = out.replace(/(^|\s)#[\p{L}\d_]+/gu, '$1').replace(/ {2,}/g, ' ');
-  if (/emoji/.test(avoid)) out = out.replace(EMOJI_RE_G, '').replace(/ {2,}/g, ' ');
+  const avoidRule = (re: RegExp) => m.voice.avoid.find((r) => re.test(r));
+  const strip = (re: RegExp, fn: (s: string) => string) => {
+    const before = out;
+    out = fn(out);
+    const rule = avoidRule(re);
+    if (rule) note({ kind: 'avoid', text: rule }, before);
+  };
+  if (/exclamation/.test(avoid)) strip(/exclamation/i, (s) => s.replace(/!+/g, '.'));
+  if (/hashtag/.test(avoid)) strip(/hashtag/i, (s) => s.replace(/(^|\s)#[\p{L}\d_]+/gu, '$1').replace(/ {2,}/g, ' '));
+  if (/emoji/.test(avoid)) strip(/emoji/i, (s) => s.replace(EMOJI_RE_G, '').replace(/ {2,}/g, ' '));
   return out
     .split('\n')
     .map((l) => l.trim())
@@ -533,6 +565,15 @@ export function contextParagraphs(context: NonNullable<DraftInput['context']>): 
 }
 
 export function draft(input: DraftInput): PostPart[] {
+  return draftWithTrace(input).parts;
+}
+
+/** The draft, plus the Brand Memory it used: the audience, product, a do rule, and every style rule that changed the text. */
+export function draftWithTrace(input: DraftInput): { parts: PostPart[]; trace: TraceItem[] } {
+  const trace: TraceItem[] = [];
+  const use = (item: TraceItem) => {
+    if (!trace.some((t) => t.kind === item.kind && t.text === item.text)) trace.push(item);
+  };
   const { brand, idea, platform, maxLength } = input;
   const m = brand.memory;
   const pov = povOf(brand);
@@ -546,27 +587,44 @@ export function draft(input: DraftInput): PostPart[] {
   const statements = angleSentences.filter((s) => !isInstruction(s));
   const instruction = angleSentences.find(isInstruction);
   const paragraphs: string[] = [hook];
+  // "Open with a number": lead with a sentence that already holds a real number (never invent one), else leave a note.
+  const numberRule = m.voice.do.find((d) => /open\w* with a number/i.test(d));
+  let lead: string | undefined;
+  if (numberRule && !/^\d/.test(hook)) {
+    const proofText = product?.proofPoints[0];
+    const numbered = [...angleSentences, ...(proofText ? [proofText] : [])].find((t) => /^\W*\d/.test(t) && !isInstruction(t));
+    lead = numbered;
+    paragraphs.unshift(numbered ? ensureEnd(numbered) : '[Open with the number that matters here.]');
+    use({ kind: 'do', text: numberRule });
+  }
   paragraphs.push(...contextParagraphs(input.context ?? []));
-  paragraphs.push(...statements.slice(0, 3).map(ensureEnd));
+  paragraphs.push(...statements.filter((t) => t !== lead).slice(0, 3).map(ensureEnd));
   if (instruction) paragraphs.push(`[${stripEnd(instruction)}.]`);
   if (audience?.painPoints[0] && !idea.angle.toLowerCase().includes(audience.painPoints[0].toLowerCase())) {
     paragraphs.push(`If ${lowerFirst(stripEnd(audience.painPoints[0]))} sounds familiar, this one's for you.`);
+    use({ kind: 'audience', text: audience.name });
   }
   const proof = product?.proofPoints[0];
-  if (proof) paragraphs.push(`Proof point: ${stripEnd(proof)}.`);
+  if (proof && proof !== lead) paragraphs.push(`Proof point: ${stripEnd(proof)}.`);
+  const questionRule = m.voice.do.find((d) => /question/i.test(d));
   if (product?.cta || product?.url) {
     const cta = product.cta ? stripEnd(product.cta) : `More on ${product.name}`;
     if (platform === 'instagram') paragraphs.push(`${cta} (link in bio).`);
     else paragraphs.push(product.url ? `${cta}: ${product.url}` : `${cta}.`);
-  } else if (m.voice.do.some((d) => /question/i.test(d))) {
+  } else if (questionRule) {
     paragraphs.push(pov === 'I' ? 'How do you handle this?' : 'How does your team handle this?');
+    use({ kind: 'do', text: questionRule });
   }
+  if (product && (proof || product.cta || product.url)) use({ kind: 'product', text: product.name });
+  // The link always goes last (its own thread part when it's long enough to split), which is what this rule asks for.
+  const linkRule = m.voice.avoid.find((a) => /link/i.test(a) && /first/i.test(a));
+  if (linkRule && product?.url && platform !== 'instagram') use({ kind: 'avoid', text: linkRule });
 
-  const styled = paragraphs.map((p) => applyStyle(brand, p)).filter(Boolean);
+  const styled = paragraphs.map((p) => applyStyle(brand, p, trace)).filter(Boolean);
   const max = Math.max(20, maxLength);
   const total = charLen(styled.join('\n\n'));
-  if (isThreadPlatform(platform) && total > max) return packThread(styled, max).map((text) => ({ text, media: [] }));
-  return [{ text: fitSingle(styled, max), media: [] }];
+  if (isThreadPlatform(platform) && total > max) return { parts: packThread(styled, max).map((text) => ({ text, media: [] })), trace };
+  return { parts: [{ text: fitSingle(styled, max), media: [] }], trace };
 }
 
 // =====================================================================================================================

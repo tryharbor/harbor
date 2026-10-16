@@ -45,6 +45,7 @@ export function refHref(ref: RunRef, ctx: { brandId?: string; ideaByDraft?: Map<
     case 'approval': return `/approvals#${ref.id}`;
     case 'run': return `/agents/runs/${ref.id}`;
     case 'campaign': return `/campaigns/${ref.id}`;
+    case 'proposal': return `/approvals?tab=memory#${ref.id}`;
   }
 }
 

@@ -146,7 +146,7 @@ describe('the worker', () => {
     const fail = async () => {
       throw new Error('model is down');
     };
-    const broken: ContentModel = { name: 'broken-v1', simulated: true, learnVoice: fail, generateIdeas: fail, draft: fail, rewrite: fail, digest: fail };
+    const broken: ContentModel = { name: 'broken-v1', simulated: true, learnVoice: fail, generateIdeas: fail, draft: fail, rewrite: fail, digest: fail, refineVoiceChanges: fail };
     const brokenDeps = createDeps(db, { publishMode: 'sandbox', model: broken });
     const a = await json('POST', '/v1/automations', { brandId, agentId: 'digest', trigger: { type: 'schedule', weekday: 4, hour: 9 }, maxRunsPerDay: 10 }, 201);
     for (let i = 1; i <= 3; i++) {

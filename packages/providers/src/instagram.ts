@@ -7,14 +7,16 @@ import {
   type JsonObject,
   type MediaRef,
   type NormalizedMetrics,
+  type PastPost,
   type PostMetrics,
   type ProviderContext,
   type PublishRequest,
   type PublishResult,
+  type Reply,
   type StatusCheck,
   type TokenSet,
 } from '@harbor/core';
-import { asRecord, expiresAtFrom, optionalString, optionalUrl, randomState, splitScopes } from './base.ts';
+import { asRecord, expiresAtFrom, isoTime, optionalCount, optionalString, optionalUrl, randomState, splitScopes } from './base.ts';
 import { MetaGraphProvider, readInsights } from './meta.ts';
 
 export const INSTAGRAM_GRAPH_VERSION = 'v23.0';
@@ -31,6 +33,7 @@ export class InstagramProvider extends MetaGraphProvider {
   readonly identifier = 'instagram' as const;
   readonly name = 'Instagram';
   readonly scopes = ['instagram_business_basic', 'instagram_business_content_publish', 'instagram_business_manage_insights'] as const;
+  override readonly reportsReplies = true;
   protected override readonly maxMedia = 10;
   protected override readonly requiresMedia = true;
   protected readonly envNames = ['INSTAGRAM_APP_ID', 'INSTAGRAM_APP_SECRET'] as const;
@@ -166,6 +169,46 @@ export class InstagramProvider extends MetaGraphProvider {
       query: { metric: 'views,reach,likes,comments,shares,saved', access_token: ctx.accessToken },
     });
     return { raw, metrics: mapInstagramInsights(raw), adapterVersion: this.adapterVersion };
+  }
+
+  // ---- Replies and history ----
+
+  /** Comments on a post. The account's own comments are left out. */
+  async fetchReplies(ctx: ProviderContext, platformPostId: string, opts: { limit?: number } = {}): Promise<Reply[]> {
+    const { data } = await this.request({
+      url: `${API}/${encodeURIComponent(platformPostId)}/comments`,
+      query: { fields: 'id,text,username,timestamp,like_count', limit: String(Math.min(100, opts.limit ?? 50)), access_token: ctx.accessToken },
+    });
+    const list = asRecord(data).data;
+    return (Array.isArray(list) ? list : [])
+      .map(asRecord)
+      .filter((r) => r.id && typeof r.text === 'string' && r.text.trim() && r.username !== ctx.account.handle)
+      .map((r) => ({
+        platformReplyId: String(r.id),
+        author: { handle: String(r.username ?? 'unknown') },
+        text: String(r.text),
+        createdAt: isoTime(r.timestamp),
+        ...(optionalCount(r.like_count) !== undefined ? { likes: optionalCount(r.like_count) } : {}),
+      }));
+  }
+
+  /** The account's recent media with captions, each with its insights (or the like and comment counts when insights fail). */
+  async listRecentPosts(ctx: ProviderContext, opts: { limit: number }): Promise<PastPost[]> {
+    const { data } = await this.request({
+      url: `${API}/me/media`,
+      query: { fields: 'id,caption,permalink,timestamp,media_type,like_count,comments_count', limit: String(Math.min(100, Math.max(1, opts.limit))), access_token: ctx.accessToken },
+    });
+    const list = asRecord(data).data;
+    const out: PastPost[] = [];
+    for (const r of (Array.isArray(list) ? list : []).map(asRecord).slice(0, opts.limit)) {
+      if (!r.id) continue;
+      const counts: NormalizedMetrics = {};
+      if (optionalCount(r.like_count) !== undefined) counts.likes = optionalCount(r.like_count);
+      if (optionalCount(r.comments_count) !== undefined) counts.comments = optionalCount(r.comments_count);
+      const metrics = await this.fetchPostMetrics(ctx, String(r.id)).then((m) => ({ ...counts, ...m.metrics }), () => (Object.keys(counts).length ? counts : undefined));
+      out.push({ platformPostId: String(r.id), text: typeof r.caption === 'string' ? r.caption : '', publishedAt: isoTime(r.timestamp), url: optionalUrl(r.permalink), metrics });
+    }
+    return out;
   }
 }
 

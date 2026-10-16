@@ -25,6 +25,7 @@ class FakeProvider implements PlatformProvider {
   readonly scopes = ['write'];
   readonly adapterVersion = 'test-1';
   readonly maxConcurrentJobs = 1;
+  readonly reportsReplies = false;
   mode: 'published' | 'pending' | 'unknown' | 'rate_limited' = 'published';
   calls = { publish: 0, comment: [] as string[], finalize: 0, refresh: 0 };
   constructor(readonly identifier: Platform) {

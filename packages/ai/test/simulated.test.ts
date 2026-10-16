@@ -139,3 +139,40 @@ describe('createModel', () => {
     expect(() => createModel({ HARBOR_MODEL: 'gpt' })).toThrow();
   });
 });
+
+describe('Brand Memory that learns', () => {
+  it('traces the Brand Memory a draft actually used', async () => {
+    const res = await model.draft({ brand, idea: { title: 'Our users leverage synergy', angle: 'One place for every brand!' }, platform: 'linkedin', maxLength: 3000 });
+    expect(res.result[0]!.text).not.toMatch(/leverage|synergy|!/);
+    expect(res.trace).toEqual(
+      expect.arrayContaining([
+        { kind: 'term', text: '"customers" instead of "users"' },
+        { kind: 'banned', text: 'synergy' },
+        { kind: 'avoid', text: 'Hype words: leverage, unlock.' },
+        { kind: 'avoid', text: 'Exclamation marks.' },
+        { kind: 'audience', text: 'Indie hackers' },
+        { kind: 'product', text: 'Harbor' },
+      ]),
+    );
+    const plain = await model.draft({ brand, idea: { title: 'A calm title', angle: '' }, platform: 'x', maxLength: 280 });
+    expect(plain.trace!.some((t) => t.kind === 'banned' || t.kind === 'term')).toBe(false);
+    const empty = await model.draft({ brand: makeBrand({}), idea: { title: 'A calm title', angle: '' }, platform: 'x', maxLength: 280 });
+    expect(empty.trace).toEqual([]);
+  });
+
+  it('polishes voice changes from templates, one per change in order, keeping removals verbatim', async () => {
+    const voice = brandVoiceSchema.parse({ do: ['Write as "I"'] });
+    const changes = [
+      { op: 'remove' as const, target: 'voice.avoid' as const, text: 'Opening with a number', why: 'It goes against the results', feature: 'numberOpen' },
+      { op: 'add' as const, target: 'voice.do' as const, text: 'Open with a number.', why: 'Posts opening with a number did 1.6× the median (5 vs 7 posts)', lift: 1.6, feature: 'numberOpen' },
+      { op: 'add' as const, target: 'voice.excerpts' as const, text: 'Two make money, one breaks even.', why: 'From a winner.' },
+    ];
+    const res = await model.refineVoiceChanges({ brandName: 'Harbor', voice, changes });
+    expect(res.simulated).toBe(true);
+    expect(res.result.map((c) => c.text)).toEqual(['Opening with a number', 'Open with a number ("3 things…", "$1,240…").', 'Two make money, one breaks even.']);
+    expect(res.result[0]!.why).toBe('It goes against the results.');
+    expect(res.result[1]).toMatchObject({ lift: 1.6, feature: 'numberOpen' });
+    expect(await model.refineVoiceChanges({ brandName: 'Harbor', voice, changes })).toEqual(res);
+    await expect(new AnthropicModel().refineVoiceChanges()).rejects.toBeInstanceOf(HarborError);
+  });
+});

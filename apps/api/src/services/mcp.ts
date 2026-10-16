@@ -12,6 +12,9 @@ import { CARD, SELECT_CAMPAIGNS, gridRightOfAll, insertItem, listItems, loadCamp
 import { generateDrafts, loadDraft } from './drafts.ts';
 import { SELECT_IDEAS, generateIdeas, insertIdea, loadIdea, toIdea, type IdeaRow } from './ideas.ts';
 import { requireDigest } from './insights.ts';
+import { SAVE_AS, SAVE_SOURCES, saveToMemory } from './memory.ts';
+import { listMemoryProposals } from './memory-proposals.ts';
+import { brandConversation } from './replies.ts';
 import { SELECT_POSTS, loadPost, loadPostDetail, toPost, type PostListRow } from './posts.ts';
 import type { RunOpts } from './runs.ts';
 
@@ -161,6 +164,28 @@ const TOOLS: ToolDef<z.ZodRawShape>[] = [
     },
   }),
   tool({
+    name: 'list_memory_proposals',
+    description: 'Brand Memory changes agents proposed (the voice refresh): each change with why, its lift and the posts behind it. Pending first. A person applies them in Harbor.',
+    scope: 'read',
+    input: { status: z.enum(['pending', 'applied', 'rejected']).optional(), brandId: id('brand').optional() },
+    async run({ status, brandId }, ctx) {
+      if (brandId) await ctx.brand(brandId);
+      const res = await listMemoryProposals(ctx.deps.db, { status, brandId });
+      return { summary: `${res.counts.pending} pending, ${res.counts.applied} applied, ${res.counts.rejected} rejected`, data: res };
+    },
+  }),
+  tool({
+    name: 'get_conversation',
+    description: "What people say in replies to a brand's posts, grouped into themes (questions, objections, praise, requests), largest first.",
+    scope: 'read',
+    input: { brandId: id('brand'), days: z.number().int().min(1).max(365).default(30) },
+    async run({ brandId, days }, ctx) {
+      const b = await ctx.brand(brandId);
+      const res = await brandConversation(ctx.deps.db, b.id, days);
+      return { summary: `${res.total} ${res.total === 1 ? 'reply' : 'replies'} in ${plural(res.themes.length, 'theme')} for ${b.name} (last ${days} days)`, data: res };
+    },
+  }),
+  tool({
     name: 'list_agents',
     description: "Harbor's built-in agents: what each does, its inputs and its steps. Run one with run_agent.",
     scope: 'read',
@@ -257,6 +282,25 @@ const TOOLS: ToolDef<z.ZodRawShape>[] = [
       const memory = brandMemorySchema.parse({ ...b.memory, knowledge: [...b.memory.knowledge, item] });
       await ctx.deps.db.query('UPDATE brands SET memory = $2, updated_at = now() WHERE id = $1', [b.id, JSON.stringify(memory)]);
       return { summary: `Added "${title}" to ${b.name}'s knowledge`, data: item };
+    },
+  }),
+  tool({
+    name: 'save_to_memory',
+    description:
+      "Save a post, reply, reply theme, signal or draft to a brand's Brand Memory as a knowledge note, an excerpt, an example post, or a do / avoid rule. Rules link back to their source as evidence.",
+    scope: 'write',
+    input: {
+      brandId: id('brand'),
+      from: z.object({ kind: z.enum(SAVE_SOURCES), id: z.string().min(1) }),
+      as: z.enum(SAVE_AS),
+      text: z.string().trim().min(1).max(20_000).optional(),
+      note: z.string().max(2000).optional(),
+      title: z.string().trim().min(1).max(300).optional(),
+    },
+    async run({ brandId, ...input }, ctx) {
+      const b = await ctx.brand(brandId);
+      const res = await saveToMemory(ctx.deps.db, b, input);
+      return { summary: `Saved to ${b.name}'s ${res.saved.target}`, data: res };
     },
   }),
   tool({

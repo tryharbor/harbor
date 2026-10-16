@@ -6,6 +6,8 @@ export * from './types.ts';
 export { SimulatedModel, SIMULATED_MODEL_NAME, applyStyle, contextParagraphs, voiceStats, type SimulatedModelOptions, type VoiceStats } from './simulated.ts';
 export { AnthropicModel, ANTHROPIC_OFF_MESSAGE } from './anthropic.ts';
 export { digest, postTraits, hourBand, type PostTraits, type HourBand } from './digest.ts';
+export { STOPWORDS, splitSentences, words } from './text.ts';
+export { VOICE_CHANGE_TEMPLATES, refineVoiceChanges } from './refine.ts';
 
 export const MODEL_MODES = ['simulated', 'anthropic'] as const;
 export type ModelMode = (typeof MODEL_MODES)[number];

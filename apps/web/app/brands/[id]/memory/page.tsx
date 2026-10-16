@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { getBrand, getCompetitors, loadAll, type BrandView, type Competitor } from '../../../api';
+import { getBrand, getCompetitors, getMemoryProposals, getPosts, loadAll, type BrandView, type Competitor, type MemoryProposal, type PostView } from '../../../api';
+import { VoiceEvidence } from '../../../components/voice-evidence';
 import { CompetitorsSection, ListSection, MemoryPreview, StyleSection, VoiceSection } from '../../../components/memory-sections';
 import { Flash, LoadError } from '../../../ui';
 
@@ -20,9 +21,14 @@ export default async function MemoryPage({ params, searchParams }: { params: Pro
   const { id } = await params;
   const s = await searchParams;
   const section: Section = (SECTIONS.find((x) => x.key === s.section)?.key ?? 'voice') as Section;
-  const res = await loadAll<[BrandView, Competitor[]]>([getBrand(id), getCompetitors(id)]);
+  const res = await loadAll<[BrandView, Competitor[], PostView[], MemoryProposal[]]>([
+    getBrand(id),
+    getCompetitors(id),
+    section === 'voice' ? getPosts({ brandId: id, status: 'published', limit: '200' }) : Promise.resolve([]),
+    section === 'voice' ? getMemoryProposals({ brandId: id, status: 'pending' }).then((r) => r.data) : Promise.resolve([]),
+  ]);
   if (!res.ok) return <LoadError message={res.error} />;
-  const [brand, competitors] = res.data;
+  const [brand, competitors, posts, proposals] = res.data;
   const returnTo = `/brands/${id}/memory?section=${section}`;
   const counts: Partial<Record<Section, number>> = {
     audiences: brand.memory.audiences.length,
@@ -46,7 +52,12 @@ export default async function MemoryPage({ params, searchParams }: { params: Pro
           ))}
         </nav>
         <div style={{ minWidth: 0 }}>
-          {section === 'voice' ? <VoiceSection brand={brand} returnTo={returnTo} /> : null}
+          {section === 'voice' ? (
+            <div className="stack-lg">
+              <VoiceEvidence brand={brand} posts={posts} proposals={proposals} returnTo={returnTo} />
+              <VoiceSection brand={brand} returnTo={returnTo} />
+            </div>
+          ) : null}
           {section === 'audiences' || section === 'products' || section === 'knowledge' || section === 'examplePosts' ? <ListSection brand={brand} list={section} returnTo={returnTo} /> : null}
           {section === 'competitors' ? <CompetitorsSection brandId={id} brandName={brand.name} competitors={competitors} returnTo={returnTo} /> : null}
           {section === 'style' ? <StyleSection brand={brand} returnTo={returnTo} /> : null}

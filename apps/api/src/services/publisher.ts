@@ -18,6 +18,10 @@ import type { SecretStore } from '../lib/secrets.ts';
 import { getChannelRow, providerContext, setChannelStatus, type ChannelRow } from './channels.ts';
 import { emitEvent } from './events.ts';
 import { refreshOutcome } from './outcomes.ts';
+import { refreshPostReplies } from './replies.ts';
+
+/** Replies are fetched with these snapshots, on platforms that report them. */
+export const REPLY_SNAPSHOT_HOURS = [24, 72];
 
 export interface PublishDeps {
   db: Db;
@@ -32,6 +36,8 @@ export interface PostRow {
   draft_id: string | null;
   idea_id: string | null;
   status: 'scheduled' | 'publishing' | 'pending' | 'published' | 'failed' | 'unknown';
+  /** 'imported': brought in from the platform's history, not published by Harbor. */
+  origin?: 'harbor' | 'imported';
   scheduled_for: Date | string | null;
   published_at: Date | string | null;
   platform_post_id: string | null;
@@ -289,6 +295,13 @@ export async function takeSnapshot(deps: PublishDeps, postId: string, ageHours: 
     await refreshOutcome(db, postId);
   } catch (err) {
     console.error(`[outcomes] ${postId}:`, message(err));
+  }
+  if (REPLY_SNAPSHOT_HOURS.includes(ageHours)) {
+    try {
+      await refreshPostReplies(deps, postId);
+    } catch (err) {
+      console.error(`[replies] ${postId}:`, message(err));
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { BadRequest, HarborError, PublishOutcomeUnknown, RateLimited, RefreshNeeded } from '@harbor/core';
-import { XProvider } from '../src/index.ts';
+import { XProvider, createProviderRegistry } from '../src/index.ts';
 import { app, fakeFetch, json, networkError } from './fake-fetch.ts';
 
 const ctx = { accessToken: 'tok', account: { platformAccountId: '42', handle: 'harbor' } };
@@ -143,6 +143,50 @@ describe('XProvider', () => {
       const m = await new XProvider(app('x'), f.impl).fetchPostMetrics(ctx, '1');
       expect(m.metrics).toEqual({ likes: 1 });
       expect(f.calls[1]!.url.searchParams.get('tweet.fields')).toBe('public_metrics,created_at');
+    });
+  });
+
+  describe('replies and past posts', () => {
+    it('reads nothing unless HARBOR_X_READ_REPLIES=true (X bills per read)', async () => {
+      const f = fakeFetch({});
+      const x = new XProvider(app('x'), f.impl);
+      expect(x.reportsReplies).toBe(false);
+      expect(await x.fetchReplies(ctx, '1001', {})).toEqual([]);
+      expect(await x.listRecentPosts(ctx, { limit: 10 })).toEqual([]);
+      expect(f.calls).toHaveLength(0);
+      expect(createProviderRegistry({}).get('x')!.reportsReplies).toBe(false);
+      expect(createProviderRegistry({ HARBOR_X_READ_REPLIES: 'true' }).get('x')!.reportsReplies).toBe(true);
+    });
+
+    it('searches the conversation for replies when enabled', async () => {
+      const f = fakeFetch({
+        'GET api.x.com/2/tweets/search/recent': json(200, {
+          data: [
+            { id: '2001', text: 'How do you measure it?', author_id: '7', created_at: '2026-10-14T09:00:00.000Z', public_metrics: { like_count: 2 } },
+            { id: '2002', text: 'my own thread part', author_id: '42', created_at: '2026-10-14T09:01:00.000Z' },
+          ],
+          includes: { users: [{ id: '7', username: 'mara', name: 'Mara' }] },
+        }),
+      });
+      const replies = await new XProvider({ ...app('x'), readReplies: true }, f.impl).fetchReplies(ctx, '1001', { limit: 5 });
+      expect(replies).toEqual([{ platformReplyId: '2001', author: { handle: 'mara', displayName: 'Mara' }, text: 'How do you measure it?', createdAt: '2026-10-14T09:00:00.000Z', likes: 2 }]);
+      const q = f.calls[0]!.url.searchParams;
+      expect(q.get('query')).toBe('conversation_id:1001');
+      expect(q.get('max_results')).toBe('10');
+      expect(f.calls[0]!.headers.authorization).toBe('Bearer tok');
+    });
+
+    it('lists the account\'s posts with public metrics when enabled', async () => {
+      const f = fakeFetch({
+        'GET api.x.com/2/users/42/tweets': json(200, {
+          data: [{ id: '1001', text: 'Hello', created_at: '2026-10-01T09:00:00.000Z', public_metrics: { impression_count: 500, like_count: 9, reply_count: 1, retweet_count: 2, quote_count: 0 } }],
+        }),
+      });
+      const posts = await new XProvider({ ...app('x'), readReplies: true }, f.impl).listRecentPosts(ctx, { limit: 30 });
+      expect(posts).toEqual([
+        { platformPostId: '1001', text: 'Hello', publishedAt: '2026-10-01T09:00:00.000Z', url: 'https://x.com/harbor/status/1001', metrics: { views: 500, likes: 9, comments: 1, reposts: 2 } },
+      ]);
+      expect(f.calls[0]!.url.searchParams.get('exclude')).toBe('replies,retweets');
     });
   });
 });

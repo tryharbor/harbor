@@ -72,7 +72,8 @@ export async function withRun<T>(
 // ---- Agent (parent) runs ----
 
 export interface RunRef {
-  kind: 'idea' | 'draft' | 'post' | 'digest' | 'approval' | 'run' | 'campaign';
+  /** 'proposal': a memory proposal (Brand Memory changes waiting for approval). */
+  kind: 'idea' | 'draft' | 'post' | 'digest' | 'approval' | 'run' | 'campaign' | 'proposal';
   id: string;
   label?: string;
 }

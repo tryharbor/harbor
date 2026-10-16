@@ -19,6 +19,9 @@ export const ID_PREFIX = {
   automation: 'aut',
   apiKey: 'key',
   agentEvent: 'evt',
+  memoryProposal: 'mpr',
+  reply: 'rpl',
+  importScan: 'imp',
   request: 'req',
 } as const;
 

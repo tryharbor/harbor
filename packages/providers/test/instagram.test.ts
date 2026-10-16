@@ -159,4 +159,43 @@ describe('InstagramProvider', () => {
     expect(m.metrics).toEqual({ views: 1200, reach: 800, likes: 60, comments: 5, saves: 9 });
     expect(f.calls[0]!.url.searchParams.get('metric')).toBe('views,reach,likes,comments,shares,saved');
   });
+
+  it('fetches comments, leaving out the account\'s own', async () => {
+    const f = fakeFetch({
+      [`GET ${G}/m9/comments`]: json(200, {
+        data: [
+          { id: 'c1', text: 'How do you pick the beans?', username: 'ana', timestamp: '2026-10-14T09:30:00+0000', like_count: 3 },
+          { id: 'c2', text: 'Thanks all!', username: 'harbor', timestamp: '2026-10-14T10:00:00+0000' },
+          { id: 'c3', text: '', username: 'ben', timestamp: '2026-10-14T10:05:00+0000' },
+        ],
+      }),
+    });
+    const p = new InstagramProvider(app('instagram'), f.impl);
+    expect(p.reportsReplies).toBe(true);
+    const replies = await p.fetchReplies(ctx, 'm9', { limit: 20 });
+    expect(replies).toEqual([{ platformReplyId: 'c1', author: { handle: 'ana' }, text: 'How do you pick the beans?', createdAt: '2026-10-14T09:30:00.000Z', likes: 3 }]);
+    expect(f.calls[0]!.url.searchParams.get('fields')).toBe('id,text,username,timestamp,like_count');
+    expect(f.calls[0]!.url.searchParams.get('limit')).toBe('20');
+    expect(f.calls[0]!.url.searchParams.get('access_token')).toBe('tok');
+  });
+
+  it('lists recent media with captions and insights, falling back to counts', async () => {
+    const insights = (views: number) => json(200, { data: [{ name: 'views', values: [{ value: views }] }, { name: 'likes', values: [{ value: 7 }] }] });
+    const f = fakeFetch({
+      [`GET ${G}/me/media`]: json(200, {
+        data: [
+          { id: 'm1', caption: 'Batch #41 is roasting.', permalink: 'https://www.instagram.com/p/A1/', timestamp: '2026-10-10T18:00:00+0000', like_count: 7, comments_count: 2 },
+          { id: 'm2', timestamp: '2026-10-08T18:00:00+0000', like_count: 4, comments_count: 1 },
+        ],
+      }),
+      [`GET ${G}/m1/insights`]: insights(900),
+      [`GET ${G}/m2/insights`]: json(400, { error: { message: 'Unsupported', code: 100 } }),
+    });
+    const posts = await new InstagramProvider(app('instagram'), f.impl).listRecentPosts(ctx, { limit: 10 });
+    expect(posts).toEqual([
+      { platformPostId: 'm1', text: 'Batch #41 is roasting.', publishedAt: '2026-10-10T18:00:00.000Z', url: 'https://www.instagram.com/p/A1/', metrics: { views: 900, likes: 7, comments: 2 } },
+      { platformPostId: 'm2', text: '', publishedAt: '2026-10-08T18:00:00.000Z', url: undefined, metrics: { likes: 4, comments: 1 } },
+    ]);
+    expect(f.calls[0]!.url.searchParams.get('fields')).toBe('id,caption,permalink,timestamp,media_type,like_count,comments_count');
+  });
 });

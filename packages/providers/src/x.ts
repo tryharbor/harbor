@@ -7,14 +7,16 @@ import {
   type CommentRequest,
   type JsonObject,
   type NormalizedMetrics,
+  type PastPost,
   type PostMetrics,
   type PostPart,
   type ProviderContext,
   type PublishRequest,
   type PublishResult,
+  type Reply,
   type TokenSet,
 } from '@harbor/core';
-import { BaseProvider, asRecord, createPkcePair, expiresAtFrom, optionalString, optionalUrl, randomState, splitScopes } from './base.ts';
+import { BaseProvider, asRecord, type FetchLike, type ProviderOptions, createPkcePair, expiresAtFrom, isoTime, optionalString, optionalUrl, randomState, splitScopes } from './base.ts';
 
 const AUTHORIZE_URL = 'https://x.com/i/oauth2/authorize';
 const API = 'https://api.x.com/2';
@@ -25,6 +27,14 @@ export class XProvider extends BaseProvider {
   readonly name = 'X';
   readonly scopes = ['tweet.read', 'tweet.write', 'users.read', 'offline.access', 'media.write'] as const;
   protected readonly envNames = ['X_CLIENT_ID', 'X_CLIENT_SECRET'] as const;
+
+  /** X bills per read, so replies and past posts are only read with HARBOR_X_READ_REPLIES=true. */
+  override readonly reportsReplies: boolean;
+
+  constructor(config: ProviderOptions = {}, fetchImpl: FetchLike = globalThis.fetch) {
+    super(config, fetchImpl);
+    this.reportsReplies = config.readReplies === true;
+  }
 
   /** 280 for standard accounts; Premium accounts can post longer. */
   maxLength(settings?: JsonObject): number {
@@ -157,6 +167,62 @@ export class XProvider extends BaseProvider {
     const tweet = asRecord(asRecord(raw).data);
     if (!tweet.id) throw new BadRequest('x', `X post ${platformPostId} not found.`, raw);
     return { raw, metrics: mapXMetrics(tweet), adapterVersion: this.adapterVersion };
+  }
+
+  // ---- Replies and history (billed reads: only with HARBOR_X_READ_REPLIES=true) ----
+
+  /** Replies in the post's conversation from the last 7 days (recent search), without the account's own thread parts. */
+  async fetchReplies(ctx: ProviderContext, platformPostId: string, opts: { limit?: number } = {}): Promise<Reply[]> {
+    if (!this.reportsReplies) return [];
+    const { data } = await this.request({
+      url: `${API}/tweets/search/recent`,
+      query: {
+        query: `conversation_id:${platformPostId}`,
+        'tweet.fields': 'author_id,created_at,public_metrics',
+        expansions: 'author_id',
+        'user.fields': 'username,name',
+        max_results: String(Math.min(100, Math.max(10, opts.limit ?? 50))),
+      },
+      bearer: ctx.accessToken,
+    });
+    const d = asRecord(data);
+    const users = new Map((Array.isArray(asRecord(d.includes).users) ? asRecord(d.includes).users : []).map((u: any) => [String(u.id), asRecord(u)]));
+    return (Array.isArray(d.data) ? d.data : [])
+      .map(asRecord)
+      .filter((t) => t.id && typeof t.text === 'string' && String(t.author_id) !== ctx.account.platformAccountId)
+      .map((t) => {
+        const u = asRecord(users.get(String(t.author_id)));
+        const likes = asRecord(t.public_metrics).like_count;
+        return {
+          platformReplyId: String(t.id),
+          author: { handle: String(u.username ?? t.author_id ?? 'unknown'), ...(optionalString(u.name) ? { displayName: String(u.name) } : {}) },
+          text: String(t.text),
+          createdAt: isoTime(t.created_at),
+          ...(typeof likes === 'number' ? { likes } : {}),
+        };
+      });
+  }
+
+  /** The account's recent posts (no replies or reposts) with their public metrics. */
+  async listRecentPosts(ctx: ProviderContext, opts: { limit: number }): Promise<PastPost[]> {
+    if (!this.reportsReplies) return [];
+    const { data } = await this.request({
+      url: `${API}/users/${encodeURIComponent(ctx.account.platformAccountId)}/tweets`,
+      query: { 'tweet.fields': 'created_at,public_metrics', exclude: 'replies,retweets', max_results: String(Math.min(100, Math.max(5, opts.limit))) },
+      bearer: ctx.accessToken,
+    });
+    const list = asRecord(data).data;
+    return (Array.isArray(list) ? list : [])
+      .map(asRecord)
+      .filter((t) => t.id)
+      .slice(0, opts.limit)
+      .map((t) => ({
+        platformPostId: String(t.id),
+        text: typeof t.text === 'string' ? t.text : '',
+        publishedAt: isoTime(t.created_at),
+        url: this.tweetUrl(ctx, String(t.id)),
+        metrics: mapXMetrics(t),
+      }));
   }
 }
 

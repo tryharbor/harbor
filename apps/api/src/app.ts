@@ -18,7 +18,9 @@ import { registerDrafts } from './routes/drafts.ts';
 import { registerIdeas } from './routes/ideas.ts';
 import { registerInsights } from './routes/insights.ts';
 import { registerMcp } from './routes/mcp.ts';
+import { registerMemory } from './routes/memory.ts';
 import { registerPosts } from './routes/posts.ts';
+import { registerReplies } from './routes/replies.ts';
 import { registerSandbox } from './routes/sandbox.ts';
 import type { PublishDeps } from './services/publisher.ts';
 import type { WorkerDeps } from './worker.ts';
@@ -120,6 +122,8 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerApprovals(app, deps);
   registerAutomations(app, deps);
   registerApiKeys(app, deps);
+  registerMemory(app, deps);
+  registerReplies(app, deps);
   registerMcp(app, deps);
   return app;
 }

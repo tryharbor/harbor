@@ -108,7 +108,7 @@ describe('/mcp', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.id).toBe(7);
-    expect(body.result.tools.length).toBe(18);
+    expect(body.result.tools.length).toBe(21);
     const { data: keys } = await json('GET', '/v1/api-keys', undefined, 200);
     expect(keys.find((k: any) => k.id === readKey.id).lastUsedAt).toEqual(expect.any(String));
     const get = await app.request('/mcp', { headers: { authorization: `Bearer ${readKey.key}`, accept: 'text/event-stream' } });
@@ -122,6 +122,7 @@ describe('/mcp', () => {
       [
         'list_brands', 'get_brand_memory', 'list_posts', 'get_post', 'get_digest', 'best_times', 'list_campaigns', 'list_ideas', 'list_approvals',
         'list_agents', 'get_agent_run', 'create_idea', 'suggest_ideas', 'draft_idea', 'propose_post', 'run_agent', 'add_knowledge', 'add_canvas_note',
+        'list_memory_proposals', 'get_conversation', 'save_to_memory',
       ].sort(),
     );
     const propose = tools.find((t) => t.name === 'propose_post')!;
@@ -200,10 +201,33 @@ describe('/mcp', () => {
     expect(data(await call(client, 'best_times', { brandId, platform: 'x' })).top).toHaveLength(5);
   });
 
+  it('reads memory proposals and the conversation, and saves to Brand Memory', async () => {
+    const client = await connect(writeKey.key);
+    const refresh = data(await call(client, 'run_agent', { agentId: 'voice_refresh', inputs: { brandId } }));
+    expect(refresh).toMatchObject({ agentId: 'voice_refresh', status: 'succeeded', source: 'mcp' });
+    const proposals = await call(client, 'list_memory_proposals', { brandId });
+    expect(proposals.content[0]!.text).toMatch(/^\d+ pending, 0 applied, 0 rejected \(sandbox · simulated model\)$/);
+    expect(data(proposals).counts).toMatchObject({ applied: 0, rejected: 0 });
+
+    const conv = await call(client, 'get_conversation', { brandId });
+    expect(conv.content[0]!.text).toBe(`0 replies in 0 themes for Harbor (last 30 days) ${MODE}`);
+    expect(data(conv)).toEqual({ themes: [], total: 0, byKind: { question: 0, objection: 0, praise: 0, request: 0, other: 0 } });
+
+    const [draft] = (await json('GET', `/v1/drafts?brandId=${brandId}`, undefined, 200)).data;
+    const saved = await call(client, 'save_to_memory', { brandId, from: { kind: 'draft', id: draft.id }, as: 'knowledge', title: 'A draft worth keeping' });
+    expect(saved.content[0]!.text).toBe(`Saved to Harbor's knowledge ${MODE}`);
+    expect(data(saved).memory.knowledge.at(-1)).toMatchObject({ title: 'A draft worth keeping', kind: 'note' });
+    const dup = await call(client, 'save_to_memory', { brandId, from: { kind: 'draft', id: draft.id }, as: 'knowledge' });
+    expect(dup.isError).toBe(true);
+
+    const read = await connect(readKey.key);
+    expect((await call(read, 'save_to_memory', { brandId, from: { kind: 'draft', id: draft.id }, as: 'do' })).isError).toBe(true);
+  });
+
   it('describes itself at GET /v1/mcp', async () => {
     const info = await json('GET', '/v1/mcp', undefined, 200);
     expect(info).toMatchObject({ url: 'http://localhost:4800/mcp', transport: 'streamable-http' });
-    expect(info.tools).toHaveLength(18);
+    expect(info.tools).toHaveLength(21);
     expect(info.tools.find((t: any) => t.name === 'propose_post')).toMatchObject({ scope: 'write', description: expect.any(String) });
     expect(info.tools.find((t: any) => t.name === 'list_posts').scope).toBe('read');
     expect(info.resources).toContainEqual({ uri: `harbor://brands/${brandId}/memory`, name: 'Harbor: Brand Memory' });

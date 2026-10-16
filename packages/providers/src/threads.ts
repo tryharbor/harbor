@@ -8,15 +8,17 @@ import {
   type JsonObject,
   type MediaRef,
   type NormalizedMetrics,
+  type PastPost,
   type PostMetrics,
   type PostPart,
   type ProviderContext,
   type PublishRequest,
   type PublishResult,
+  type Reply,
   type StatusCheck,
   type TokenSet,
 } from '@harbor/core';
-import { asRecord, expiresAtFrom, optionalString, optionalUrl, randomState } from './base.ts';
+import { asRecord, expiresAtFrom, isoTime, optionalString, optionalUrl, randomState } from './base.ts';
 import { MetaGraphProvider, readInsights } from './meta.ts';
 
 export const THREADS_GRAPH_VERSION = 'v1.0';
@@ -33,6 +35,7 @@ export class ThreadsProvider extends MetaGraphProvider {
   readonly name = 'Threads';
   /** threads_manage_replies: Meta's reply docs list it for POSTing replies (reply_to_id), which comment() does. */
   readonly scopes = ['threads_basic', 'threads_content_publish', 'threads_manage_insights', 'threads_manage_replies'] as const;
+  override readonly reportsReplies = true;
   protected override readonly maxMedia = 10;
   protected readonly envNames = ['THREADS_APP_ID', 'THREADS_APP_SECRET'] as const;
 
@@ -166,6 +169,38 @@ export class ThreadsProvider extends MetaGraphProvider {
       query: { metric: 'views,likes,replies,reposts,quotes,shares', access_token: ctx.accessToken },
     });
     return { raw, metrics: mapThreadsInsights(raw), adapterVersion: this.adapterVersion };
+  }
+
+  // ---- Replies and history ----
+
+  /** Top-level replies to a post. The account's own replies (thread parts) are left out. */
+  async fetchReplies(ctx: ProviderContext, platformPostId: string, opts: { limit?: number } = {}): Promise<Reply[]> {
+    const { data } = await this.request({
+      url: `${API}/${encodeURIComponent(platformPostId)}/replies`,
+      query: { fields: 'id,text,username,timestamp', limit: String(Math.min(100, opts.limit ?? 50)), access_token: ctx.accessToken },
+    });
+    const list = asRecord(data).data;
+    return (Array.isArray(list) ? list : [])
+      .map(asRecord)
+      .filter((r) => r.id && typeof r.text === 'string' && r.text.trim() && r.username !== ctx.account.handle)
+      .map((r) => ({ platformReplyId: String(r.id), author: { handle: String(r.username ?? 'unknown') }, text: String(r.text), createdAt: isoTime(r.timestamp) }));
+  }
+
+  /** The profile's recent posts (reposts skipped), each with its insights when Threads returns them. */
+  async listRecentPosts(ctx: ProviderContext, opts: { limit: number }): Promise<PastPost[]> {
+    const { data } = await this.request({
+      url: `${API}/me/threads`,
+      query: { fields: 'id,text,permalink,timestamp,media_type', limit: String(Math.min(100, Math.max(1, opts.limit))), access_token: ctx.accessToken },
+    });
+    const list = asRecord(data).data;
+    const out: PastPost[] = [];
+    for (const r of (Array.isArray(list) ? list : []).map(asRecord)) {
+      if (!r.id || r.media_type === 'REPOST_FACADE') continue;
+      const metrics = await this.fetchPostMetrics(ctx, String(r.id)).then((m) => m.metrics, () => undefined);
+      out.push({ platformPostId: String(r.id), text: typeof r.text === 'string' ? r.text : '', publishedAt: isoTime(r.timestamp), url: optionalUrl(r.permalink), metrics });
+      if (out.length >= opts.limit) break;
+    }
+    return out;
   }
 }
 

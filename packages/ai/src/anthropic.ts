@@ -29,4 +29,7 @@ export class AnthropicModel implements ContentModel {
   async digest(): Promise<never> {
     this.off();
   }
+  async refineVoiceChanges(): Promise<never> {
+    this.off();
+  }
 }

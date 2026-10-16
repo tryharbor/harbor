@@ -2,11 +2,13 @@ import type { Platform, PostPart } from '@harbor/core';
 import { createApp, createDeps } from '../app.ts';
 import { openDb } from '../db/client.ts';
 import { loadAutomationRow, runAutomation } from '../services/automations.ts';
+import { refreshPostReplies, regroupBrandThemes } from '../services/replies.ts';
 import { insertHistoricalPost } from '../services/sandbox-history.ts';
 
 /**
  * Fill a throwaway database with sample brands, Brand Memory, competitors, sandbox channels, posts with growth
- * curves, ideas and drafts, campaigns, digests, agent runs, automations and approvals, so the UI can be seen with data. Everything goes through Harbor's own API in sandbox
+ * curves and replies, ideas and drafts, campaigns, digests, agent runs, automations, approvals and a voice refresh waiting
+ * for approval, so the UI can be seen with data. Everything goes through Harbor's own API in sandbox
  * mode with the simulated model: no network, no keys. Sandbox channel tokens are fake but stored encrypted like real
  * ones (HARBOR_SECRET_KEY, or the sandbox dev key when unset), so publishing from the demo works.
  *
@@ -32,7 +34,10 @@ if (existing) {
   const [digest] = await db.query('SELECT 1 FROM digests WHERE brand_id = $1 LIMIT 1', [existing.id]).catch(() => []);
   // Demo data from before agents has no automations or approvals.
   const [automation] = await db.query('SELECT 1 FROM automations WHERE brand_id = $1 LIMIT 1', [existing.id]).catch(() => []);
-  if (usable && campaign && digest && automation) {
+  // Demo data from before Brand Memory learned has no replies or memory proposal.
+  const [proposal] = await db.query('SELECT 1 FROM memory_proposals WHERE brand_id = $1 LIMIT 1', [existing.id]).catch(() => []);
+  const [reply] = await db.query('SELECT 1 FROM post_replies WHERE brand_id = $1 LIMIT 1', [existing.id]).catch(() => []);
+  if (usable && campaign && digest && automation && proposal && reply) {
     console.log('Demo data already present.');
     await db.close();
     process.exit(0);
@@ -73,7 +78,7 @@ const harbor = await call('POST', '/v1/brands', {
         { name: 'Specific', meaning: 'Real numbers and named tools instead of adjectives.' },
         { name: 'Anti-hype', meaning: 'Lets the work speak; no growth-hacker language.' },
       ],
-      do: ['Open with a scene, not a claim', 'Use real numbers', 'Write as "I", one builder to another', 'End with a low-friction ask'],
+      do: ['Open with a scene, not a claim', 'Use real numbers', 'Write as "I", one builder to another', 'Put the link in the first part, so people can find the repo', 'End with a low-friction ask'],
       avoid: ['Hype words: leverage, seamless, unlock, transform.', 'Hedging ("might help").', 'Exclamation marks.'],
       bannedWords: ['leverage', 'seamless', 'unlock', 'game-changer'],
       excerpts: [
@@ -199,8 +204,8 @@ await publish(tig.id, [{ text: 'Weekend pour-over guide: 15 g, 250 g water, 3 mi
 //
 // Inserted straight into the past (the time machine would shift every post together). Traits vary on purpose:
 // threads vs single posts, media, number openings and publish hours, so the sandbox's trait effects leave
-// patterns for outcomes, best times and the digest to find. The trait effects are the same on every seed run; the
-// per-post random part of each curve depends on the post id, which includes the publish time.
+// patterns for outcomes, best times, the digest and the voice refresh to find. Each post's key fixes the random part
+// of its curve (the sandbox seeds it from the id's suffix), so the history looks the same on every seed run.
 
 const HARBOR_NUMBER_HOOKS = [
   '3 things I learned shipping a scheduler nobody asked for.',
@@ -214,15 +219,22 @@ const HARBOR_NUMBER_HOOKS = [
 ];
 const HARBOR_OTHER_HOOKS = [
   'Why do schedulers show totals instead of growth curves?',
-  'I deleted three content calendars last week. Here is what replaced them.',
-  'Shipping log: the snapshot poller now retries failed reads.',
   'Content tools assume one brand. Builders run five.',
-  'What would you cut first if you ran four brands alone?',
-  'I used to post the same thing everywhere. The numbers said stop.',
+  'Four brands, one person, one hour a day for content.',
   'The final number lies. The curve tells you what happened.',
   'Building in public is easier when the dashboard tells the truth.',
-  'Harbor now learns a brand voice from ten old posts.',
   'Open source, AGPL, self-hosted. Here is why that is the business model.',
+  'Posting the same thing everywhere stopped working. The numbers said so.',
+  'Three content calendars got deleted last week. Here is what replaced them.',
+  'Every brand gets its own voice, its own calendar and its own numbers.',
+  'A slow burner is not a flop. Give it the full week.',
+];
+const HARBOR_LINK_HOOKS = [
+  'Shipping log: the snapshot poller now retries failed reads. https://github.com/harbor-content/harbor',
+  'New in Harbor: it learns a brand voice from ten old posts. https://github.com/harbor-content/harbor/releases',
+  "This week's build log is up: https://github.com/harbor-content/harbor/discussions",
+  'Self-hosting docs are live: https://github.com/harbor-content/harbor#self-hosting',
+  'Why Harbor is AGPL, in full: https://github.com/harbor-content/harbor/blob/main/LICENSE',
 ];
 const HARBOR_REPLIES = [
   'The short version: one place that knows each brand, what worked last time, and what is due this week.',
@@ -243,24 +255,33 @@ const TIDEWATER_OTHER_HOOKS = [
   'Sunday brew-along: grab your AeroPress and join us at 10.',
   'Cupping notes from this week: cherry, cocoa, a little honey.',
 ];
-const HARBOR_HOURS = [9, 13, 20, 8, 18, 12, 10, 21, 14, 19, 7];
 const TIDEWATER_HOURS = [19, 8, 12, 20, 18, 10, 21, 13];
 
 interface Planned { brandId: string; channelId: string; platform: Platform; parts: PostPart[]; daysAgo: number; hour: number; key: string }
 
+/** Local hour each platform's audience is most active in the sandbox (SANDBOX_PEAK_HOUR). */
+const PEAK: Record<Platform, number> = { x: 9, linkedin: 8, instagram: 19, threads: 12 };
+
+/**
+ * Harbor's history comes in three kinds, so the voice refresh has something to learn: number openings posted at the
+ * platform's peak hour (they win), links in the first part posted late in the evening (they lose, against the voice's
+ * own "put the link in the first part" rule), and plain statements in between. Threads replies only on Threads.
+ */
 function harborPlan(): Planned[] {
   const cycle = [hx, hx, hth, hx, hli, hth, hx, hx, hth, hli];
   const out: Planned[] = [];
   for (let i = 0; i < 30; i++) {
     const channel = cycle[i % cycle.length];
     const platform = channel.platform as Platform;
-    const numberHook = i % 3 === 1;
-    const hook = numberHook ? HARBOR_NUMBER_HOOKS[i % HARBOR_NUMBER_HOOKS.length]! : HARBOR_OTHER_HOOKS[i % HARBOR_OTHER_HOOKS.length]!;
-    const thread = platform !== 'linkedin' && (i % 5 === 0 || i % 5 === 2);
+    const kind = i % 3;
+    const n = Math.floor(i / 3);
+    const hook = kind === 1 ? HARBOR_NUMBER_HOOKS[n % HARBOR_NUMBER_HOOKS.length]! : kind === 2 ? HARBOR_LINK_HOOKS[n % HARBOR_LINK_HOOKS.length]! : HARBOR_OTHER_HOOKS[n % HARBOR_OTHER_HOOKS.length]!;
+    const thread = platform === 'threads' && (i % 5 === 0 || i % 5 === 2);
     const media = platform === 'threads' && i % 4 < 2;
     const parts: PostPart[] = [{ text: hook, media: media ? [{ kind: 'image', url: `https://sandbox.harbor.local/media/harbor-${i}.png` }] : [] }];
     if (thread) for (let r = 0; r < 1 + (i % 3); r++) parts.push({ text: HARBOR_REPLIES[(i + r) % HARBOR_REPLIES.length]!, media: [] });
-    out.push({ brandId: harbor.id, channelId: channel.id, platform, parts, daysAgo: 41 - Math.floor((i * 41) / 30), hour: HARBOR_HOURS[(i * 7) % HARBOR_HOURS.length]!, key: `harbor-${i}` });
+    const hour = (PEAK[platform] + (kind === 1 ? 0 : kind === 2 ? 10 : 2)) % 24;
+    out.push({ brandId: harbor.id, channelId: channel.id, platform, parts, daysAgo: 41 - Math.floor((i * 41) / 30), hour, key: `harbor-${i}` });
   }
   return out;
 }
@@ -286,6 +307,16 @@ for (const p of [...harborPlan(), ...tidewaterPlan()]) {
   at.setHours(p.hour, (p.key.length * 7) % 60, 0, 0);
   if (at.getTime() > Date.now() - 3_600_000) at.setDate(at.getDate() - 1);
   await insertHistoricalPost(db, { brandId: p.brandId, channelId: p.channelId, platform: p.platform, parts: p.parts, publishedAt: at, key: p.key });
+}
+
+// ---- Replies: every published post's sandbox replies, grouped into themes (comment signals the ideas can cite) ----
+
+for (const b of [harbor, tidewater]) {
+  const posts = await db.query<{ id: string }>("SELECT id FROM posts WHERE brand_id = $1 AND status = 'published' ORDER BY published_at", [b.id]);
+  let added = 0;
+  for (const { id } of posts) added += (await refreshPostReplies(deps.publishDeps(), id, { regroup: false })).added;
+  const themes = await regroupBrandThemes(db, b.id);
+  console.log(`${b.name}: ${added} replies in ${themes} themes.`);
 }
 
 // ---- Ideas and drafts ----
@@ -398,6 +429,11 @@ async function backdate(runId: string, hours: number) {
   await db.query('UPDATE automations SET last_run_at = last_run_at - make_interval(hours => $2) WHERE last_run_id = $1', [runId, hours]);
 }
 await backdate(repurposeRunId, 48);
+
+// ---- Brand Memory that learns: a voice refresh for Harbor, waiting for approval ----
+
+const refresh = await call('POST', '/v1/agents/voice_refresh/runs', { inputs: { brandId: harbor.id } });
+console.log(`Harbor (demo) voice refresh: ${refresh.summary}`);
 
 console.log('Seeded demo data (sandbox channels, simulated model).');
 await db.close();

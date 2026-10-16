@@ -54,7 +54,7 @@ const sameLocalDay = (a: string, b: string) => new Date(a).toDateString() === ne
 describe('agent library', () => {
   it('lists the built-in agents with inputs, steps and triggers', async () => {
     const { data } = await json('GET', '/v1/agents', undefined, 200);
-    expect(data.map((a: any) => a.id)).toEqual(['weekly_plan', 'repurpose_winner', 'voice_check', 'digest']);
+    expect(data.map((a: any) => a.id)).toEqual(['weekly_plan', 'repurpose_winner', 'voice_check', 'digest', 'voice_refresh']);
     const plan = data[0];
     expect(plan).toMatchObject({ name: 'Weekly plan', category: 'plan', produces: ['digest', 'ideas', 'drafts', 'approvals'], triggers: ['manual', 'schedule'], automations: 0 });
     expect(plan.steps.map((s: any) => s.key)).toEqual(['digest', 'slots', 'ideas', 'drafts', 'checks', 'approvals']);

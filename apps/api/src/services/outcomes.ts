@@ -19,6 +19,9 @@ import { emitEvent } from './events.ts';
  *   last 90 days, that have a snapshot within ±25% of the age being compared (the nearest one is used).
  * - Verdict: outperformed ≥ 1.3× the median, met 0.7–1.3×, underperformed < 0.7×; inconclusive with fewer than 3
  *   comparable posts or no metric.
+ * - Late snapshots: most engagement lands within a week, so when a post has no snapshot near 168h, its earliest
+ *   snapshot taken at 168h or later counts as the 168h value. Imported posts (one snapshot at their true age) take
+ *   part in verdicts this way.
  */
 
 export const VERDICTS = ['outperformed', 'met', 'underperformed', 'inconclusive'] as const;
@@ -82,15 +85,20 @@ export const primaryMetricOf = (m: NormalizedMetrics): PrimaryMetric | undefined
 export const platformPrimaryMetric = (platform: Platform): PrimaryMetric | undefined =>
   PLATFORM_METRICS[platform].views === 'available' ? 'views' : PLATFORM_METRICS[platform].likes === 'available' ? 'likes' : undefined;
 
-/** The snapshot nearest to `age` within ±25% of it. */
+/** The last schedule age (7 days). A later snapshot stands in for it when there is none near it. */
+export const FINAL_AGE_HOURS = SNAPSHOT_SCHEDULE_HOURS[SNAPSHOT_SCHEDULE_HOURS.length - 1]!;
+
+/** The snapshot nearest to `age` within ±25% of it; for the final age, else the earliest one taken after it. */
 export function snapshotNear(post: Pick<HistoryPost, 'snapshots'>, age: number, metric?: PrimaryMetric): HistorySnapshot | undefined {
   let best: HistorySnapshot | undefined;
+  let late: HistorySnapshot | undefined;
   for (const s of post.snapshots) {
-    if (Math.abs(s.ageHours - age) > age * AGE_TOLERANCE) continue;
     if (metric && s.metrics[metric] === undefined) continue;
+    if (age === FINAL_AGE_HOURS && s.ageHours >= age && (!late || s.ageHours < late.ageHours)) late = s;
+    if (Math.abs(s.ageHours - age) > age * AGE_TOLERANCE) continue;
     if (!best || Math.abs(s.ageHours - age) < Math.abs(best.ageHours - age)) best = s;
   }
-  return best;
+  return best ?? late;
 }
 
 export const valueAt = (post: Pick<HistoryPost, 'snapshots'>, age: number, metric: PrimaryMetric): number | undefined =>

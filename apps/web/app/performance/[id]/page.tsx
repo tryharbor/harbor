@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import type { NormalizedMetrics } from '@harbor/core';
 import { removePost, resolvePost } from '../../actions';
-import { getPost, loadAll, type PostDetail } from '../../api';
+import { getPost, getReplies, loadAll, type PostDetail, type ReplyView, type Theme } from '../../api';
 import { CurveChart } from '../../components/curve-chart';
-import { LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, VerdictTag, compact, when } from '../../ui';
+import { Replies } from '../../components/replies';
+import { SaveToMemory } from '../../components/save-to-memory';
+import { LoadError, MetricLine, PageHeader, PLATFORM_NAME, PlatformTag, StatusPill, VerdictTag, compact, when } from '../../ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +26,10 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   const res = await loadAll<[PostDetail]>([getPost(id)]);
   if (!res.ok) return (<><Link href="/performance">← Performance</Link><LoadError message={res.error} /></>);
   const [post] = res.data;
+  const extra = await loadAll<[{ data: ReplyView[]; themes: Theme[]; supported: boolean }]>([
+    post.status === 'published' ? getReplies(post.id) : Promise.resolve({ data: [], themes: [], supported: false }),
+  ]);
+  const replies = extra.ok ? extra.data[0] : { data: [], themes: [], supported: false };
   const here = `/performance/${post.id}`;
   const shown = METRICS.filter((m) => post.snapshots.some((s) => s.metrics[m.key] !== undefined));
 
@@ -86,6 +92,12 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
             </div>
           ))}
           <p className="muted small">{post.publishedAt ? `Published ${when(post.publishedAt)}` : post.scheduledFor ? `Scheduled for ${when(post.scheduledFor)}` : ''}</p>
+          {post.status === 'published' ? (
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'start' }}>
+              <SaveToMemory brandId={post.brandId} kind="post" id={post.id} options={post.outcome?.verdict === 'underperformed' ? ['knowledge', 'avoid'] : ['example', 'excerpt', 'knowledge', 'do']} defaultText={post.parts.map((p) => p.text).join('\n\n')} />
+              {post.outcome?.verdict === 'outperformed' ? <Link className="button" href={`/agents/repurpose_winner?brand=${post.brandId}&post=${post.id}`}>Repurpose this winner</Link> : null}
+            </div>
+          ) : null}
           {post.status === 'scheduled' || post.status === 'failed' ? (
             <form action={removePost}>
               <input type="hidden" name="postId" value={post.id} />
@@ -95,6 +107,10 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           ) : null}
         </section>
       </div>
+
+      {post.status === 'published' ? (
+        <Replies brandId={post.brandId} postId={post.id} replies={replies.data} themes={replies.themes} supported={replies.supported} platformName={PLATFORM_NAME[post.channel.platform]} returnTo={here} />
+      ) : null}
 
       {post.snapshots.length ? (
         <section className="scroll">

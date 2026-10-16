@@ -14,6 +14,16 @@ export interface ModelResult<T> {
   model: string;
   /** True when no real model was involved; the UI shows a "Simulated" badge. */
   simulated: boolean;
+  /** Brand Memory the call actually used (rules, terms, products …), for "Preview Brand Memory". */
+  trace?: TraceItem[];
+}
+
+export const TRACE_KINDS = ['do', 'avoid', 'banned', 'excerpt', 'term', 'product', 'audience', 'value'] as const;
+export type TraceKind = (typeof TRACE_KINDS)[number];
+/** One piece of Brand Memory a model call used. `text` is the rule as stored (a do rule, a banned word, a product name …). */
+export interface TraceItem {
+  kind: TraceKind;
+  text: string;
 }
 
 export interface LearnVoiceInput {
@@ -72,6 +82,27 @@ export interface RewriteInput {
   platform: Platform;
 }
 
+export type VoiceChangeTarget = 'voice.do' | 'voice.avoid' | 'voice.excerpts' | 'voice.bannedWords' | 'knowledge' | 'examplePosts';
+
+/** A proposed Brand Memory change before the owner sees it (the voice refresh drafts these from results). */
+export interface DraftChange {
+  op: 'add' | 'remove';
+  target: VoiceChangeTarget;
+  /** The rule, excerpt or note. For a removal, exactly the stored rule. */
+  text: string;
+  /** One sentence with the numbers. */
+  why: string;
+  lift?: number;
+  /** The post feature behind it (e.g. 'firstPerson'), so the wording can follow a template. */
+  feature?: string;
+}
+
+export interface RefineVoiceChangesInput {
+  brandName: string;
+  voice: BrandVoice;
+  changes: DraftChange[];
+}
+
 /** The AI surface Harbor uses. Implementations: SimulatedModel (default, offline) and AnthropicModel (off for now). */
 export interface ContentModel {
   readonly name: string;
@@ -83,6 +114,8 @@ export interface ContentModel {
   rewrite(input: RewriteInput): Promise<ModelResult<string[]>>;
   /** A brand's weekly digest: wins, misses, patterns and recommendations, each citing posts and signals. */
   digest(input: DigestInput): Promise<ModelResult<DigestResult>>;
+  /** Polish the wording of the voice refresh's proposed changes. Same changes, same order; removals keep their text. */
+  refineVoiceChanges(input: RefineVoiceChangesInput): Promise<ModelResult<DraftChange[]>>;
 }
 
 // ---- Digest (weekly insights) ----

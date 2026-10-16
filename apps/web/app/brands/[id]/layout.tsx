@@ -14,6 +14,7 @@ export default async function BrandLayout({ children, params }: { children: Reac
       <nav className="tabs" aria-label={`${brand.name} sections`}>
         <TabLink href={`/brands/${id}`}>Overview</TabLink>
         <TabLink href={`/brands/${id}/memory`}>Brand Memory</TabLink>
+        <TabLink href={`/brands/${id}/preview`}>Preview</TabLink>
         <TabLink href={`/brands/${id}/channels`}>Channels</TabLink>
       </nav>
       {children}

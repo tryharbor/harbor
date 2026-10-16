@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies } from 'next/headers';
-import { getApprovals, getBrands, getMode, type BrandView, type Mode } from './api';
+import { getApprovals, getBrands, getMemoryProposals, getMode, type BrandView, type Mode } from './api';
 import { Icon } from './icons';
 import { NavLink } from './nav-link';
 import { SidebarToggle } from './sidebar-toggle';
@@ -35,7 +35,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     [brands, mode, pending] = await Promise.all([
       getBrands(),
       getMode().catch(() => undefined),
-      getApprovals({ status: 'pending' }).then((r) => r.counts.pending).catch(() => 0),
+      Promise.all([
+        getApprovals({ status: 'pending' }).then((r) => r.counts.pending).catch(() => 0),
+        getMemoryProposals({ status: 'pending' }).then((r) => r.counts.pending).catch(() => 0),
+      ]).then(([a, b]) => a + b),
     ]);
   } catch {
     // Pages show the connection error themselves; the sidebar renders without brands.

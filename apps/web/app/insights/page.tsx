@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { generateDigest } from '../actions';
-import { getBestTimes, getBrands, getDigest, getOverview, getPosts, loadAll, type BestTimes, type BrandView, type Digest, type Finding, type OverviewBrand, type PostView } from '../api';
+import { getBestTimes, getBrands, getConversation, getDigest, getOverview, getPosts, loadAll, type BestTimes, type BrandView, type Conversation, type Digest, type Finding, type OverviewBrand, type PostView, type ReplyKind } from '../api';
+import { KindMark, REPLY_KIND } from '../components/replies';
+import { SaveToMemory } from '../components/save-to-memory';
 import { BrandMark, Flash, LoadError, PageHeader, PlatformTag, VerdictTag, compact } from '../ui';
 
 export const dynamic = 'force-dynamic';
@@ -19,11 +21,13 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
   const busiest = [...overview].sort((a, b) => Number(!!b.digestHeadline) - Number(!!a.digestHeadline) || b.published7d - a.published7d)[0];
   const brand = brands.find((b) => b.id === s.brand) ?? brands.find((b) => b.id === busiest?.brandId) ?? brands[0];
 
-  let detail: { digest?: Digest; best?: BestTimes; posts: PostView[] } = { posts: [] };
+  let detail: { digest?: Digest; best?: BestTimes; posts: PostView[]; talk?: Conversation } = { posts: [] };
   if (brand) {
-    const d = await loadAll<[Digest | undefined, BestTimes, PostView[]]>([getDigest(brand.id), getBestTimes(brand.id), getPosts({ brandId: brand.id, limit: '200' })]);
+    const d = await loadAll<[Digest | undefined, BestTimes, PostView[], Conversation | undefined]>([
+      getDigest(brand.id), getBestTimes(brand.id), getPosts({ brandId: brand.id, limit: '200' }), getConversation(brand.id).catch(() => undefined),
+    ]);
     if (!d.ok) return (<><PageHeader title="Insights" /><LoadError message={d.error} /></>);
-    detail = { digest: d.data[0], best: d.data[1], posts: d.data[2] };
+    detail = { digest: d.data[0], best: d.data[1], posts: d.data[2], talk: d.data[3] };
   }
   const postById = new Map(detail.posts.map((p) => [p.id, p]));
 
@@ -116,9 +120,42 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
               <Link className="small" href={`/hub?view=calendar&brand=${brand.id}`}>See these slots on the calendar →</Link>
             </section>
           </div>
+
+          {detail.talk ? <Talk brandId={brand.id} brandName={brand.name} talk={detail.talk} posts={postById} /> : null}
         </>
       ) : null}
     </>
+  );
+}
+
+/** Reply themes across the brand's posts, biggest first: the questions, objections and requests worth posting about. */
+function Talk({ brandId, brandName, talk, posts }: { brandId: string; brandName: string; talk: Conversation; posts: Map<string, PostView> }) {
+  const kinds = (Object.keys(REPLY_KIND) as ReplyKind[]).filter((k) => talk.byKind[k]);
+  return (
+    <section className="stack" id="conversation">
+      <div className="spread" style={{ flexWrap: 'wrap', gap: 10 }}>
+        <div className="stack" style={{ gap: 4 }}>
+          <span className="label">What people are saying · last 30 days</span>
+          <span className="small muted">{talk.total} replies to {brandName}, grouped by what they keep coming back to. Themes feed idea suggestions and the weekly plan.</span>
+        </div>
+        {kinds.length ? <span className="row small" style={{ gap: 12 }}>{kinds.map((k) => <span key={k} className="row" style={{ gap: 6 }}><KindMark kind={k} />{REPLY_KIND[k]} <span className="mono dim">{talk.byKind[k]}</span></span>)}</span> : null}
+      </div>
+      {talk.themes.length ? (
+        <div className="themes wide">
+          {talk.themes.slice(0, 8).map((t) => (
+            <div key={t.id} className="theme">
+              <span className="row small" style={{ gap: 6 }}><KindMark kind={t.kind} /><span className="label">{REPLY_KIND[t.kind]}</span><span className="dim mono">{t.count} repl{t.count === 1 ? 'y' : 'ies'} · {t.posts.length} post{t.posts.length === 1 ? '' : 's'}</span></span>
+              <strong style={{ fontWeight: 500 }}>{t.label}</strong>
+              {t.sample.slice(0, 2).map((r) => <p key={r.id} className="small muted excerpt" style={{ margin: 0 }}>{r.text}</p>)}
+              <div className="row small" style={{ gap: 10, flexWrap: 'wrap' }}>
+                {t.posts[0] && posts.get(t.posts[0]) ? <Link href={`/performance/${t.posts[0]}`}>On “{posts.get(t.posts[0])!.parts[0]?.text.slice(0, 40)}…”</Link> : null}
+                <SaveToMemory brandId={brandId} kind="theme" id={t.id} options={['knowledge', 'do', 'avoid']} defaultText={`${t.label}\n\n${t.sample.map((r) => `“${r.text}”`).join('\n')}`} compact />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : <span className="small dim">No replies read yet. Harbor reads them 24 hours and 3 days after each post.</span>}
+    </section>
   );
 }
 

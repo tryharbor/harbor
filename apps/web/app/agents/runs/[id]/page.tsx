@@ -16,6 +16,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   const ideaByDraft = new Map(run.approvals.filter((a) => a.ideaId).map((a) => [a.draft.id, a.ideaId!]));
   const pending = run.approvals.filter((a) => a.status === 'pending').length;
   const agent = run.agentId ? byId.get(run.agentId) : undefined;
+  const proposal = run.steps.flatMap((st) => st.refs ?? []).find((r) => r.kind === 'proposal');
 
   return (
     <>
@@ -27,6 +28,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
           <>
             {agent ? <Link className="button" href={`/agents/${agent.id}${run.brandId ? `?brand=${run.brandId}` : ''}`}>Run again</Link> : null}
             {pending ? <Link className="button primary" href={`/approvals?run=${run.id}`}>Review {pending} in Approvals</Link> : null}
+            {proposal ? <Link className="button primary" href={`/approvals?tab=memory#${proposal.id}`}>Review the changes</Link> : null}
           </>
         }
       />

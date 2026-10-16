@@ -128,6 +128,49 @@ export const voiceSourceSchema = z.object({
   ref: z.string().optional(),
 });
 
+export const EVIDENCE_KINDS = ['do', 'avoid', 'banned', 'value', 'excerpt'] as const;
+export const EVIDENCE_SOURCES = ['learned', 'refresh', 'saved', 'owner'] as const;
+/** Most posts and signals one rule's evidence keeps. */
+export const EVIDENCE_MAX_REFS = 12;
+const refs = z.array(z.string().min(1)).default([]).transform((xs) => xs.slice(0, EVIDENCE_MAX_REFS));
+
+/** What a voice rule rests on: the posts and signals behind it, and where it came from. */
+export const evidenceSchema = z.object({
+  /** Exactly the rule's text as stored in voice.do / avoid / bannedWords / values[].name / excerpts[].text. */
+  rule: z.string().min(1),
+  kind: z.enum(EVIDENCE_KINDS),
+  posts: refs,
+  signals: refs,
+  /** e.g. "Posts opening in the first person did 1.6× the median (5 vs 7 posts)". */
+  note: z.string().max(2000).optional(),
+  source: z.enum(EVIDENCE_SOURCES),
+  at: timestamp,
+});
+export type Evidence = z.infer<typeof evidenceSchema>;
+export type EvidenceKind = Evidence['kind'];
+
+/** The rule texts of one evidence kind, as stored in the voice. */
+export function voiceRules(voice: { do: string[]; avoid: string[]; bannedWords: string[]; values: { name: string }[]; excerpts: { text: string }[] }, kind: EvidenceKind): string[] {
+  switch (kind) {
+    case 'do':
+      return voice.do;
+    case 'avoid':
+      return voice.avoid;
+    case 'banned':
+      return voice.bannedWords;
+    case 'value':
+      return voice.values.map((v) => v.name);
+    case 'excerpt':
+      return voice.excerpts.map((e) => e.text);
+  }
+}
+
+/** Evidence for a rule that no longer exists is dropped (an edited rule's text no longer matches; that's fine). */
+function pruneEvidence<V extends Parameters<typeof voiceRules>[0] & { evidence: Evidence[] }>(voice: V): V {
+  const keep = voice.evidence.filter((e) => voiceRules(voice, e.kind).includes(e.rule));
+  return keep.length === voice.evidence.length ? voice : { ...voice, evidence: keep };
+}
+
 export const brandVoiceSchema = z.preprocess(
   migrateVoice,
   z.object({
@@ -144,7 +187,9 @@ export const brandVoiceSchema = z.preprocess(
     learnedAt: timestamp.optional(),
     /** Model name that learned it (e.g. "simulated-v1"). */
     learnedBy: z.string().optional(),
-  }),
+    /** What each rule rests on. Old documents have none. */
+    evidence: z.array(evidenceSchema).default([]),
+  }).transform(pruneEvidence),
 );
 export type BrandVoice = z.infer<typeof brandVoiceSchema>;
 

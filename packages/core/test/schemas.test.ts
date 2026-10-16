@@ -25,7 +25,7 @@ describe('brand schemas', () => {
   it('fills Brand Memory defaults on create', () => {
     const parsed = brandCreateSchema.parse({ name: 'Acme' });
     expect(parsed.memory).toEqual({
-      voice: { summary: '', values: [], do: [], avoid: [], bannedWords: [], excerpts: [], sources: [] },
+      voice: { summary: '', values: [], do: [], avoid: [], bannedWords: [], excerpts: [], sources: [], evidence: [] },
       audiences: [],
       products: [],
       knowledge: [],
@@ -81,7 +81,7 @@ describe('Brand Memory v1 → v2', () => {
 
   it('patches only the keys given', () => {
     expect(brandMemoryPatchSchema.parse({ voice: { summary: 'New' } })).toEqual({
-      voice: { summary: 'New', values: [], do: [], avoid: [], bannedWords: [], excerpts: [], sources: [] },
+      voice: { summary: 'New', values: [], do: [], avoid: [], bannedWords: [], excerpts: [], sources: [], evidence: [] },
     });
     expect(brandMemoryPatchSchema.safeParse({ colour: 'red' }).success).toBe(false);
   });

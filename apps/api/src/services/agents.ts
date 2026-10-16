@@ -19,11 +19,14 @@ import {
 import { DEFAULT_MAX, generateDrafts, loadDraft, type DraftOut } from './drafts.ts';
 import { generateIdeas, insertIdea, loadIdea } from './ideas.ts';
 import { generateDigest, latestDigestRow } from './insights.ts';
+import { insertMemoryProposal } from './memory-proposals.ts';
+import { refreshBrandOutcomes } from './outcomes.ts';
 import { loadPost } from './posts.ts';
-import { AgentRunRecorder, SELECT_RUNS, toRunSummary, type AgentRunRow, type AgentRunView, type RunOpts, type RunRef, type RunStep } from './runs.ts';
+import { AgentRunRecorder, SELECT_RUNS, toRunSummary, withRun, type AgentRunRow, type AgentRunView, type RunOpts, type RunRef, type RunStep } from './runs.ts';
 import { derivePerformanceSignals } from './signals.ts';
 import { openSlots, slotLabel, type Slot } from './slots.ts';
 import { PLATFORM_NAMES, checksSummary, voiceCheck, type Check } from './voice-check.ts';
+import { featureLifts, loadLearningPosts, proposeChanges, ruleCoverage, type ProposedChange } from './voice-learning.ts';
 
 /**
  * Built-in agents, defined in code. An agent run is a parent run (kind 'agent') with a step timeline; the model
@@ -437,9 +440,107 @@ const digestAgent = spec({
   },
 } satisfies AgentSpec<{ brandId: string }, Prepared>);
 
+// ---- Voice refresh ----
+
+const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+const voiceRefresh = spec({
+  info: {
+    id: 'voice_refresh',
+    name: 'Voice refresh',
+    tagline: 'Learn the voice from what actually worked.',
+    description:
+      "Refreshes every post's verdict, compares the posts that beat the brand's median with the ones that missed, checks the voice's rules against them and proposes changes: new do and avoid rules, rules the results contradict, and new excerpts, each linked to its posts. Nothing changes until you apply it.",
+    category: 'review',
+    inputs: [{ key: 'brandId', label: 'Brand', type: 'brand', required: true }],
+    produces: ['report', 'approvals'],
+    triggers: ['manual', 'schedule'],
+    steps: [
+      { key: 'outcomes', label: 'Refresh verdicts' },
+      { key: 'compare', label: 'Compare winners and losers' },
+      { key: 'rules', label: 'Check the current rules' },
+      { key: 'propose', label: 'Draft the changes' },
+      { key: 'queue', label: 'Send for approval' },
+    ],
+  },
+  schema: z.object({ brandId: z.string().min(1) }),
+  async prepare(deps, i) {
+    return { brand: await loadBrand(deps.db, i.brandId), inputs: i };
+  },
+  async execute(deps, p, rec) {
+    const { db } = deps;
+    const { brand } = p;
+    const voice = brand.memory.voice;
+
+    const posts = await rec.step('outcomes', 'Refresh verdicts', async () => {
+      await refreshBrandOutcomes(db, brand.id);
+      await derivePerformanceSignals(db, brand.id);
+      const posts = await loadLearningPosts(db, brand.id);
+      return { value: posts, detail: `${plural(posts.length, 'post')} with a verdict in the last 90 days.` };
+    });
+
+    const lifts = await rec.step('compare', 'Compare winners and losers', async () => {
+      const lifts = featureLifts(posts);
+      const won = posts.filter((x) => x.verdict === 'outperformed');
+      const lost = posts.filter((x) => x.verdict === 'underperformed');
+      const top = [...lifts].sort((a, b) => Math.abs(Math.log(b.lift)) - Math.abs(Math.log(a.lift)))[0];
+      const refs = [...won].sort((a, b) => b.ratio - a.ratio).slice(0, 3).map((x): RunRef => ({ kind: 'post', id: x.id, label: `${x.ratio}x: ${(x.parts[0] ?? '').slice(0, 60)}` }));
+      const detail = lifts.length
+        ? `${won.length} outperformed, ${lost.length} underperformed. ${plural(lifts.length, 'feature')} with 3+ posts on each side; the strongest: ${top!.label.toLowerCase()} at ${top!.lift}×.`
+        : `${won.length} outperformed, ${lost.length} underperformed. Not enough posts on both sides of any feature yet.`;
+      return { value: lifts, detail, refs };
+    });
+
+    await rec.step('rules', 'Check the current rules', async () => {
+      const { covered, contradicted } = ruleCoverage(voice, lifts);
+      return {
+        value: undefined,
+        detail: `${plural(voice.do.length, 'do rule')} and ${plural(voice.avoid.length, 'avoid rule')}; ${covered.length} backed by the results, ${contradicted.length} contradicted.`,
+      };
+    });
+
+    const changes = await rec.step('propose', 'Draft the changes', async () => {
+      const drafted = proposeChanges(voice, posts, lifts);
+      if (!drafted.length) return { value: [] as ProposedChange[], detail: 'Nothing to change: the voice already matches the results.' };
+      const { value, run } = await withRun(db, brand, 'voice', { refresh: true, changes: drafted.length }, deps.model.name, async () => {
+        const res = await deps.model.refineVoiceChanges({ brandName: brand.name, voice, changes: drafted.map(({ evidence: _, ...c }) => c) });
+        // The model polishes wording only; a result that doesn't line up with the draft falls back to it.
+        const refined = res.result.length === drafted.length ? drafted.map((d, i) => ({ ...d, ...res.result[i]!, op: d.op, target: d.target, evidence: d.evidence })) : drafted;
+        const out: ProposedChange[] = [];
+        for (const c of refined) {
+          if (c.op === 'remove' && !(voice[c.target === 'voice.do' ? 'do' : 'avoid'] ?? []).includes(c.text)) continue;
+          if (c.op === 'add' && c.target === 'voice.do' && voice.do.some((r) => sameText(r, c.text))) continue;
+          if (c.op === 'add' && c.target === 'voice.avoid' && voice.avoid.some((r) => sameText(r, c.text))) continue;
+          if (out.some((o) => o.op === c.op && o.target === c.target && sameText(o.text, c.text))) continue;
+          out.push(c);
+        }
+        return { value: out, calls: [res], output: { changes: out.length } };
+      }, rec.child);
+      const adds = value.filter((c) => c.op === 'add').length;
+      return { value, detail: `${plural(value.length, 'change')}: ${adds} to add, ${value.length - adds} to remove.`, refs: [{ kind: 'run', id: run.id, label: 'Wording run' }] };
+    });
+
+    if (!changes.length) {
+      await rec.skip('queue', 'Send for approval', 'Nothing to send: no change has enough evidence yet.');
+      return { summary: `No changes proposed: ${brand.name}'s voice already matches the results.`, output: { report: { posts: posts.length, lifts } } };
+    }
+    const proposalId = await rec.step('queue', 'Send for approval', async () => {
+      const id = await insertMemoryProposal(db, {
+        workspaceId: brand.workspaceId, brandId: brand.id, runId: rec.id, agentId: 'voice_refresh',
+        changes: changes.map((c) => ({ op: c.op, target: c.target, text: c.text, why: c.why, ...(c.lift !== undefined ? { lift: c.lift } : {}), evidence: c.evidence })),
+      });
+      return { value: id, detail: `${plural(changes.length, 'change')} waiting for approval.`, refs: [{ kind: 'proposal', id, label: `${plural(changes.length, 'change')} to ${brand.name}'s voice` }] };
+    });
+    return {
+      summary: `Proposed ${plural(changes.length, 'change')} to ${brand.name}'s voice; waiting for approval.`,
+      output: { proposalId, report: { posts: posts.length, lifts } },
+    };
+  },
+} satisfies AgentSpec<{ brandId: string }, Prepared>);
+
 // ---- Registry ----
 
-const SPECS = [weeklyPlan, repurposeWinner, voiceCheckAgent, digestAgent];
+const SPECS = [weeklyPlan, repurposeWinner, voiceCheckAgent, digestAgent, voiceRefresh];
 export const AGENT_IDS = SPECS.map((s) => s.info.id);
 
 function specFor(id: string): AgentSpec<unknown, Prepared> {

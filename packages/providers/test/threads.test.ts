@@ -134,4 +134,38 @@ describe('ThreadsProvider', () => {
     expect(m.metrics).toEqual({ views: 500, likes: 20, comments: 4, reposts: 5, shares: 1 });
     expect(f.calls[0]!.url.searchParams.get('metric')).toBe('views,likes,replies,reposts,quotes,shares');
   });
+
+  it('fetches replies, leaving out the account\'s own thread parts', async () => {
+    const f = fakeFetch({
+      [`GET ${G}/t1/replies`]: json(200, {
+        data: [
+          { id: 'r1', text: 'Would love the template', username: 'mara', timestamp: '2026-10-14T09:30:00+0000' },
+          { id: 'r2', text: 'part 2 of my thread', username: 'harbor', timestamp: '2026-10-14T09:00:00+0000' },
+        ],
+      }),
+    });
+    const p = new ThreadsProvider(app('threads'), f.impl);
+    expect(p.reportsReplies).toBe(true);
+    expect(await p.fetchReplies(ctx, 't1', {})).toEqual([{ platformReplyId: 'r1', author: { handle: 'mara' }, text: 'Would love the template', createdAt: '2026-10-14T09:30:00.000Z' }]);
+    expect(f.calls[0]!.url.searchParams.get('fields')).toBe('id,text,username,timestamp');
+    expect(f.calls[0]!.url.searchParams.get('access_token')).toBe('tok');
+  });
+
+  it('lists recent posts with insights, skipping reposts', async () => {
+    const f = fakeFetch({
+      [`GET ${G}/me/threads`]: json(200, {
+        data: [
+          { id: 't9', text: 'Shipped replies today.', permalink: 'https://www.threads.net/@harbor/post/T9', timestamp: '2026-10-12T12:00:00+0000', media_type: 'TEXT_POST' },
+          { id: 't8', media_type: 'REPOST_FACADE', timestamp: '2026-10-11T12:00:00+0000' },
+        ],
+      }),
+      [`GET ${G}/t9/insights`]: json(200, { data: [{ name: 'views', values: [{ value: 640 }] }, { name: 'replies', values: [{ value: 6 }] }] }),
+    });
+    const posts = await new ThreadsProvider(app('threads'), f.impl).listRecentPosts(ctx, { limit: 25 });
+    expect(posts).toEqual([
+      { platformPostId: 't9', text: 'Shipped replies today.', publishedAt: '2026-10-12T12:00:00.000Z', url: 'https://www.threads.net/@harbor/post/T9', metrics: { views: 640, comments: 6 } },
+    ]);
+    expect(f.calls[0]!.url.searchParams.get('fields')).toBe('id,text,permalink,timestamp,media_type');
+    expect(f.calls[0]!.url.searchParams.get('limit')).toBe('25');
+  });
 });

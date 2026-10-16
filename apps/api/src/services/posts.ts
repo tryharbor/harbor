@@ -29,6 +29,7 @@ export const toPost = (r: PostListRow) => ({
   ideaId: r.idea_id ?? undefined,
   campaignId: r.campaign_id ?? undefined,
   status: r.status,
+  origin: r.origin ?? 'harbor',
   parts: postPartSchema.array().parse(r.parts ?? []),
   scheduledFor: r.scheduled_for ? iso(r.scheduled_for) : undefined,
   publishedAt: r.published_at ? iso(r.published_at) : undefined,

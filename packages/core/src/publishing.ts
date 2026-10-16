@@ -86,6 +86,30 @@ export interface PostMetrics {
   adapterVersion: string;
 }
 
+/** One reply (comment) on a published post, as the platform reports it. */
+export interface Reply {
+  platformReplyId: string;
+  author: { handle: string; displayName?: string };
+  text: string;
+  /** ISO timestamp. */
+  createdAt: string;
+  likes?: number;
+}
+
+/** One post from the account's own history (import past posts). */
+export interface PastPost {
+  platformPostId: string;
+  /** The first part's text. */
+  text: string;
+  /** Every part's text, when the platform returns a thread. */
+  parts?: string[];
+  /** ISO timestamp. */
+  publishedAt: string;
+  url?: string;
+  /** What the platform reports now, at the post's true age. */
+  metrics?: NormalizedMetrics;
+}
+
 export interface PlatformProvider {
   readonly identifier: Platform;
   readonly name: string;
@@ -97,6 +121,8 @@ export interface PlatformProvider {
   readonly adapterVersion: string;
   /** Max publishes in flight for this platform (queue concurrency). */
   readonly maxConcurrentJobs: number;
+  /** Whether fetchReplies() returns the post's replies (X only with HARBOR_X_READ_REPLIES=true, since X bills reads). */
+  readonly reportsReplies: boolean;
 
   maxLength(settings?: JsonObject): number;
   validate(parts: PostPart[], settings?: JsonObject): ValidationResult;
@@ -111,6 +137,10 @@ export interface PlatformProvider {
 
   comment?(ctx: ProviderContext, req: CommentRequest): Promise<{ platformPostId: string; url?: string }>;
   fetchPostMetrics?(ctx: ProviderContext, platformPostId: string): Promise<PostMetrics>;
+  /** Replies to a published post, newest first where the platform orders them. */
+  fetchReplies?(ctx: ProviderContext, platformPostId: string, opts: { limit?: number }): Promise<Reply[]>;
+  /** The account's own recent posts, newest first. */
+  listRecentPosts?(ctx: ProviderContext, opts: { limit: number }): Promise<PastPost[]>;
 }
 
 // ---- Typed provider failures ----

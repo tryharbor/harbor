@@ -141,6 +141,12 @@ export const signalSchema = z.object({
     postId: id.optional(),
     competitorId: id.optional(),
     url: z.string().url().optional(),
+    /** Reply themes (kind 'comment'): the theme key, the reply kind and keyword, and the posts and replies in it. */
+    theme: z.string().optional(),
+    replyKind: z.string().optional(),
+    keyword: z.string().optional(),
+    postIds: z.array(id).optional(),
+    replyIds: z.array(id).optional(),
   }),
   data: json.default({}),
   observedAt: timestamp,
@@ -237,6 +243,10 @@ export type Draft = z.infer<typeof draftSchema>;
 export const postStatusSchema = z.enum(['scheduled', 'publishing', 'pending', 'published', 'failed', 'unknown']);
 export type PostStatus = z.infer<typeof postStatusSchema>;
 
+/** 'imported': brought in from the platform's history (import past posts), not published by Harbor. */
+export const postOriginSchema = z.enum(['harbor', 'imported']);
+export type PostOrigin = z.infer<typeof postOriginSchema>;
+
 export const postSchema = z.object({
   id,
   brandId: id,
@@ -245,6 +255,7 @@ export const postSchema = z.object({
   ideaId: id.optional(),
   campaignId: id.optional(),
   status: postStatusSchema,
+  origin: postOriginSchema.default('harbor'),
   scheduledFor: timestamp.optional(),
   publishedAt: timestamp.optional(),
   platformPostId: z.string().optional(),
@@ -291,8 +302,11 @@ export type Outcome = z.infer<typeof outcomeSchema>;
 
 // ---- AgentRun (one model-driven job, for audit and cost tracking) ----
 
-/** 'agent' is a parent run (an agent with steps); the model runs it makes keep their own kind. */
-export const AGENT_RUN_KINDS = ['insights', 'ideas', 'draft', 'outcome', 'voice', 'rewrite', 'agent'] as const;
+/**
+ * 'agent' is a parent run (an agent with steps); the model runs it makes keep their own kind. 'preview' drafts the
+ * same brief with and without Brand Memory.
+ */
+export const AGENT_RUN_KINDS = ['insights', 'ideas', 'draft', 'outcome', 'voice', 'rewrite', 'agent', 'preview'] as const;
 export const agentRunKindSchema = z.enum(AGENT_RUN_KINDS);
 export type AgentRunKind = z.infer<typeof agentRunKindSchema>;
 

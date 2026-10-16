@@ -29,6 +29,8 @@ export type FetchLike = typeof fetch;
 export interface ProviderOptions extends ProviderAppConfig {
   /** Used between status polls (Threads replies, carousel children). Tests inject a no-op. */
   sleep?: (ms: number) => Promise<void>;
+  /** X only: read replies and the account's past posts. Off unless HARBOR_X_READ_REPLIES=true, since X bills per read. */
+  readReplies?: boolean;
 }
 
 export const DEFAULT_TIMEOUT_MS = 30_000;
@@ -96,6 +98,19 @@ export const asRecord = (v: unknown): Record<string, any> => (v && typeof v === 
 
 export const optionalString = (v: unknown): string | undefined => (typeof v === 'string' && v.length > 0 ? v : undefined);
 
+/** A platform timestamp (ISO, or Meta's "+0000" offset form) as ISO; `fallback` when it doesn't parse. */
+export function isoTime(v: unknown, fallback = new Date().toISOString()): string {
+  if (typeof v !== 'string' && typeof v !== 'number') return fallback;
+  const t = typeof v === 'number' ? v : Date.parse(v.replace(/([+-]\d{2})(\d{2})$/, '$1:$2'));
+  return Number.isFinite(t) ? new Date(t).toISOString() : fallback;
+}
+
+/** A non-negative finite number, else undefined. */
+export const optionalCount = (v: unknown): number | undefined => {
+  const n = typeof v === 'string' && v.trim() !== '' ? Number(v) : v;
+  return typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : undefined;
+};
+
 /** Only keeps a URL that core's channelAccountSchema would accept. */
 export function optionalUrl(v: unknown): string | undefined {
   if (typeof v !== 'string') return undefined;
@@ -161,6 +176,8 @@ export abstract class BaseProvider implements PlatformProvider {
   abstract readonly scopes: readonly string[];
   readonly adapterVersion: string = '1.0.0';
   readonly maxConcurrentJobs: number = 1;
+  /** Platforms that let Harbor read replies override this. */
+  readonly reportsReplies: boolean = false;
   /** Max media items per part; 0 = text only. */
   protected readonly maxMedia: number = 4;
   /** Platforms like Instagram can't publish text alone. */

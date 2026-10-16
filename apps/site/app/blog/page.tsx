@@ -4,12 +4,13 @@ import { Reveal } from '../../components/reveal';
 import { PageHero } from '../../components/ui';
 import { formatDate, getPosts } from '../../lib/blog';
 import './blog.css';
+import { pageMeta } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/blog', {
   title: 'Blog',
   description: 'Notes from building Harbor in public: the decisions behind it, how it works and what we got wrong.',
   alternates: { canonical: '/blog', types: { 'application/rss+xml': '/blog/rss.xml' } },
-};
+});
 
 export default function BlogIndex() {
   const posts = getPosts();

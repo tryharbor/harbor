@@ -17,7 +17,7 @@ import { Marked } from 'marked';
  */
 
 export type PostMeta = { slug: string; title: string; date: string; description: string; author: string; tags: string[] };
-export type Post = PostMeta & { html: string; minutes: number };
+export type Post = PostMeta & { html: string; markdown: string; minutes: number };
 
 const DIR = join(process.cwd(), 'content', 'blog');
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -70,6 +70,7 @@ function load(file: string): Post {
     author: str(data.author, 'author', file),
     tags: list(data.tags),
     html,
+    markdown: body,
     minutes: Math.max(1, Math.round(words / 230)),
   };
 }

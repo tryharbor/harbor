@@ -8,11 +8,12 @@ import { VoiceMixerPreview } from '../../../components/previews/voice-mixer';
 import { VoiceRefreshPreview } from '../../../components/previews/voice-refresh';
 import { CtaBand } from '../../../components/ui';
 import '../product.css';
+import { pageMeta } from '../../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/product/brand-memory', {
   title: 'Brand Memory',
   description: 'A memory per brand: voice, audiences, products, knowledge and style rules. Harbor learns it from posts you pick and refines it from what actually performed, with every rule linked to its evidence.',
-};
+});
 
 const f = feature('brand-memory');
 

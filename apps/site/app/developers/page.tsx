@@ -6,12 +6,13 @@ import { CtaBand, PageHero, SectionHead } from '../../components/ui';
 import { AGENTS, MCP_TOOLS, type McpTool } from '../../lib/mcp-tools';
 import { AgentSession } from './agent-session';
 import './developers.css';
+import { pageMeta } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/developers', {
   title: 'Developers',
   description: 'Harbor’s MCP server (Streamable HTTP at /mcp, hbr_ API keys, a stdio bridge), its 23 tools with read and write scopes, and the /v1 REST API.',
   alternates: { canonical: '/developers' },
-};
+});
 
 const CLAUDE_CODE = `claude mcp add --transport http harbor http://localhost:4800/mcp \\
   --header "Authorization: Bearer hbr_your_key"`;

@@ -7,12 +7,14 @@ import { CtaBand, GitHubButton, PageHero, SectionHead } from '../../components/u
 import { CLONE, SITE } from '../../lib/site';
 import { Architecture } from './architecture';
 import './open-source.css';
+import { pageMeta } from '../../lib/seo';
+import { JsonLd, sourceCode } from '../../lib/jsonld';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/open-source', {
   title: 'Open source',
   description: 'Harbor is open source under the AGPL. What the license lets you do, how to self-host Harbor in sandbox mode, connect your own platform apps and run it on Postgres.',
   alternates: { canonical: '/open-source' },
-};
+});
 
 const DOCS = `${SITE.github}/blob/main/docs/setup/platform-apps.md`;
 
@@ -68,6 +70,7 @@ const PLATFORMS = [
 export default function OpenSourcePage() {
   return (
     <>
+      <JsonLd data={sourceCode} />
       <PageHero
         eyebrow="Open source · AGPL"
         title="Your server, your data, your Harbor."

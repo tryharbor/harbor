@@ -5,12 +5,24 @@ import { CtaBand, PageHero, SectionHead } from '../../components/ui';
 import { PRICING } from '../../lib/pricing';
 import { SITE } from '../../lib/site';
 import './pricing.css';
+import { pageMeta } from '../../lib/seo';
+import { JsonLd, faqPage } from '../../lib/jsonld';
 
-export const metadata: Metadata = {
+/** The FAQ below as plain text, for structured data. Keep in step with the visible answers. */
+const FAQ_LD = [
+  { q: 'What counts as a brand?', a: 'A brand is one thing you post for: your product, a side project, your own name, a client. Each brand has its own Brand Memory, connected accounts and baseline. One brand can post to all four platforms.' },
+  { q: 'Do I need my own platform developer apps?', a: 'Self-hosted: yes. Harbor publishes through developer apps you register on X, LinkedIn, Meta (Instagram) and Threads; for your own accounts none need app review. Cloud: no. Cloud will connect through Harbor’s own apps.' },
+  { q: 'What does X cost?', a: 'X’s API is pay-per-use: about $0.015 per post, about $0.20 for a post with a link, and $0.005 per metrics read. Harbor reads each post 5 times, so a post costs about 4 cents to publish and track, or about 22 cents with a link. LinkedIn, Instagram and Threads don’t charge for API use.' },
+  { q: 'Can I move from self-host to Cloud?', a: 'That’s the plan. Both run the same code on Postgres, so moving is a database move. Connected accounts are reconnected once, because their tokens belong to your own developer apps.' },
+  { q: 'Will Harbor ever post without asking?', a: 'No. Agents, automations and MCP clients can draft and propose, and every proposal waits in Approvals until a person approves it.' },
+  { q: 'Is self-hosting really free?', a: 'Yes. Harbor is open source under the AGPL, with every feature included and no brand limit. You pay only for your own server, database and any platform or model usage.' },
+];
+
+export const metadata: Metadata = pageMeta('/pricing', {
   title: 'Pricing',
   description: 'Self-host Harbor free forever under the AGPL, or use Harbor Cloud, priced per brand: Starter $19 for 2 brands, Builder $49 for 6, Agency $149 for 25. Early pricing.',
   alternates: { canonical: '/pricing' },
-};
+});
 
 type Cell = string | boolean;
 const COLUMNS = ['Self-host', 'Starter', 'Builder', 'Agency'] as const;
@@ -70,6 +82,7 @@ function Mark({ value }: { value: Cell }) {
 export default function PricingPage() {
   return (
     <>
+      <JsonLd data={faqPage(FAQ_LD)} />
       <PageHero
         eyebrow="Pricing"
         title="Priced per brand, not per seat."

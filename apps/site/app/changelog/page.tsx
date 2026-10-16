@@ -5,12 +5,13 @@ import { CtaBand, PageHero } from '../../components/ui';
 import { formatDate } from '../../lib/blog';
 import { SITE } from '../../lib/site';
 import './changelog.css';
+import { pageMeta } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/changelog', {
   title: 'Changelog',
   description: 'What’s new in Harbor: onboarding, the media library, Brand Memory that learns, agents and the MCP server, insights, the campaign canvas, Studio and direct publishing.',
   alternates: { canonical: '/changelog' },
-};
+});
 
 type Entry = { id: string; date: string; title: string; color: 'pink' | 'violet' | 'coral' | 'amber' | 'yellow'; summary: string; notes: string[]; link?: { href: string; label: string } };
 

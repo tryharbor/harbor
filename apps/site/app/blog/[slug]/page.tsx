@@ -5,6 +5,7 @@ import { Reveal } from '../../../components/reveal';
 import { CtaBand } from '../../../components/ui';
 import { formatDate, getPost, getPosts } from '../../../lib/blog';
 import '../blog.css';
+import { JsonLd, blogPosting } from '../../../lib/jsonld';
 
 export const dynamicParams = false;
 
@@ -33,6 +34,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
 
   return (
     <>
+      <JsonLd data={blogPosting(post)} />
       <article className="section blog-article">
         <div className="container">
           <Reveal>

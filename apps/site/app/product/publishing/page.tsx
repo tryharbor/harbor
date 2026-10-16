@@ -8,11 +8,12 @@ import { SafePublishPreview } from '../../../components/previews/safe-publish';
 import { ThreadCarouselPreview } from '../../../components/previews/thread-carousel';
 import { CtaBand } from '../../../components/ui';
 import '../product.css';
+import { pageMeta } from '../../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/product/publishing', {
   title: 'Publishing',
   description: 'Publish directly to X, LinkedIn, Instagram and Threads with each platform’s rules, threads and carousels, a best-times calendar, focal-point crops and a sandbox mode. Harbor never retries a post it can’t confirm.',
-};
+});
 
 const f = feature('publishing');
 

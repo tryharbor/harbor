@@ -7,6 +7,9 @@ import { Reveal } from '../components/reveal';
 import { CtaBand, GitHubButton, SectionHead, Window } from '../components/ui';
 import { CLONE, FEATURES, PLATFORMS, PLATFORM_NAME, SITE } from '../lib/site';
 import { PRICING } from '../lib/pricing';
+import { JsonLd, softwareApplication } from '../lib/jsonld';
+import type { Metadata } from 'next';
+import { pageMeta } from '../lib/seo';
 
 const BRANDS = [
   { name: 'Harbor', kind: 'Open-source SaaS', voice: 'Personal · data-led · candid', best: 'Tue 9am on X', median: '2.9K', change: '+22%' },
@@ -14,9 +17,12 @@ const BRANDS = [
   { name: 'Fieldnotes', kind: 'Newsletter', voice: 'Calm · considered · polished', best: 'Wed 8am on LinkedIn', median: '1.4K', change: 'flat' },
 ];
 
+export const metadata: Metadata = pageMeta('/', { description: SITE.description });
+
 export default function Home() {
   return (
     <>
+      <JsonLd data={softwareApplication} />
       {/* Hero */}
       <section className="section hero" style={{ paddingBottom: 0 }}>
         <div className="container stack" style={{ gap: 28 }}>

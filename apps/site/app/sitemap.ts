@@ -8,11 +8,13 @@ export const dynamic = 'force-static';
 export default function sitemap(): MetadataRoute.Sitemap {
   const posts = getPosts();
   const latest = posts[0]?.date;
+  // Pages without a date of their own change with each release; the build date is an honest stand-in.
+  const built = new Date().toISOString().slice(0, 10);
   const page = (path: string, priority: number, changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency'], lastModified?: string) => ({
     url: `${SITE.url}${path}`,
     priority,
     changeFrequency,
-    ...(lastModified ? { lastModified } : {}),
+    lastModified: lastModified ?? built,
   });
   return [
     page('', 1, 'weekly'),

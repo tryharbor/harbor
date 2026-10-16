@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SITE } from '../../../lib/site';
 import { LegalPage } from '../legal-page';
+import { pageMeta } from '../../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/terms', {
   title: 'Terms',
   description: 'Plain-language terms for the Harbor website, the open-source software and Harbor Cloud.',
   alternates: { canonical: '/terms' },
-};
+});
 
 const SECTIONS = [
   { id: 'short', title: 'The short version' },

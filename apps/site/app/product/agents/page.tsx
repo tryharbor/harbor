@@ -8,11 +8,12 @@ import { McpPreview } from '../../../components/previews/mcp';
 import { RunLogPreview } from '../../../components/previews/run-log';
 import { CtaBand } from '../../../components/ui';
 import '../product.css';
+import { pageMeta } from '../../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/product/agents', {
   title: 'Agents & Approvals',
   description: 'Built-in agents plan the week, repurpose winners, check drafts, write the digest and refresh the voice. Every run is logged, and nothing posts until a person approves it. Claude can work in Harbor over MCP.',
-};
+});
 
 const f = feature('agents');
 

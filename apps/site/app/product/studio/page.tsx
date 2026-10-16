@@ -7,11 +7,12 @@ import { RewritesPreview } from '../../../components/previews/rewrites';
 import { StudioIdeaPreview } from '../../../components/previews/studio-idea';
 import { CtaBand } from '../../../components/ui';
 import '../product.css';
+import { pageMeta } from '../../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/product/studio', {
   title: 'Studio & Canvas',
   description: 'Draft one idea for X, LinkedIn, Instagram and Threads at once, with live platform previews and character limits. Rewrites, versions, ideas that cite their signals, and a canvas per campaign.',
-};
+});
 
 const f = feature('studio');
 

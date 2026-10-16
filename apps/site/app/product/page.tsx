@@ -12,11 +12,12 @@ import { Reveal } from '../../components/reveal';
 import { CtaBand, PageHero, SectionHead } from '../../components/ui';
 import { FEATURES, SITE } from '../../lib/site';
 import './product.css';
+import { pageMeta } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/product', {
   title: 'Product',
   description: 'How Harbor works: Brand Memory, agents with approvals, a Studio and canvas, direct publishing and insights, in one loop where every post’s results shape the next plan.',
-};
+});
 
 const VERBS = ['Remember', 'Plan', 'Draft', 'Publish', 'Learn'];
 const STEPS: { title: string; body: ReactNode; points: string[]; window: string; preview: ReactNode }[] = [

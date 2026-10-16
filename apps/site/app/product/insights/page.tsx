@@ -8,11 +8,12 @@ import { ReplyThemesPreview } from '../../../components/previews/reply-themes';
 import { VerdictsPreview } from '../../../components/previews/verdicts';
 import { CtaBand } from '../../../components/ui';
 import '../product.css';
+import { pageMeta } from '../../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/product/insights', {
   title: 'Insights',
   description: 'Growth curves at 1h, 6h, 24h, 3 days and 7 days against the brand’s own median, clear verdicts, a weekly digest that cites its posts, best times per brand and themes from replies.',
-};
+});
 
 const f = feature('insights');
 

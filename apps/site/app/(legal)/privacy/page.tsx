@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SITE } from '../../../lib/site';
 import { LegalPage } from '../legal-page';
+import { pageMeta } from '../../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta('/privacy', {
   title: 'Privacy',
   description: 'What Harbor stores and where: this website, self-hosted Harbor on your own server, and Harbor Cloud. Includes how Harbor uses data from Instagram, Threads, X and LinkedIn, and how to delete it.',
   alternates: { canonical: '/privacy' },
-};
+});
 
 const SECTIONS = [
   { id: 'short', title: 'The short version' },

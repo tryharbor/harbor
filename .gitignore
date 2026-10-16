@@ -22,3 +22,7 @@ apps/api/.media/
 
 # Private research notes (kept locally, never published)
 docs/research/
+
+# Vercel CLI link
+.vercel
+.env*

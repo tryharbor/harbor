@@ -1,0 +1,14 @@
+# Never upload secrets, local databases, media uploads or private notes to Vercel.
+.env
+.env.*
+!.env.example
+**/.pglite
+**/.pglite-demo
+**/pglite-data
+apps/api/.media
+docs/research
+**/node_modules
+**/.next
+**/*.tsbuildinfo
+.vercel
+.claude

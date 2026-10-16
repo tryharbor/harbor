@@ -16,6 +16,7 @@ import type { ProviderRegistry } from '@harbor/providers';
 import type { Db } from '../db/client.ts';
 import type { SecretStore } from '../lib/secrets.ts';
 import { getChannelRow, providerContext, setChannelStatus, type ChannelRow } from './channels.ts';
+import { refreshOutcome } from './outcomes.ts';
 
 export interface PublishDeps {
   db: Db;
@@ -266,8 +267,10 @@ export async function takeSnapshot(deps: PublishDeps, postId: string, ageHours: 
     const channel = await getChannelRow(db, post.channel_id);
     const provider = providerFor(deps, channel);
     if (!provider.fetchPostMetrics) throw new Error(`${provider.name} doesn't report post metrics.`);
-    // publishedAt lets the sandbox provider place the post on its growth curve; real providers ignore it.
-    const ctx = await providerContext(db, deps.secrets, provider, channel, { settings: { publishedAt: new Date(post.published_at).toISOString() } });
+    // publishedAt and parts let the sandbox provider place the post on its growth curve (its traits shape the
+    // synthetic metrics); real providers ignore both.
+    const parts = await loadParts(db, post);
+    const ctx = await providerContext(db, deps.secrets, provider, channel, { settings: { publishedAt: new Date(post.published_at).toISOString(), parts } });
     const m = await provider.fetchPostMetrics(ctx, post.platform_post_id);
     const age = (Date.now() - new Date(post.published_at).getTime()) / 3_600_000;
     await db.query(
@@ -276,12 +279,23 @@ export async function takeSnapshot(deps: PublishDeps, postId: string, ageHours: 
     );
     await db.query('UPDATE snapshot_jobs SET done_at = now(), last_error = NULL WHERE post_id = $1 AND age_hours = $2', [postId, ageHours]);
   } catch (err) {
-    const close = job.attempts >= 5;
-    await db.query(
-      `UPDATE snapshot_jobs SET last_error = $3, done_at = CASE WHEN $4 THEN now() ELSE NULL END WHERE post_id = $1 AND age_hours = $2`,
-      [postId, ageHours, message(err), close],
-    );
+    await recordSnapshotFailure(db, postId, ageHours, job.attempts, err);
+    return;
   }
+  // The verdict moves with every snapshot. A failure here must not reopen the (already stored) snapshot.
+  try {
+    await refreshOutcome(db, postId);
+  } catch (err) {
+    console.error(`[outcomes] ${postId}:`, message(err));
+  }
+}
+
+async function recordSnapshotFailure(db: Db, postId: string, ageHours: number, attempts: number, err: unknown) {
+  const close = attempts >= 5;
+  await db.query(
+    `UPDATE snapshot_jobs SET last_error = $3, done_at = CASE WHEN $4 THEN now() ELSE NULL END WHERE post_id = $1 AND age_hours = $2`,
+    [postId, ageHours, message(err), close],
+  );
 }
 
 /** Posts stuck in 'publishing' (process crashed mid-call): we can't know if they went out. */

@@ -23,6 +23,9 @@
   --coral: #ff8670;     --coral-ink: #c2452b;  --coral-soft: rgba(255, 134, 112, 0.16);
   --amber: #ffc13b;     --amber-ink: #9a5b00;  --amber-soft: rgba(255, 193, 59, 0.18);
   --yellow: #ffde2e;    --yellow-ink: #806500; --yellow-soft: rgba(255, 222, 46, 0.2);
+  /* Stage / kind markers in charts and boards: the same gradient, re-stepped by lightness so adjacent stages stay
+     distinguishable (validated with the dataviz palette checks: CVD, normal-vision floor, lightness band). */
+  --stage-idea: #e05bb4; --stage-drafting: #7c4ddb; --stage-approved: #f2734f; --stage-scheduled: #9a5200; --stage-live: #cfa600;
   /* Roles: primary actions are pink; focus, selection and "active" marks are violet. */
   --accent: var(--pink);
   --on-accent: #0a0a0a;
@@ -59,6 +62,7 @@
   --ink: #fafafa;
   --muted: #a1a1aa;
   --dim: #71717a;
+  --stage-idea: #db62b3; --stage-drafting: #8f63ee; --stage-approved: #e26a46; --stage-scheduled: #965600; --stage-live: #a98e00;
   --pink-ink: #f9a3e2;   --pink-soft: rgba(247, 138, 217, 0.16);
   --violet-ink: #d6a8ff; --violet-soft: rgba(199, 125, 255, 0.18);
   --coral-ink: #ffa392;  --coral-soft: rgba(255, 134, 112, 0.16);
@@ -247,7 +251,7 @@ tbody tr:hover td { background: var(--raised); }
 .cal-post::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: 1px; background: var(--dim); }
 .cal-post.s-published, .cal-post.s-scheduled, .cal-post.s-failed, .cal-post.s-unknown { color: var(--ink); background: var(--raised); }
 .cal-post.s-published::before { background: var(--good); }
-.cal-post.s-scheduled::before { background: var(--amber); }
+.cal-post.s-scheduled::before { background: var(--stage-scheduled); }
 .cal-post.s-failed::before, .cal-post.s-unknown::before { background: var(--warn); }
 
 /* ---- Growth chart ---- */
@@ -372,18 +376,60 @@ img.brand-mark { border: 1px solid var(--line); }
 /* ---- Palette roles: pipeline stages, canvas card kinds, pixel motif ---- */
 .column[data-stage] .column-head h2 { display: inline-flex; align-items: center; gap: 8px; }
 .column[data-stage] .column-head h2::before { content: ''; width: 8px; height: 8px; background: var(--stage); }
-.column[data-stage='idea'] { --stage: var(--pink); }
-.column[data-stage='drafting'] { --stage: var(--violet); }
-.column[data-stage='approved'] { --stage: var(--coral); }
-.column[data-stage='scheduled'] { --stage: var(--amber); }
-.column[data-stage='live'] { --stage: var(--yellow); }
+.column[data-stage='idea'] { --stage: var(--stage-idea); }
+.column[data-stage='drafting'] { --stage: var(--stage-drafting); }
+.column[data-stage='approved'] { --stage: var(--stage-approved); }
+.column[data-stage='scheduled'] { --stage: var(--stage-scheduled); }
+.column[data-stage='live'] { --stage: var(--stage-live); }
 
 .cv-kind::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 6px; vertical-align: 0; background: var(--kind, var(--dim)); }
-.cv-idea { --kind: var(--pink); }
-.cv-draft { --kind: var(--violet); }
-.cv-signal { --kind: var(--coral); }
-.cv-post { --kind: var(--amber); }
+.cv-idea { --kind: var(--stage-idea); }
+.cv-draft { --kind: var(--stage-drafting); }
+.cv-signal { --kind: var(--stage-approved); }
+.cv-post { --kind: var(--stage-live); }
 .cv-note { --kind: var(--line-strong); }
 
 /* Five hard-edged squares from the logo; marks Harbor's own intelligence (agents) and the wordmark. */
 .pixels { display: inline-block; width: 30px; height: 6px; flex: none; background: linear-gradient(90deg, var(--pink) 0 20%, var(--violet) 20% 40%, var(--coral) 40% 60%, var(--amber) 60% 80%, var(--yellow) 80% 100%); }
+
+/* ---- Week calendar ---- */
+.week { display: grid; grid-template-columns: 44px repeat(7, minmax(112px, 1fr)); border: 1px solid var(--line); background: var(--line); gap: 1px; min-width: 860px; }
+.week-corner, .week-day, .week-hour, .week-cell { background: var(--panel); }
+.week-day { padding: 8px 10px; }
+.week-day.today { box-shadow: inset 0 -2px 0 var(--pink); }
+.week-hour { padding: 6px 8px; font-size: 11px; color: var(--dim); text-align: right; }
+.week-cell { position: relative; min-height: 44px; padding: 4px; display: grid; gap: 3px; align-content: start; }
+.week-cell.droppable:hover { outline: 2px dashed var(--signal); outline-offset: -3px; }
+.best-tag { position: absolute; top: 3px; right: 4px; font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--violet-ink); }
+.week-post { display: flex; gap: 5px; align-items: center; padding: 3px 6px; font-size: 11.5px; background: var(--panel); border: 1px solid var(--line-strong); color: var(--ink); text-decoration: none; overflow: hidden; white-space: nowrap; }
+.week-post.movable { cursor: grab; }
+.week-post.s-scheduled { border-color: var(--stage-scheduled); }
+.week-post.s-published { color: var(--muted); }
+.week-post.s-failed, .week-post.s-unknown { border-color: var(--warn); }
+.week-post-text { overflow: hidden; text-overflow: ellipsis; }
+.heat-legend { display: inline-flex; }
+.heat-legend i { display: block; width: 14px; height: 10px; }
+
+/* ---- Chart extras: legend, crosshair, tooltip, direct labels, verdicts, heatmap ---- */
+.legend-swatch { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; }
+.legend-swatch.gradient { background: linear-gradient(90deg, var(--stage-idea), var(--stage-drafting), var(--stage-approved), var(--stage-live)); }
+.legend-swatch.dashed { background: repeating-linear-gradient(90deg, var(--dim) 0 4px, transparent 4px 7px); }
+.chart .crosshair { stroke: var(--line-strong); stroke-width: 1; }
+.chart .tip { fill: var(--panel); stroke: var(--line-strong); }
+.chart .tip-title { fill: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+.chart .tip-text { fill: var(--ink); font-size: 12px; font-family: var(--font-sans); }
+.chart .direct { fill: var(--ink); font-size: 11.5px; font-family: var(--font-sans); }
+.chart .dim-label { fill: var(--muted); }
+.chart .baseline { stroke: var(--dim); }
+.verdict { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.verdict.outperformed { color: var(--good); }
+.verdict.underperformed { color: var(--warn); }
+.verdict.met { color: var(--muted); }
+.verdict.inconclusive { color: var(--dim); font-weight: 400; }
+.heatmap { display: grid; grid-template-columns: 30px repeat(24, minmax(0, 1fr)); gap: 1px; font-size: 10px; }
+.heatmap .hm-cell { height: 16px; background: var(--sunken); position: relative; }
+.heatmap .hm-cell.top { outline: 1.5px solid var(--ink); outline-offset: -1.5px; }
+.heatmap .hm-label { color: var(--dim); font-family: var(--font-mono); display: flex; align-items: center; }
+.heatmap .hm-hour { color: var(--dim); font-family: var(--font-mono); text-align: center; }
+.finding { display: grid; gap: 6px; padding: 14px 0; border-top: 1px solid var(--line); }
+.finding:first-of-type { border-top: 0; padding-top: 0; }

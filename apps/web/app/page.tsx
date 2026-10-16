@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Channel } from '@harbor/core';
-import { getBrands, getChannels, getIdeas, getPosts, loadAll, type BrandView, type IdeaView, type PostView } from './api';
+import { getBrands, getChannels, getIdeas, getOverview, getPosts, loadAll, type BrandView, type IdeaView, type OverviewBrand, type PostView } from './api';
 import { BrandMark, Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, Upcoming, when } from './ui';
 
 export const dynamic = 'force-dynamic';
@@ -9,10 +9,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const flash = await searchParams;
   const now = new Date();
   const weekAhead = new Date(now.getTime() + 7 * 86_400_000).toISOString();
-  const res = await loadAll<[BrandView[], Channel[], PostView[], IdeaView[]]>([getBrands(), getChannels(), getPosts({ limit: '200' }), getIdeas()]);
+  const res = await loadAll<[BrandView[], Channel[], PostView[], IdeaView[], OverviewBrand[]]>([getBrands(), getChannels(), getPosts({ limit: '200' }), getIdeas(), getOverview().catch(() => [])]);
   const today = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   if (!res.ok) return (<><PageHeader title="Home" sub={today} /><LoadError message={res.error} /></>);
-  const [brands, channels, posts, ideas] = res.data;
+  const [brands, channels, posts, ideas, overview] = res.data;
 
   if (brands.length === 0) {
     return (
@@ -86,9 +86,20 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
         <section className="stack">
           <h2>This week's read</h2>
-          <Upcoming title="Weekly digest">
-            What worked across your brands and why: format, topic, hook, timing. It needs about a week of post snapshots, so it starts filling in after your first posts have run for 7 days.
-          </Upcoming>
+          {overview.some((o) => o.digestHeadline) ? (
+            <ul className="list small">
+              {overview.filter((o) => o.digestHeadline).map((o) => (
+                <li key={o.brandId}>
+                  <span className="label">{o.brandName}</span>
+                  <Link href={`/insights?brand=${o.brandId}`} style={{ textDecoration: 'none' }}>{o.digestHeadline}</Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Upcoming title="Weekly digest">
+              What worked across your brands and why. Write one from <Link href="/insights">Insights</Link> once a few posts have run.
+            </Upcoming>
+          )}
         </section>
       </div>
 

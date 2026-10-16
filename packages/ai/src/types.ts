@@ -79,4 +79,77 @@ export interface ContentModel {
   draft(input: DraftInput): Promise<ModelResult<PostPart[]>>;
   /** 3 variations for hook_variations, otherwise 1. */
   rewrite(input: RewriteInput): Promise<ModelResult<string[]>>;
+  /** A brand's weekly digest: wins, misses, patterns and recommendations, each citing posts and signals. */
+  digest(input: DigestInput): Promise<ModelResult<DigestResult>>;
+}
+
+// ---- Digest (weekly insights) ----
+
+export type DigestVerdict = 'outperformed' | 'met' | 'underperformed' | 'inconclusive';
+
+/** One published post as the digest sees it. Times are the server's local time. */
+export interface DigestPost {
+  id: string;
+  platform: Platform;
+  /** All parts' text; the first part is the hook. */
+  parts: string[];
+  hasMedia: boolean;
+  publishedAt: string;
+  /** 0 = Sunday. */
+  weekday: number;
+  hour: number;
+  /** True for posts published inside the digest period (the rest is history, used for patterns). */
+  inPeriod: boolean;
+  url?: string;
+  /** The post_performance signal that cites this post, when there is one. */
+  signalId?: string;
+  /** The post's outcome against the brand + platform median at the same age. */
+  outcome?: {
+    verdict: DigestVerdict;
+    ratio: number;
+    metric: 'views' | 'likes';
+    atAgeHours: number;
+    baseline: number;
+    actual: number;
+    comparablePosts: number;
+  };
+  /** Views at ~24h, when the platform reports views. */
+  views24h?: number;
+}
+
+export interface DigestStats {
+  posts: number;
+  published: number;
+  medianViews24h?: number;
+  /** medianViews24h against the previous period of the same length, as a ratio. */
+  change?: number;
+}
+
+export interface DigestInput {
+  brandName: string;
+  period: { from: string; to: string };
+  stats: DigestStats;
+  /** Published posts in the period plus history (e.g. the last 90 days), oldest first. */
+  posts: DigestPost[];
+  /** The best posting slots per platform (see GET /v1/brands/:id/best-times). */
+  bestTimes: { platform: Platform; basis: 'history' | 'prior'; top: { weekday: number; hour: number; score: number }[] }[];
+}
+
+export interface DigestFinding {
+  title: string;
+  detail: string;
+  /** Post ids the finding is about. */
+  posts: string[];
+  /** The post_performance signals behind it. */
+  signalIds: string[];
+  /** 0..1 */
+  confidence: number;
+}
+
+export interface DigestResult {
+  headline: string;
+  wins: DigestFinding[];
+  misses: DigestFinding[];
+  patterns: DigestFinding[];
+  recommendations: DigestFinding[];
 }

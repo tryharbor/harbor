@@ -107,7 +107,10 @@ export class SandboxProvider implements PlatformProvider {
       this.fetchPostMetrics = async (ctx, platformPostId) => {
         const publishedAt = parsePublishedAt(ctx.settings?.publishedAt) ?? sandboxPostTime(platformPostId) ?? this.now();
         const ageHours = Math.max(0, (this.now() - publishedAt) / 3_600_000);
-        const { metrics, curve } = sandboxMetricsAt(platform, platformPostId, ageHours);
+        // Traits are known when Harbor passes the post's parts (it always does); without them the curve is trait-neutral.
+        const parts = parseParts(ctx.settings?.parts);
+        const traits = parts ? sandboxTraits(parts, publishedAt) : undefined;
+        const { metrics, curve } = sandboxMetricsAt(platform, platformPostId, ageHours, traits);
         return { raw: { sandbox: true, platformPostId, ageHours, curve, metrics }, metrics, adapterVersion: this.adapterVersion };
       };
     }
@@ -172,7 +175,61 @@ function parsePublishedAt(v: unknown): number | undefined {
   return Number.isFinite(t) ? t : undefined;
 }
 
+function parseParts(v: unknown): PostPart[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  return v
+    .filter((p): p is Record<string, unknown> => !!p && typeof p === 'object')
+    .map((p) => ({ text: typeof p.text === 'string' ? p.text : '', media: Array.isArray(p.media) ? (p.media as PostPart['media']) : [] }));
+}
+
 // ---- Synthetic growth curve ----
+
+/** What the sandbox looks at in a post, so the synthetic metrics carry patterns Harbor's insights can find. */
+export interface SandboxTraits {
+  /** More than one part (thread replies). */
+  thread: boolean;
+  /** Any part has an image or video. */
+  media: boolean;
+  /** The first part opens with a number ("3 things…", "$1,240…"). */
+  numberHook: boolean;
+  /** Local publish hour (server clock), 0–23. */
+  hour: number;
+}
+
+/** Opens with a digit, ignoring leading punctuation and currency signs. */
+export const opensWithNumber = (text: string) => /^[^\p{L}\p{N}]*\p{N}/u.test(text.trim());
+
+export function sandboxTraits(parts: PostPart[], publishedAt: number | string | Date): SandboxTraits {
+  return {
+    thread: parts.length > 1,
+    media: parts.some((p) => (p.media ?? []).length > 0),
+    numberHook: opensWithNumber(parts[0]?.text ?? ''),
+    hour: new Date(publishedAt).getHours(),
+  };
+}
+
+/** Local hour each platform's audience is most active, for the sandbox's publish-hour effect. */
+export const SANDBOX_PEAK_HOUR: Record<Platform, number> = { x: 9, linkedin: 8, instagram: 19, threads: 12 };
+
+const hourDistance = (a: number, b: number) => {
+  const d = Math.abs(a - b) % 24;
+  return Math.min(d, 24 - d);
+};
+
+/**
+ * The deterministic part of a sandbox post's reach: threads +40% on X, media +30% on Instagram and Threads, a
+ * number in the opening +25%, and a publish-hour factor from 0.8× (far from the platform's peak) to 1.25× (at it).
+ */
+export function sandboxTraitMultiplier(platform: Platform, traits: SandboxTraits): { multiplier: number; factors: Record<string, number> } {
+  const factors: Record<string, number> = {};
+  if (traits.thread && platform === 'x') factors.thread = 1.4;
+  if (traits.media && (platform === 'instagram' || platform === 'threads')) factors.media = 1.3;
+  if (traits.numberHook) factors.numberHook = 1.25;
+  const d = hourDistance(traits.hour, SANDBOX_PEAK_HOUR[platform]);
+  factors.hour = Math.round((0.8 + 0.45 * Math.exp(-(d * d) / (2 * 2.5 * 2.5))) * 1000) / 1000;
+  const multiplier = Object.values(factors).reduce((a, b) => a * b, 1);
+  return { multiplier: Math.round(multiplier * 1000) / 1000, factors };
+}
 
 /** Deterministic PRNG (mulberry32) seeded from a string. */
 function seeded(seed: string): () => number {
@@ -192,21 +249,34 @@ function seeded(seed: string): () => number {
 }
 
 export interface SandboxCurve {
-  /** Views the post saturates at. */
+  /** Views the post saturates at (base × trait multiplier). */
   peak: number;
+  /** The per-post random part of the peak. */
+  basePeak: number;
+  /** Trait effects applied to basePeak (1 when the traits aren't known). */
+  multiplier: number;
+  factors?: Record<string, number>;
   /** Hours to reach ~63% of peak. */
   tauHours: number;
   rates: Record<string, number>;
 }
 
-/** The per-post curve parameters: peak 300–20k (log-uniform), τ 3–30h, engagement ratios. */
-export function sandboxCurve(platformPostId: string): SandboxCurve {
+/**
+ * The per-post curve parameters: a random base peak of 1,500–4,500 views (log-uniform; narrow enough that trait
+ * effects show up in a few dozen posts), times the trait multiplier when the post's traits are known; τ 4–16h;
+ * engagement ratios. The random part depends only on the platform post id.
+ */
+export function sandboxCurve(platformPostId: string, platform?: Platform, traits?: SandboxTraits): SandboxCurve {
   const r = seeded(platformPostId);
-  const peak = Math.round(300 * Math.pow(20_000 / 300, r()));
-  const tauHours = 3 + r() * 27;
+  const basePeak = Math.round(1500 * Math.pow(3, r()));
+  const tauHours = 4 + r() * 12;
   const likeRate = 0.01 + r() * 0.05;
+  const effect = platform && traits ? sandboxTraitMultiplier(platform, traits) : undefined;
   return {
-    peak,
+    peak: Math.round(basePeak * (effect?.multiplier ?? 1)),
+    basePeak,
+    multiplier: effect?.multiplier ?? 1,
+    ...(effect ? { factors: effect.factors } : {}),
     tauHours: Math.round(tauHours * 100) / 100,
     rates: {
       reach: 0.6 + r() * 0.3,
@@ -226,8 +296,13 @@ export function sandboxCurve(platformPostId: string): SandboxCurve {
  * Metrics for a sandbox post at a given age: views = peak · (1 − e^(−age/τ)); every other count is a fixed ratio of
  * views, so each metric only ever grows. Only metrics the platform reports are filled.
  */
-export function sandboxMetricsAt(platform: Platform, platformPostId: string, ageHours: number): { metrics: NormalizedMetrics; curve: SandboxCurve } {
-  const curve = sandboxCurve(platformPostId);
+export function sandboxMetricsAt(
+  platform: Platform,
+  platformPostId: string,
+  ageHours: number,
+  traits?: SandboxTraits,
+): { metrics: NormalizedMetrics; curve: SandboxCurve } {
+  const curve = sandboxCurve(platformPostId, platform, traits);
   const views = curve.peak * (1 - Math.exp(-Math.max(0, ageHours) / curve.tauHours));
   const all: Record<string, number> = { views: Math.floor(views) };
   for (const [k, rate] of Object.entries(curve.rates)) all[k] = Math.floor(views * rate);

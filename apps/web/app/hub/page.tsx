@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import type { IdeaStatus } from '@harbor/core';
 import { createIdea, deleteIdea, moveIdea, suggestIdeas } from '../actions';
-import { getBrands, getIdeas, getPosts, loadAll, type BrandView, type IdeaView, type PostView } from '../api';
+import { getBestTimes, getBrands, getIdeas, getPosts, loadAll, type BestTimes, type BrandView, type IdeaView, type PostView } from '../api';
+import { WeekCalendar } from '../components/week-calendar';
 import { Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, when } from '../ui';
 
 export const dynamic = 'force-dynamic';
 
 type View = 'board' | 'table' | 'calendar';
-type Search = { view?: string; brand?: string; month?: string; notice?: string; error?: string };
+type Search = { view?: string; brand?: string; month?: string; week?: string; range?: string; notice?: string; error?: string };
 
 const STAGES: { key: IdeaStatus; label: string; hint: string }[] = [
   { key: 'idea', label: 'Ideas', hint: 'Worth posting about' },
@@ -21,7 +22,7 @@ const PREV: Partial<Record<IdeaStatus, IdeaStatus>> = { drafting: 'idea', approv
 
 const href = (s: Search, patch: Partial<Search>) => {
   const p = new URLSearchParams();
-  const merged = { view: s.view, brand: s.brand, month: s.month, ...patch };
+  const merged = { view: s.view, brand: s.brand, month: s.month, week: s.week, range: s.range, ...patch };
   for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
   return `/hub${p.size ? `?${p}` : ''}`;
 };
@@ -67,8 +68,10 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
         <Board ideas={ideas} posts={posts} brands={brands} brandFilter={s.brand} here={here} />
       ) : view === 'table' ? (
         <Table ideas={ideas} posts={posts} />
-      ) : (
+      ) : s.range === 'month' ? (
         <Calendar posts={posts} month={s.month} s={s} />
+      ) : (
+        <Week posts={posts} s={s} brandName={brands.find((b) => b.id === s.brand)?.name} />
       )}
     </>
   );
@@ -230,6 +233,10 @@ function Calendar({ posts, month, s }: { posts: PostView[]; month?: string; s: S
         <h2 style={{ margin: 0 }}>{first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
         <Link className="button" href={href(s, { month: next })} aria-label="Next month">→</Link>
         <Link className="small" href={href(s, { month: undefined })}>Today</Link>
+        <nav className="segmented" aria-label="Calendar range" style={{ marginLeft: 'auto' }}>
+          <Link href={href(s, { range: undefined })}>Week</Link>
+          <Link href={href(s, { range: 'month' })} aria-current="page">Month</Link>
+        </nav>
       </div>
       <div className="scroll">
         <div className="calendar" role="grid">
@@ -250,6 +257,44 @@ function Calendar({ posts, month, s }: { posts: PostView[]; month?: string; s: S
           })}
         </div>
       </div>
+    </section>
+  );
+}
+
+
+/** Sunday of the week containing `d` (local), as YYYY-MM-DD. */
+const sundayOf = (d: Date) => {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+};
+
+async function Week({ posts, s, brandName }: { posts: PostView[]; s: Search; brandName?: string }) {
+  const weekStart = /^\d{4}-\d{2}-\d{2}$/.test(s.week ?? '') ? sundayOf(new Date(`${s.week}T12:00:00`)) : sundayOf(new Date());
+  const start = new Date(`${weekStart}T00:00:00`);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+  const shift = (days: number) => sundayOf(new Date(start.getFullYear(), start.getMonth(), start.getDate() + days));
+  const inWeek = posts.filter((p) => {
+    const t = new Date(p.publishedAt ?? p.scheduledFor ?? p.createdAt).getTime();
+    return t >= start.getTime() && t < end.getTime();
+  });
+  let best: BestTimes | undefined;
+  if (s.brand) best = await getBestTimes(s.brand).catch(() => undefined);
+  const label = `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(end.getTime() - 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  return (
+    <section className="stack">
+      <div className="spread">
+        <div className="row">
+          <Link className="button" href={href(s, { week: shift(-7) })} aria-label="Previous week">←</Link>
+          <h2 style={{ margin: 0 }}>{label}</h2>
+          <Link className="button" href={href(s, { week: shift(7) })} aria-label="Next week">→</Link>
+          <Link className="small" href={href(s, { week: undefined })}>This week</Link>
+        </div>
+        <nav className="segmented" aria-label="Calendar range">
+          <Link href={href(s, { range: undefined })} aria-current="page">Week</Link>
+          <Link href={href(s, { range: 'month' })}>Month</Link>
+        </nav>
+      </div>
+      <WeekCalendar key={`${weekStart}:${s.brand ?? ''}`} weekStart={weekStart} posts={inWeek} best={best} brandName={brandName} />
     </section>
   );
 }

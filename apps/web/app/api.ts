@@ -68,10 +68,24 @@ export interface PostView {
   error?: { kind: string; message: string };
   latest?: { metrics: NormalizedMetrics; ageHours: number };
   snapshotCount: number;
+  /** How the post did against the brand's median for the platform at the same age. */
+  outcome?: Outcome;
   createdAt: string;
 }
 export interface PostDetail extends PostView {
   snapshots: { takenAt: string; ageHours: number; metrics: NormalizedMetrics; adapterVersion: string }[];
+  /** Brand + platform median of the primary metric at each schedule age. */
+  baselineCurve?: { ageHours: number; value: number }[];
+}
+export type Verdict = 'outperformed' | 'met' | 'underperformed' | 'inconclusive';
+export interface Outcome {
+  verdict: Verdict;
+  ratio: number;
+  metric: 'views' | 'likes';
+  atAgeHours: number;
+  baseline: number;
+  actual: number;
+  comparablePosts: number;
 }
 
 export interface IdeaView {
@@ -209,3 +223,45 @@ export interface CanvasData {
 
 export const getCampaigns = (brandId?: string) => api<{ data: Campaign[] }>(`/v1/campaigns${qs({ brandId })}`).then(data);
 export const getCanvas = (campaignId: string) => api<CanvasData>(`/v1/campaigns/${campaignId}/canvas`);
+
+// ---- Insights ----
+
+export interface BestTimes {
+  platform?: Platform;
+  slots: { weekday: number; hour: number; score: number; basis: 'history' | 'prior'; posts: number }[];
+  top: { weekday: number; hour: number; score: number }[];
+}
+export interface Finding { title: string; detail: string; posts: string[]; signalIds: string[]; confidence: number }
+export interface Digest {
+  brandId: string;
+  period: { from: string; to: string };
+  generatedAt: string;
+  model: string;
+  simulated: boolean;
+  headline: string;
+  stats: { posts: number; published: number; medianViews24h?: number; change?: number };
+  wins: Finding[];
+  misses: Finding[];
+  patterns: Finding[];
+  recommendations: Finding[];
+}
+export interface OverviewBrand {
+  brandId: string;
+  brandName: string;
+  posts7d: number;
+  published7d: number;
+  medianViews24h?: number;
+  change?: number;
+  outperformed: number;
+  underperformed: number;
+  topPost?: { id: string; text: string; platform: Platform; views?: number; url?: string };
+  digestHeadline?: string;
+}
+
+export const getBestTimes = (brandId: string, platform?: Platform) => api<BestTimes>(`/v1/brands/${brandId}/best-times${qs({ platform })}`);
+/** Undefined when the brand has no digest yet. */
+export const getDigest = (brandId: string) => api<Digest>(`/v1/brands/${brandId}/digest`).catch((err) => {
+  if (err instanceof ApiError && /not found|no digest/i.test(err.message)) return undefined;
+  throw err;
+});
+export const getOverview = () => api<{ brands: OverviewBrand[] }>('/v1/insights/overview').then((r) => r.brands);

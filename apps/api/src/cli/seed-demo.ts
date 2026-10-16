@@ -1,5 +1,7 @@
+import type { Platform, PostPart } from '@harbor/core';
 import { createApp, createDeps } from '../app.ts';
 import { openDb } from '../db/client.ts';
+import { insertHistoricalPost } from '../services/sandbox-history.ts';
 
 /**
  * Fill a throwaway database with sample brands, Brand Memory, competitors, sandbox channels, posts with growth
@@ -25,7 +27,9 @@ if (existing) {
   );
   // Demo data from before campaigns existed has no "Launch week" canvas: replace it.
   const [campaign] = await db.query("SELECT 1 FROM campaigns WHERE brand_id = $1 AND name = 'Launch week' LIMIT 1", [existing.id]);
-  if (usable && campaign) {
+  // Demo data from before the insight engine has no post history or digest.
+  const [digest] = await db.query('SELECT 1 FROM digests WHERE brand_id = $1 LIMIT 1', [existing.id]).catch(() => []);
+  if (usable && campaign && digest) {
     console.log('Demo data already present.');
     await db.close();
     process.exit(0);
@@ -165,6 +169,7 @@ const hx = await ch(harbor.id, 'x', 'harborhq');
 const hli = await ch(harbor.id, 'linkedin', 'Derek K');
 const hth = await ch(harbor.id, 'threads', 'harborhq');
 const tig = await ch(tidewater.id, 'instagram', 'tidewatercoffee');
+const tth = await ch(tidewater.id, 'threads', 'tidewatercoffee');
 
 // ---- Posts, published through the sandbox and aged with the time machine so each has a real growth curve ----
 
@@ -186,6 +191,99 @@ await advance(7);
 
 await publish(hx.id, [{ text: 'What every social API actually gives you in 2026 (with costs).' }], hoursAhead(30));
 await publish(tig.id, [{ text: 'Weekend pour-over guide: 15 g, 250 g water, 3 minutes.', media: [{ kind: 'image', url: IMG(42) }] }], hoursAhead(54));
+
+// ---- Six weeks of history: published sandbox posts with full growth curves ----
+//
+// Inserted straight into the past (the time machine would shift every post together). Traits vary on purpose:
+// threads vs single posts, media, number openings and publish hours, so the sandbox's trait effects leave
+// patterns for outcomes, best times and the digest to find. The trait effects are the same on every seed run; the
+// per-post random part of each curve depends on the post id, which includes the publish time.
+
+const HARBOR_NUMBER_HOOKS = [
+  '3 things I learned shipping a scheduler nobody asked for.',
+  '41% of my posts got 80% of their views in the first 6 hours.',
+  '$0 in ads, 212 waitlist signups. Here is the breakdown.',
+  '12 months, 4 products, 1 content calendar that finally works.',
+  '5 metrics every social API gives you for free (and 2 it hides).',
+  '2 hours a week. That is what content costs me now, down from 9.',
+  '7 days of growth curves taught me more than a year of totals.',
+  '90 posts later: the hook matters more than the platform.',
+];
+const HARBOR_OTHER_HOOKS = [
+  'Why do schedulers show totals instead of growth curves?',
+  'I deleted three content calendars last week. Here is what replaced them.',
+  'Shipping log: the snapshot poller now retries failed reads.',
+  'Content tools assume one brand. Builders run five.',
+  'What would you cut first if you ran four brands alone?',
+  'I used to post the same thing everywhere. The numbers said stop.',
+  'The final number lies. The curve tells you what happened.',
+  'Building in public is easier when the dashboard tells the truth.',
+  'Harbor now learns a brand voice from ten old posts.',
+  'Open source, AGPL, self-hosted. Here is why that is the business model.',
+];
+const HARBOR_REPLIES = [
+  'The short version: one place that knows each brand, what worked last time, and what is due this week.',
+  'Every post is checked at 1h, 6h, 24h, 72h and 7 days, so a slow burner is not mistaken for a flop.',
+  'If you run more than one product, I would love to hear how you plan content today.',
+];
+const TIDEWATER_NUMBER_HOOKS = [
+  '48 hours from roaster to your door. Batch #36 ships Friday.',
+  '15 g, 250 g water, 3 minutes: the only pour-over ratio you need.',
+  '3 farms, 1 blend: meet the Harbor Fog house coffee.',
+  '92°C, not boiling. Your light roasts will thank you.',
+];
+const TIDEWATER_OTHER_HOOKS = [
+  'Batch #37 smells like blueberries and dark chocolate. Huila, Colombia.',
+  'Morning light on the roaster. Small batches only.',
+  'How fresh is fresh? We roast to order every two weeks.',
+  'Meet Ana from the Gómez farm, who picks our cherries by hand.',
+  'Sunday brew-along: grab your AeroPress and join us at 10.',
+  'Cupping notes from this week: cherry, cocoa, a little honey.',
+];
+const HARBOR_HOURS = [9, 13, 20, 8, 18, 12, 10, 21, 14, 19, 7];
+const TIDEWATER_HOURS = [19, 8, 12, 20, 18, 10, 21, 13];
+
+interface Planned { brandId: string; channelId: string; platform: Platform; parts: PostPart[]; daysAgo: number; hour: number; key: string }
+
+function harborPlan(): Planned[] {
+  const cycle = [hx, hx, hth, hx, hli, hth, hx, hx, hth, hli];
+  const out: Planned[] = [];
+  for (let i = 0; i < 30; i++) {
+    const channel = cycle[i % cycle.length];
+    const platform = channel.platform as Platform;
+    const numberHook = i % 3 === 1;
+    const hook = numberHook ? HARBOR_NUMBER_HOOKS[i % HARBOR_NUMBER_HOOKS.length]! : HARBOR_OTHER_HOOKS[i % HARBOR_OTHER_HOOKS.length]!;
+    const thread = platform !== 'linkedin' && (i % 5 === 0 || i % 5 === 2);
+    const media = platform === 'threads' && i % 4 < 2;
+    const parts: PostPart[] = [{ text: hook, media: media ? [{ kind: 'image', url: `https://sandbox.harbor.local/media/harbor-${i}.png` }] : [] }];
+    if (thread) for (let r = 0; r < 1 + (i % 3); r++) parts.push({ text: HARBOR_REPLIES[(i + r) % HARBOR_REPLIES.length]!, media: [] });
+    out.push({ brandId: harbor.id, channelId: channel.id, platform, parts, daysAgo: 41 - Math.floor((i * 41) / 30), hour: HARBOR_HOURS[(i * 7) % HARBOR_HOURS.length]!, key: `harbor-${i}` });
+  }
+  return out;
+}
+
+function tidewaterPlan(): Planned[] {
+  const out: Planned[] = [];
+  for (let i = 0; i < 12; i++) {
+    const channel = i % 3 === 2 ? tth : tig;
+    const platform = channel.platform as Platform;
+    const numberHook = i % 3 === 0;
+    const hook = numberHook ? TIDEWATER_NUMBER_HOOKS[i % TIDEWATER_NUMBER_HOOKS.length]! : TIDEWATER_OTHER_HOOKS[i % TIDEWATER_OTHER_HOOKS.length]!;
+    // Instagram always needs media; on Threads about half the posts have a photo.
+    const media = platform === 'instagram' || i % 2 === 0;
+    const parts: PostPart[] = [{ text: hook, media: media ? [{ kind: 'image', url: IMG(30 + i) }] : [] }];
+    out.push({ brandId: tidewater.id, channelId: channel.id, platform, parts, daysAgo: 41 - Math.floor((i * 41) / 12), hour: TIDEWATER_HOURS[(i * 5) % TIDEWATER_HOURS.length]!, key: `tidewater-${i}` });
+  }
+  return out;
+}
+
+for (const p of [...harborPlan(), ...tidewaterPlan()]) {
+  const at = new Date();
+  at.setDate(at.getDate() - p.daysAgo);
+  at.setHours(p.hour, (p.key.length * 7) % 60, 0, 0);
+  if (at.getTime() > Date.now() - 3_600_000) at.setDate(at.getDate() - 1);
+  await insertHistoricalPost(db, { brandId: p.brandId, channelId: p.channelId, platform: p.platform, parts: p.parts, publishedAt: at, key: p.key });
+}
 
 // ---- Ideas and drafts ----
 
@@ -239,6 +337,14 @@ await call('POST', `/v1/campaigns/${launch.id}/agent`, { action: 'draft', ideaIt
 // A free-standing frame for proof posts, with one note inside.
 const proof = await item({ kind: 'frame', x: 0, y: 620, width: 900, height: 360, data: { title: 'Proof posts' } });
 await item({ kind: 'note', parentId: proof.id, x: 20, y: 48, width: 320, height: 140, data: { text: 'Screenshot three real growth curves (1h → 7d) for launch day. Real numbers, including the flat one.' } });
+
+// ---- Insights: verdicts for every post, then a weekly digest per brand ----
+
+for (const b of [harbor, tidewater]) {
+  await call('POST', `/v1/brands/${b.id}/outcomes`);
+  const digest = await call('POST', `/v1/brands/${b.id}/digest`, { days: 7 });
+  console.log(`${b.name}: ${digest.headline}`);
+}
 
 console.log('Seeded demo data (sandbox channels, simulated model).');
 await db.close();

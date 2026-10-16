@@ -26,8 +26,11 @@ import {
   words,
   type Sentence,
 } from './text.ts';
+import { digest } from './digest.ts';
 import type {
   ContentModel,
+  DigestInput,
+  DigestResult,
   DraftInput,
   GenerateIdeasInput,
   IdeaSuggestion,
@@ -74,6 +77,10 @@ export class SimulatedModel implements ContentModel {
 
   async rewrite(input: RewriteInput): Promise<ModelResult<string[]>> {
     return this.wrap({ ...input, brand: input.brand.memory }, rewrite(input));
+  }
+
+  async digest(input: DigestInput): Promise<ModelResult<DigestResult>> {
+    return this.wrap(input, digest(input));
   }
 }
 

@@ -433,3 +433,28 @@ export async function saveLogo(form: FormData) {
   refresh();
   go(back, { notice: logoUrl ? 'Logo saved.' : 'Logo removed.' });
 }
+
+// ---- Calendar + insights ----
+
+/** Drag-and-drop reschedule from the calendar. Returns a result instead of redirecting. */
+export async function reschedulePost(postId: string, scheduledFor: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await api(`/v1/posts/${postId}`, { method: 'PATCH', body: JSON.stringify({ scheduledFor }) });
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: message(err, 'Could not reschedule.') };
+  }
+}
+
+export async function generateDigest(form: FormData) {
+  const brandId = text(form, 'brandId');
+  const back = returnTo(form, `/insights?brand=${brandId}`);
+  try {
+    await api(`/v1/brands/${brandId}/digest`, { method: 'POST', body: JSON.stringify({ days: Number(text(form, 'days')) || 7 }) });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not write the digest.') });
+  }
+  refresh();
+  go(back, { notice: 'Digest updated.' });
+}

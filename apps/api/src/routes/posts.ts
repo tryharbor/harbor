@@ -5,6 +5,7 @@ import { body, iso } from '../lib/http.ts';
 import { campaignForBrand } from '../services/campaigns.ts';
 import { getChannelRow } from '../services/channels.ts';
 import { insertDraft, loadDraft } from '../services/drafts.ts';
+import { postBaselineCurve } from '../services/outcomes.ts';
 import { SELECT_POSTS, loadPost as loadPostOut, toPost, type PostListRow } from '../services/posts.ts';
 import { publishPost } from '../services/publisher.ts';
 
@@ -23,6 +24,8 @@ const postCreateSchema = z
   })
   .strict()
   .refine((v) => (v.parts ? !v.draftId : !!v.draftId), { message: 'Give either parts or draftId.', path: ['parts'] });
+
+const rescheduleSchema = z.object({ scheduledFor: z.string().datetime({ offset: true }) }).strict();
 
 const resolveSchema = z
   .object({
@@ -70,7 +73,31 @@ export function registerPosts(app: App, deps: AppDeps) {
     return c.json({
       ...post,
       snapshots: snapshots.map((s) => ({ takenAt: iso(s.taken_at), ageHours: Number(s.age_hours), metrics: s.metrics, adapterVersion: s.adapter_version })),
+      // The brand + platform median of the post's primary metric at each schedule age (ages with ≥ 3 comparable posts).
+      baselineCurve: await postBaselineCurve(db, post.id, post.outcome?.metric),
     });
+  });
+
+  /**
+   * Move a post to another time (calendar drag-and-drop). Only scheduled posts, or failed ones, which go back to
+   * scheduled with their error and attempt count cleared.
+   */
+  app.patch('/v1/posts/:id', async (c) => {
+    const input = await body(c, rescheduleSchema);
+    const id = c.req.param('id');
+    const rows = await db.query(
+      `UPDATE posts SET scheduled_for = $2, updated_at = now(),
+         error = CASE WHEN status = 'failed' THEN NULL ELSE error END,
+         attempts = CASE WHEN status = 'failed' THEN 0 ELSE attempts END,
+         status = 'scheduled'
+       WHERE id = $1 AND status IN ('scheduled', 'failed') RETURNING id`,
+      [id, input.scheduledFor],
+    );
+    if (rows.length === 0) {
+      await loadPost(id); // 404 when it doesn't exist
+      throw new HarborError('CONFLICT', 'Only scheduled or failed posts can be rescheduled.');
+    }
+    return c.json(await loadPost(id));
   });
 
   /** Write a post for one channel. Without scheduledFor it publishes right away and returns the outcome. */

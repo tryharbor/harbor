@@ -26,4 +26,7 @@ export class AnthropicModel implements ContentModel {
   async rewrite(): Promise<never> {
     this.off();
   }
+  async digest(): Promise<never> {
+    this.off();
+  }
 }

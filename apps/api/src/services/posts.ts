@@ -1,9 +1,10 @@
 import { HarborError, normalizedMetricsSchema, postPartSchema } from '@harbor/core';
 import type { Db } from '../db/client.ts';
 import { iso } from '../lib/http.ts';
+import { OUTCOME_SELECT, toOutcomeView, type OutcomeColumns } from './outcomes.ts';
 import type { PostRow } from './publisher.ts';
 
-export interface PostListRow extends PostRow {
+export interface PostListRow extends PostRow, OutcomeColumns {
   campaign_id: string | null;
   brand_name: string;
   platform: string;
@@ -35,6 +36,8 @@ export const toPost = (r: PostListRow) => ({
     ? { metrics: normalizedMetricsSchema.parse(r.latest_metrics), ageHours: Number(r.latest_age_hours) }
     : undefined,
   snapshotCount: Number(r.snapshot_count),
+  /** How the post did against the brand's median for its platform at the same age (published posts with snapshots). */
+  outcome: toOutcomeView(r),
   createdAt: iso(r.created_at),
   updatedAt: iso(r.updated_at),
 });
@@ -43,11 +46,13 @@ export type PostOut = ReturnType<typeof toPost>;
 export const SELECT_POSTS = `
   SELECT p.*, b.name AS brand_name, ch.platform, ch.handle, d.parts,
     s.metrics AS latest_metrics, s.age_hours AS latest_age_hours,
-    (SELECT count(*) FROM snapshots WHERE post_id = p.id) AS snapshot_count
+    (SELECT count(*) FROM snapshots WHERE post_id = p.id) AS snapshot_count,
+    ${OUTCOME_SELECT}
   FROM posts p
   JOIN brands b ON b.id = p.brand_id
   JOIN channels ch ON ch.id = p.channel_id
   LEFT JOIN drafts d ON d.id = p.draft_id
+  LEFT JOIN outcomes o ON o.post_id = p.id
   LEFT JOIN LATERAL (SELECT metrics, age_hours FROM snapshots WHERE post_id = p.id ORDER BY taken_at DESC LIMIT 1) s ON true`;
 
 /** "Best" for a post: its latest views, or likes where the platform reports no views. */

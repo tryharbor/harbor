@@ -22,6 +22,7 @@ const NAV = [
   { href: '/campaigns', label: 'Campaigns', icon: Icon.campaigns },
   { href: '/studio', label: 'Studio', icon: Icon.studio },
   { href: '/performance', label: 'Performance', icon: Icon.performance },
+  { href: '/insights', label: 'Insights', icon: Icon.insights },
 ];
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

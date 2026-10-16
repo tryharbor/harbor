@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { NormalizedMetrics } from '@harbor/core';
 import { advanceSandbox } from '../actions';
 import { getMode, getPlatforms, getPosts, loadAll, type Mode, type PlatformInfo, type PostView } from '../api';
-import { Flash, LoadError, PageHeader, PlatformTag, StatusPill, compact, when } from '../ui';
+import { Flash, LoadError, PageHeader, PlatformTag, StatusPill, VerdictTag, compact, when } from '../ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +52,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
           <table>
             <thead>
               <tr>
-                <th>When</th><th>Post</th><th>Channel</th><th>Status</th><th className="num">Age</th>
+                <th>When</th><th>Post</th><th>Channel</th><th>Status</th><th>Vs. median</th><th className="num">Age</th>
                 {COLUMNS.map((c) => <th key={c.key} className="num">{c.label}</th>)}
               </tr>
             </thead>
@@ -66,6 +66,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
                   </td>
                   <td><PlatformTag platform={p.channel.platform} handle={p.channel.handle} /></td>
                   <td><StatusPill status={p.status} /></td>
+                  <td>{p.status === 'published' ? <VerdictTag outcome={p.outcome} /> : <span className="dim">–</span>}</td>
                   <td className="num small">{p.latest ? `${Math.round(p.latest.ageHours)}h` : '–'}</td>
                   {COLUMNS.map((c) => (
                     <td key={c.key} className="num">

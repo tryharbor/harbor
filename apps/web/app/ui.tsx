@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { NormalizedMetrics, Platform } from '@harbor/core';
-import type { PostStatus } from './api';
+import type { Outcome, PostStatus } from './api';
 import { PlatformIcon } from './platform-icon';
 
 /** Small shared pieces. Everything styles through the tokens in globals.css. */
@@ -123,5 +123,22 @@ export function LoadError({ message }: { message: string }) {
         Start everything with <code>pnpm dev</code> from the repo root. <Link href="/">Back to Home</Link>
       </p>
     </div>
+  );
+}
+
+/** How a post did against its brand's median: arrow + words (never color alone). */
+export function VerdictTag({ outcome }: { outcome?: Outcome }) {
+  if (!outcome) return <span className="verdict inconclusive">–</span>;
+  const r = outcome.ratio >= 10 ? Math.round(outcome.ratio) : Math.round(outcome.ratio * 10) / 10;
+  const text = {
+    outperformed: `↑ ${r}× median`,
+    met: `≈ median (${r}×)`,
+    underperformed: `↓ ${r}× median`,
+    inconclusive: 'Too few posts to compare',
+  }[outcome.verdict];
+  return (
+    <span className={`verdict ${outcome.verdict}`} title={`${outcome.actual.toLocaleString('en-US')} ${outcome.metric} at ${Math.round(outcome.atAgeHours)}h vs. median ${outcome.baseline.toLocaleString('en-US')} across ${outcome.comparablePosts} posts`}>
+      {text}
+    </span>
   );
 }

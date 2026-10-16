@@ -22,6 +22,11 @@ export {
   sandboxCurve,
   sandboxMetricsAt,
   sandboxPostTime,
+  sandboxTraits,
+  sandboxTraitMultiplier,
+  opensWithNumber,
+  SANDBOX_PEAK_HOUR,
   type SandboxCurve,
+  type SandboxTraits,
   type SandboxProviderOptions,
 } from './sandbox.ts';

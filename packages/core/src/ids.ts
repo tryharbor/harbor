@@ -10,6 +10,7 @@ export const ID_PREFIX = {
   signal: 'sig',
   insight: 'ins',
   outcome: 'out',
+  digest: 'dgs',
   agentRun: 'run',
   campaign: 'cpg',
   canvasItem: 'cvi',

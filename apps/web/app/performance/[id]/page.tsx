@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { SNAPSHOT_SCHEDULE_HOURS, type NormalizedMetrics } from '@harbor/core';
+import type { NormalizedMetrics } from '@harbor/core';
 import { removePost, resolvePost } from '../../actions';
 import { getPost, loadAll, type PostDetail } from '../../api';
-import { LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, compact, when } from '../../ui';
+import { CurveChart } from '../../components/curve-chart';
+import { LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, VerdictTag, compact, when } from '../../ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
       <Link href="/performance">← Performance</Link>
       <PageHeader
         title={post.parts[0]?.text.slice(0, 80) || 'Post'}
-        sub={<span className="row"><PlatformTag platform={post.channel.platform} handle={post.channel.handle} /> <span>{post.brandName}</span> <StatusPill status={post.status} /> {post.url ? <a href={post.url} target="_blank" rel="noreferrer">Open on {post.channel.platform}</a> : null}</span>}
+        sub={<span className="row"><PlatformTag platform={post.channel.platform} handle={post.channel.handle} /> <span>{post.brandName}</span> <StatusPill status={post.status} /> {post.status === 'published' ? <VerdictTag outcome={post.outcome} /> : null} {post.url ? <a href={post.url} target="_blank" rel="noreferrer">Open on {post.channel.platform}</a> : null}</span>}
       />
 
       {post.error ? <p className={post.status === 'published' ? 'notice' : 'error'} role="status">{post.error.message}</p> : null}
@@ -62,7 +63,16 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
                 : 'Snapshots start an hour after the post goes live.'}
             </p>
           ) : (
-            <GrowthChart snapshots={post.snapshots} metric={post.snapshots.some((s) => s.metrics.views !== undefined) ? 'views' : 'likes'} />
+            (() => {
+              const metric: 'views' | 'likes' = post.outcome?.metric ?? (post.snapshots.some((x) => x.metrics.views !== undefined) ? 'views' : 'likes');
+              return (
+                <CurveChart
+                  metric={metric}
+                  points={post.snapshots.filter((x) => x.metrics[metric] !== undefined).map((x) => ({ ageHours: Math.max(x.ageHours, 0.5), value: x.metrics[metric] as number }))}
+                  baseline={post.baselineCurve ?? []}
+                />
+              );
+            })()
           )}
           <MetricLine metrics={post.latest?.metrics} />
         </section>
@@ -107,37 +117,3 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   );
 }
 
-/** One metric over post age, on the snapshot schedule's own axis (1h … 7d, log-spaced so early hours stay readable). */
-function GrowthChart({ snapshots, metric }: { snapshots: PostDetail['snapshots']; metric: keyof NormalizedMetrics }) {
-  const W = 520, H = 200, L = 44, R = 12, T = 12, B = 28;
-  const pts = snapshots.filter((s) => s.metrics[metric] !== undefined).map((s) => ({ x: Math.max(s.ageHours, 0.5), y: s.metrics[metric] as number }));
-  const maxY = Math.max(1, ...pts.map((p) => p.y));
-  const lx = (h: number) => L + (Math.log(h / 0.5) / Math.log(168 / 0.5)) * (W - L - R);
-  const ly = (v: number) => T + (1 - v / maxY) * (H - T - B);
-  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${lx(p.x).toFixed(1)} ${ly(p.y).toFixed(1)}`).join(' ');
-  const label = (h: number) => (h >= 24 ? `${h / 24}d` : `${h}h`);
-  return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${metric} by post age`}>
-      <defs>
-        {/* The growth line runs along the logo palette, early (pink) to mature (yellow). */}
-        <linearGradient id="growth-gradient" x1={L} x2={W - R} y1="0" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="var(--pink)" />
-          <stop offset="35%" stopColor="var(--violet)" />
-          <stop offset="65%" stopColor="var(--coral)" />
-          <stop offset="85%" stopColor="var(--amber)" />
-          <stop offset="100%" stopColor="var(--yellow)" />
-        </linearGradient>
-      </defs>
-      <line className="axis" x1={L} x2={W - R} y1={H - B} y2={H - B} />
-      <line className="axis" x1={L} x2={L} y1={T} y2={H - B} />
-      {SNAPSHOT_SCHEDULE_HOURS.map((h) => (
-        <text key={h} x={lx(h)} y={H - 8} textAnchor="middle">{label(h)}</text>
-      ))}
-      <text x={L - 6} y={ly(maxY) + 4} textAnchor="end">{compact(maxY)}</text>
-      <text x={L - 6} y={H - B + 4} textAnchor="end">0</text>
-      <path className="series" d={path} />
-      {pts.map((p) => <circle key={p.x} className="dot" cx={lx(p.x)} cy={ly(p.y)} r={3.5} />)}
-      <text x={W - R} y={T + 10} textAnchor="end">{metric}</text>
-    </svg>
-  );
-}

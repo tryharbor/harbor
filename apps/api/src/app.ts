@@ -13,6 +13,7 @@ import { registerChannels } from './routes/channels.ts';
 import { registerCompetitors } from './routes/competitors.ts';
 import { registerDrafts } from './routes/drafts.ts';
 import { registerIdeas } from './routes/ideas.ts';
+import { registerInsights } from './routes/insights.ts';
 import { registerPosts } from './routes/posts.ts';
 import { registerSandbox } from './routes/sandbox.ts';
 import type { PublishDeps } from './services/publisher.ts';
@@ -106,5 +107,6 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerDrafts(app, deps);
   registerAgentRuns(app, deps);
   registerCampaigns(app, deps);
+  registerInsights(app, deps);
   return app;
 }

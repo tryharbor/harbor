@@ -1,102 +1,169 @@
 import Link from 'next/link';
-import type { Channel } from '@harbor/core';
-import { getBrand, getChannels, getIdeas, getPosts, loadAll, type BrandView, type IdeaView, type PostView } from '../../api';
-import { saveLogo } from '../../actions';
-import { BrandMark, Flash, LoadError, MetricLine, PlatformTag, StatusPill, Upcoming, when } from '../../ui';
+import type { Channel, Platform } from '@harbor/core';
+import { getApprovals, getBrand, getChannels, getDigest, getIdeas, getOverview, getPosts, loadAll, type ApprovalCounts, type BrandView, type Digest, type IdeaView, type OverviewBrand, type PostView } from '../../api';
+import { PlatformIcon } from '../../platform-icon';
+import { Flash, LoadError, MetricLine, PLATFORM_NAME, PlatformTag, StatusPill, VerdictTag, compact, when } from '../../ui';
 
 export const dynamic = 'force-dynamic';
+
+const PLATFORMS: Platform[] = ['x', 'linkedin', 'instagram', 'threads'];
+const pct = (r: number) => `${r >= 1 ? '+' : ''}${Math.round((r - 1) * 100)}%`;
 
 export default async function BrandOverview({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ connected?: string; notice?: string; error?: string }> }) {
   const { id } = await params;
   const flash = await searchParams;
-  const res = await loadAll<[BrandView, Channel[], PostView[], IdeaView[]]>([getBrand(id), getChannels(id), getPosts({ brandId: id, limit: '20' }), getIdeas({ brandId: id })]);
+  const res = await loadAll<[BrandView, Channel[], PostView[], IdeaView[], { counts: ApprovalCounts }, Digest | undefined, OverviewBrand[]]>([
+    getBrand(id),
+    getChannels(id),
+    getPosts({ brandId: id, limit: '60' }),
+    getIdeas({ brandId: id }),
+    getApprovals({ status: 'pending', brandId: id }),
+    getDigest(id),
+    getOverview().catch(() => []),
+  ]);
   if (!res.ok) return <LoadError message={res.error} />;
-  const [brand, channels, posts, ideas] = res.data;
+  const [brand, channels, posts, ideas, { counts }, digest, overview] = res.data;
   const m = brand.memory;
-  const memoryFilled = [m.voice.summary, m.products.length, m.audiences.length, m.examplePosts.length].filter(Boolean).length;
+  const stats = overview.find((o) => o.brandId === id);
+  const connected = channels.filter((c) => c.status === 'connected');
+  const now = Date.now();
+  const upNext = posts.filter((p) => p.status === 'scheduled' && p.scheduledFor && Date.parse(p.scheduledFor) >= now).sort((a, b) => a.scheduledFor!.localeCompare(b.scheduledFor!));
+  const recent = posts.filter((p) => p.status === 'published').slice(0, 6);
+  const active = ideas.filter((i) => i.status !== 'live');
+
   const steps = [
-    { done: memoryFilled >= 3, label: 'Describe the brand', href: `/brands/${id}/memory` },
-    { done: channels.length > 0, label: 'Connect an account', href: `/brands/${id}/channels` },
-    { done: posts.length > 0, label: 'Publish a first post', href: `/compose?brandId=${id}` },
+    { done: m.products.length > 0 && m.audiences.length > 0, label: 'Describe it', why: 'What it is and who it’s for.', href: `/brands/new?brandId=${id}&step=audience`, cta: 'Add an audience' },
+    { done: !!m.voice.summary, label: 'Learn the voice', why: 'Pick a few posts that sound right.', href: `/brands/new?brandId=${id}&step=voice`, cta: 'Pick posts' },
+    { done: connected.length > 0, label: 'Connect an account', why: 'X, LinkedIn, Instagram or Threads.', href: `/brands/${id}/channels`, cta: 'Connect' },
+    { done: posts.some((p) => p.status === 'published' || p.status === 'scheduled'), label: 'Schedule a first post', why: 'Harbor starts learning from it.', href: `/compose?brandId=${id}`, cta: 'Write a post' },
   ];
+  const doneCount = steps.filter((s) => s.done).length;
+  const nextStep = steps.find((s) => !s.done);
 
   return (
     <>
       <Flash params={flash} />
-      {steps.some((s) => !s.done) ? (
-        <section className="stack">
-          <h2>Get {brand.name} set up</h2>
-          <ol className="stack" style={{ margin: 0, paddingLeft: 20 }}>
-            {steps.map((s) => (
-              <li key={s.label}>{s.done ? <span className="muted"><s>{s.label}</s> done</span> : <Link href={s.href}>{s.label}</Link>}</li>
+
+      {nextStep ? (
+        <section className="setup">
+          <div className="spread" style={{ flexWrap: 'wrap', gap: 10 }}>
+            <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Set up {brand.name} · {doneCount} of {steps.length}</span>
+            <span className="meter" aria-hidden="true" style={{ width: 160 }}><i style={{ width: `${(doneCount / steps.length) * 100}%` }} /></span>
+          </div>
+          <ol className="setup-steps">
+            {steps.map((s, i) => (
+              <li key={s.label} className={s.done ? 'done' : s === nextStep ? 'next' : undefined}>
+                <span className="mono small dim">{s.done ? '✓ Done' : String(i + 1).padStart(2, '0')}</span>
+                <strong style={{ fontWeight: 500 }}>{s.label}</strong>
+                <span className="small muted">{s.why}</span>
+                {s.done ? null : <Link className={`button${s === nextStep ? ' primary' : ''}`} href={s.href}>{s.cta}</Link>}
+              </li>
             ))}
           </ol>
         </section>
       ) : null}
 
-      <div className="grid-2">
-        <section>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <h2>Recent posts</h2>
-            <Link className="small" href={`/compose?brandId=${id}`}>New post</Link>
-          </div>
-          {posts.length === 0 ? <p className="muted">Nothing posted from Harbor yet.</p> : (
-            <ul className="list">
-              {posts.map((p) => (
-                <li key={p.id}>
-                  <span className="row small"><PlatformTag platform={p.channel.platform} handle={p.channel.handle} /> <StatusPill status={p.status} /> <span className="muted">{when(p.publishedAt ?? p.scheduledFor)}</span></span>
-                  <Link href={`/performance/${p.id}`}>{p.parts[0]?.text.slice(0, 140)}</Link>
-                  {p.status === 'published' ? <MetricLine metrics={p.latest?.metrics} /> : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <div className="stack">
-          <section>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <h2>Ideas in progress</h2>
-              <Link className="small" href={`/hub?brand=${id}`}>Open in hub</Link>
-            </div>
-            {ideas.filter((i) => i.status !== 'live').length === 0 ? <p className="muted">No ideas yet.</p> : (
-              <ul className="list">
-                {ideas.filter((i) => i.status !== 'live').slice(0, 8).map((i) => (
-                  <li key={i.id}><span>{i.title}</span><span className={`pill s-${i.status}`} style={{ justifySelf: 'start' }}>{i.status}</span></li>
-                ))}
-              </ul>
-            )}
-          </section>
-          <section>
-            <h2>Accounts</h2>
-            {channels.length === 0 ? <p className="muted">None yet. <Link href={`/brands/${id}/channels`}>Connect one</Link></p> : (
-              <ul className="list">
-                {channels.map((c) => (
-                  <li key={c.id}><span className="row"><PlatformTag platform={c.platform} handle={c.account.handle} /> <span className={`pill s-${c.status}`}>{c.status.replace('_', ' ')}</span></span></li>
-                ))}
-              </ul>
-            )}
-          </section>
-          <section className="stack">
-            <h2 style={{ margin: 0 }}>Logo</h2>
-            <div className="row" style={{ gap: 14, alignItems: 'center' }}>
-              {brand.logoUrl ? <BrandMark name={brand.name} logoUrl={brand.logoUrl} size={56} /> : <span className="logo-slot">Logo</span>}
-              <span className="dim small">Shown in the sidebar, campaigns and post previews. Square images work best.</span>
-            </div>
-            <form action={saveLogo} className="stack" style={{ gap: 8 }}>
-              <input type="hidden" name="brandId" value={brand.id} />
-              <input type="hidden" name="returnTo" value={`/brands/${brand.id}`} />
-              <input type="file" name="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" aria-label="Logo file" />
-              <input type="url" name="url" placeholder="…or paste an image link" aria-label="Logo link" />
-              <div className="row">
-                <button type="submit" className="inverse">Save logo</button>
-                {brand.logoUrl ? <label className="row small"><input type="checkbox" name="remove" style={{ width: 'auto' }} /> Remove instead</label> : null}
-              </div>
-            </form>
-          </section>
-          <Upcoming title="Ideas from what worked">
-            Harbor will suggest ideas for {brand.name} from its best posts, the questions people ask in replies and what competitors are getting traction on. Each idea will cite its reason.
-          </Upcoming>
+      <div className="stat-strip">
+        <div className="stat"><span className="label">Published · 7 days</span><strong>{stats?.published7d ?? 0}</strong></div>
+        <div className="stat">
+          <span className="label">Median views at 24h</span>
+          <strong>{stats?.medianViews24h !== undefined ? compact(stats.medianViews24h) : '–'}</strong>
+          {stats?.change !== undefined ? <span className={`verdict ${Math.abs(stats.change - 1) < 0.05 ? 'met' : stats.change > 1 ? 'outperformed' : 'underperformed'}`}>{Math.abs(stats.change - 1) < 0.05 ? 'flat vs last week' : `${stats.change > 1 ? '↑' : '↓'} ${pct(stats.change)} vs last week`}</span> : <span className="small dim">After the first week of posts</span>}
         </div>
+        <Link className="stat stat-link" href="/approvals">
+          <span className="label">Waiting for you</span>
+          <strong>{counts.pending}</strong>
+          <span className="small dim">{counts.pending ? 'posts to approve →' : 'Nothing to approve'}</span>
+        </Link>
+        <div className="stat">
+          <span className="label">Next post</span>
+          {upNext[0] ? (
+            <>
+              <strong className="row" style={{ gap: 8, fontSize: 20 }}><PlatformIcon platform={upNext[0].channel.platform} size={16} />{when(upNext[0].scheduledFor, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</strong>
+              <span className="small dim">{upNext.length} scheduled</span>
+            </>
+          ) : <><strong>–</strong><span className="small dim">Nothing scheduled</span></>}
+        </div>
+      </div>
+
+      <div className="grid-2">
+        <div className="stack">
+          <section className="stack">
+            <div className="spread"><h2 style={{ margin: 0 }}>Up next</h2><Link className="small" href={`/hub?view=calendar&brand=${id}`}>Calendar →</Link></div>
+            {upNext.length ? (
+              <ul className="list">
+                {upNext.slice(0, 5).map((p) => (
+                  <li key={p.id} style={{ gridTemplateColumns: 'auto 1fr' }}>
+                    <span className="mono small" style={{ whiteSpace: 'nowrap' }}>{when(p.scheduledFor, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                    <Link href={`/performance/${p.id}`} className="row small" style={{ gap: 8, textDecoration: 'none', minWidth: 0 }}>
+                      <PlatformTag platform={p.channel.platform} iconOnly /><span className="evidence-text">{p.parts[0]?.text}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="empty" style={{ padding: 18 }}>
+                <span className="muted small">Nothing scheduled. Let the weekly plan draft a week for your approval, or write one yourself.</span>
+                <span className="row" style={{ gap: 6 }}>
+                  <Link className="button primary" href={`/agents/weekly_plan?brand=${id}`}>Plan the week</Link>
+                  <Link className="button" href={`/compose?brandId=${id}`}>Write a post</Link>
+                </span>
+              </div>
+            )}
+          </section>
+
+          <section className="stack">
+            <div className="spread"><h2 style={{ margin: 0 }}>Recent posts</h2><Link className="small" href={`/performance?brand=${id}`}>Performance →</Link></div>
+            {recent.length ? (
+              <ul className="list">
+                {recent.map((p) => (
+                  <li key={p.id}>
+                    <span className="row small" style={{ gap: 8, flexWrap: 'wrap' }}><PlatformTag platform={p.channel.platform} handle={p.channel.handle} /><span className="dim">{when(p.publishedAt, { month: 'short', day: 'numeric' })}</span><VerdictTag outcome={p.outcome} /></span>
+                    <Link href={`/performance/${p.id}`}>{p.parts[0]?.text.slice(0, 160)}</Link>
+                    <MetricLine metrics={p.latest?.metrics} />
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="muted small" style={{ margin: 0 }}>Nothing published yet. Each post is measured at 1h, 6h, 24h, 3 days and 7 days, then compared with {brand.name}'s median.</p>}
+          </section>
+        </div>
+
+        <aside className="stack">
+          <section className="stack">
+            <div className="spread"><h2 style={{ margin: 0 }}>Accounts</h2><Link className="small" href={`/brands/${id}/channels`}>Manage</Link></div>
+            <ul className="account-list">
+              {PLATFORMS.map((pl) => {
+                const c = channels.find((x) => x.platform === pl);
+                return (
+                  <li key={pl}>
+                    <PlatformIcon platform={pl} size={16} />
+                    <span className="stack" style={{ gap: 0, minWidth: 0 }}>
+                      <span className="small">{PLATFORM_NAME[pl]}</span>
+                      <span className="small dim evidence-text">{c ? `@${c.account.handle}` : 'Not connected'}</span>
+                    </span>
+                    {c ? <span className={`pill s-${c.status}`}>{c.status.replace('_', ' ')}</span> : <Link className="small" href={`/brands/${id}/channels`}>Connect</Link>}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
+          <section className="stack">
+            <div className="spread"><span className="label">Latest digest</span><Link className="small" href={`/insights?brand=${id}`}>Insights →</Link></div>
+            {digest ? <strong style={{ fontWeight: 400, fontSize: 17, letterSpacing: '-0.01em' }}>{digest.headline}</strong> : <span className="small muted">Harbor writes a weekly digest once there's a week of posts: what worked, what didn't, what to do next.</span>}
+          </section>
+
+          <section className="stack">
+            <div className="spread"><span className="label">Ideas in progress · {active.length}</span><Link className="small" href={`/hub?brand=${id}`}>Hub →</Link></div>
+            {active.length ? (
+              <ul className="list small">
+                {active.slice(0, 5).map((i) => (
+                  <li key={i.id} style={{ gridTemplateColumns: '1fr auto' }}><Link href={`/studio/${i.id}`} className="evidence-text">{i.title}</Link><span className={`pill s-${i.status}`}>{i.status}</span></li>
+                ))}
+              </ul>
+            ) : <span className="small muted">No ideas yet. <Link href={`/hub?brand=${id}`}>Suggest some</Link> from {brand.name}'s Brand Memory.</span>}
+          </section>
+        </aside>
       </div>
     </>
   );

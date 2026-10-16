@@ -274,16 +274,17 @@ export function StyleSection({ brand, returnTo }: { brand: BrandView; returnTo: 
 
 // ---- Preview card (Jasper's live preview, Sanity's document preview) ----
 
-export function MemoryPreview({ brand, competitors, title = 'What Harbor knows' }: { brand: BrandView; competitors?: Competitor[]; title?: string }) {
+export function MemoryPreview({ brand, competitors, title = 'What Harbor knows', focus }: { brand: BrandView; competitors?: Competitor[]; title?: string; focus?: string }) {
   const m = brand.memory;
   const exampleChars = m.examplePosts.reduce((n, e) => n + e.text.length, 0);
+  // Same order as setting a brand up: what it is, who it's for, how it sounds, then the extras.
   const checks = [
-    { label: 'Voice', ok: !!m.voice.summary, detail: m.voice.summary ? `${m.voice.values.length} values · ${m.voice.do.length} do · ${m.voice.avoid.length} avoid` : 'Not described yet' },
-    { label: 'Audiences', ok: m.audiences.length > 0, detail: m.audiences.map((a) => a.name).join(', ') || 'None yet' },
-    { label: 'Products', ok: m.products.length > 0, detail: m.products.map((p) => p.name).join(', ') || 'None yet' },
-    { label: 'Competitors', ok: (competitors?.length ?? 0) > 0, detail: competitors?.map((c) => c.name).join(', ') || 'None yet' },
-    { label: 'Knowledge', ok: m.knowledge.length > 0, detail: `${m.knowledge.length} items` },
-    { label: 'Examples', ok: exampleChars >= 1000, detail: `${m.examplePosts.length} posts · ${exampleChars.toLocaleString('en-US')} chars${exampleChars < 1000 ? ' (1,000+ to learn from)' : ''}` },
+    { key: 'products', label: 'Products', ok: m.products.length > 0, detail: m.products.map((p) => p.name).join(', ') || 'None yet' },
+    { key: 'audiences', label: 'Audiences', ok: m.audiences.length > 0, detail: m.audiences.map((a) => a.name).join(', ') || 'None yet' },
+    { key: 'voice', label: 'Voice', ok: !!m.voice.summary, detail: m.voice.summary ? `${m.voice.values.length} values · ${m.voice.do.length} do · ${m.voice.avoid.length} avoid` : 'Not learned yet' },
+    { key: 'examples', label: 'Example posts', ok: m.examplePosts.length > 0, detail: m.examplePosts.length ? `${m.examplePosts.length} post${m.examplePosts.length === 1 ? '' : 's'} · ${exampleChars.toLocaleString('en-US')} chars` : 'None yet · optional' },
+    { key: 'knowledge', label: 'Knowledge', ok: m.knowledge.length > 0, detail: m.knowledge.length ? `${m.knowledge.length} item${m.knowledge.length === 1 ? '' : 's'}` : 'None yet · optional' },
+    { key: 'competitors', label: 'Competitors', ok: (competitors?.length ?? 0) > 0, detail: competitors?.map((c) => c.name).join(', ') || 'None yet · optional' },
   ];
   const score = checks.filter((c) => c.ok).length;
   return (
@@ -297,7 +298,7 @@ export function MemoryPreview({ brand, competitors, title = 'What Harbor knows' 
       {m.voice.excerpts[0] ? <p className="excerpt small">{m.voice.excerpts[0].text}</p> : null}
       <ul className="list small">
         {checks.map((c) => (
-          <li key={c.label} style={{ gridTemplateColumns: '18px 1fr', columnGap: 8 }}>
+          <li key={c.label} className={focus === c.key ? 'focus' : undefined} style={{ gridTemplateColumns: '18px 1fr', columnGap: 8 }}>
             <span aria-hidden="true" style={{ color: c.ok ? 'var(--good)' : 'var(--dim)', gridRow: 'span 2' }}>{c.ok ? '●' : '○'}</span>
             <span>{c.label}</span>
             <span className="dim">{c.detail}</span>

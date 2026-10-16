@@ -16,12 +16,12 @@ beforeAll(async () => {
 afterAll(() => db.close());
 
 describe('voice learning', () => {
-  it('needs at least 1,000 characters', async () => {
+  it('needs at least 200 characters', async () => {
     const res = await send('POST', `/v1/brands/${brandId}/voice/learn`, { examples: ['Too short.'] });
     expect(res.status).toBe(400);
     const { error } = await res.json();
     expect(error.code).toBe('INVALID_REQUEST');
-    expect(error.message).toMatch(/1,000 characters/);
+    expect(error.message).toMatch(/200 characters/);
   });
 
   it('proposes a voice without saving it and records the run', async () => {

@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { createBrand } from '../../actions';
 import { getBrand, getChannels, getMode, loadAll, type BrandView, type Mode } from '../../api';
-import { ListSection, MemoryPreview } from '../../components/memory-sections';
+import { AudienceStep } from '../../components/audience-step';
+import { MemoryPreview } from '../../components/memory-sections';
 import { SandboxConnect } from '../../components/sandbox-connect';
 import { VoiceLearner } from '../../components/voice-learner';
 import { Flash, LoadError, PageHeader, PlatformTag } from '../../ui';
@@ -65,15 +66,15 @@ export default async function NewBrandWizard({ searchParams }: { searchParams: P
             </form>
           ) : null}
 
-          {brand && step === 'audience' ? <ListSection brand={brand} list="audiences" returnTo={url('audience')} /> : null}
+          {brand && step === 'audience' ? <AudienceStep brandId={brand.id} returnTo={url('audience')} existing={brand.memory.audiences} /> : null}
 
           {brand && step === 'voice' ? (
             <div className="stack-lg">
               <div className="stack" style={{ gap: 6 }}>
                 <h2 style={{ margin: 0 }}>How does {brand.name} sound?</h2>
-                <p className="muted small">Paste a few real posts. Harbor proposes a voice (personality, values, do and avoid rules, verbatim excerpts) and you choose whether to use it.</p>
+                <p className="muted small">Pick a few posts that sound like {brand.name}. Harbor turns them into a voice (personality, values, do and avoid rules) and keeps refining it from what actually performs once you're posting.</p>
               </div>
-              <VoiceLearner brandId={brand.id} returnTo={url('voice')} savedExampleChars={brand.memory.examplePosts.reduce((n, e) => n + e.text.length, 0)} />
+              <VoiceLearner brandId={brand.id} returnTo={url('voice')} savedExampleChars={brand.memory.examplePosts.reduce((n, e) => n + e.text.length, 0)} skipHref={url('accounts')} importHref={url('accounts')} />
             </div>
           ) : null}
 
@@ -111,13 +112,16 @@ export default async function NewBrandWizard({ searchParams }: { searchParams: P
 
           {brand && next && step !== 'done' ? (
             <div className="spread" style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-              <span className="dim small">You can skip any step and come back later.</span>
-              <Link className="button inverse" href={url(next.key)}>{next.key === 'done' ? 'Finish' : `Next: ${next.label}`} →</Link>
+              <span className="dim small">Everything here can be changed later in Brand Memory.</span>
+              <span className="row" style={{ gap: 6 }}>
+                <Link className="button" href={url(next.key)}>Skip this step</Link>
+                <Link className="button inverse" href={url(next.key)}>{next.key === 'done' ? 'Finish' : `Next: ${next.label}`} →</Link>
+              </span>
             </div>
           ) : null}
         </div>
 
-        {brand ? <MemoryPreview brand={brand} title="Live preview" /> : (
+        {brand ? <MemoryPreview brand={brand} title="Live preview" focus={step === 'audience' ? 'audiences' : step === 'voice' ? 'voice' : undefined} /> : (
           <aside className="preview-card dots">
             <span className="label">Live preview</span>
             <p className="muted small">As you add the audience, voice and accounts, this card fills in with what Harbor knows about the brand.</p>

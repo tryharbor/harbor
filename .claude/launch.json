@@ -3,6 +3,7 @@
   "configurations": [
     { "name": "harbor-api", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@harbor/api", "dev"], "port": 4800 },
     { "name": "harbor-api-demo", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@harbor/api", "dev:demo"], "port": 4800 },
+    { "name": "harbor-api-live", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@harbor/api", "dev:live"], "port": 4800 },
     { "name": "harbor-web", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@harbor/web", "dev"], "port": 4801 }
   ]
 }

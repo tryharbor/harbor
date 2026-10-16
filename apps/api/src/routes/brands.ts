@@ -12,7 +12,8 @@ const slugify = (name: string) =>
 const slugTaken = (slug: string) => new HarborError('CONFLICT', `A brand with slug "${slug}" already exists in this workspace.`);
 
 /** Voice learning needs this much writing to say anything useful. */
-export const VOICE_MIN_CHARS = 1000;
+/** Enough to say anything at all (about two posts). More writing gives a better voice; the UI shows that as a meter, not a gate. */
+export const VOICE_MIN_CHARS = 200;
 
 const learnSchema = z
   .object({
@@ -100,7 +101,7 @@ export function registerBrands(app: App, deps: AppDeps) {
     if (chars < VOICE_MIN_CHARS) {
       throw new HarborError(
         'INVALID_REQUEST',
-        `Voice learning needs at least ${VOICE_MIN_CHARS.toLocaleString('en-US')} characters of writing; got ${chars.toLocaleString('en-US')}. Paste more examples or add example posts.`,
+        `Voice learning needs at least ${VOICE_MIN_CHARS.toLocaleString('en-US')} characters of writing (about two posts); got ${chars.toLocaleString('en-US')}. Pick or paste another post or two.`,
       );
     }
     const { value: voice, run } = await withRun(db, brand, 'voice', { examples: examples.length, chars, fromExamplePosts: usePosts }, deps.model.name, async () => {

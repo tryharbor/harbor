@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { API_BROWSER_URL, getBrands, getMedia, loadAll, type BrandView, type MediaAsset } from '../api';
 import { MediaUploader } from '../components/media-uploader';
 import { BrandMark, Flash, LoadError, PageHeader } from '../ui';
+import { Select } from '../components/select';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,7 @@ export default async function MediaPage({ searchParams }: { searchParams: Promis
           <input type="hidden" name="brand" value={brand.id} />
           {s.tag ? <input type="hidden" name="tag" value={s.tag} /> : null}
           <input name="q" defaultValue={s.q} placeholder="Search alt text, names, tags" style={{ width: 240 }} />
-          <select name="kind" defaultValue={s.kind ?? ''} style={{ width: 120 }}><option value="">All kinds</option><option value="image">Images</option><option value="video">Video</option></select>
+          <Select name="kind" defaultValue={s.kind ?? ''} width={140} ariaLabel="Kind" options={[{ value: '', label: 'All kinds' }, { value: 'image', label: 'Images' }, { value: 'video', label: 'Video' }]} />
           <button type="submit">Filter</button>
         </form>
       </div>

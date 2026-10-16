@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { createAutomation } from '../../agent-actions';
 import type { AgentDef, BrandView } from '../../api';
 import { DAYS, TRIGGER, hourLabel } from '../agent-ui';
+import { Select } from '../../components/select';
 
 /** Pick an agent, then only the triggers it supports (Sanity Functions style: a schedule or a document event). */
 export function NewAutomation({ agents, brands, initialAgent }: { agents: AgentDef[]; brands: BrandView[]; initialAgent?: string }) {
@@ -21,13 +22,11 @@ export function NewAutomation({ agents, brands, initialAgent }: { agents: AgentD
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
         <label className="field">
           <span className="label">Agent</span>
-          <select name="agentId" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
-            {automatable.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
+          <Select name="agentId" value={agentId} onChange={setAgentId} ariaLabel="Agent" options={automatable.map((a) => ({ value: a.id, label: a.name, hint: a.tagline }))} />
         </label>
         <label className="field">
           <span className="label">Brand</span>
-          <select name="brandId">{brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
+          <Select name="brandId" ariaLabel="Brand" options={brands.map((b) => ({ value: b.id, label: b.name }))} />
         </label>
         <label className="field">
           <span className="label">Name · optional</span>
@@ -48,10 +47,10 @@ export function NewAutomation({ agents, brands, initialAgent }: { agents: AgentD
       {active === 'schedule' ? (
         <div className="row" style={{ gap: 12, maxWidth: 420 }}>
           <label className="field"><span className="label">Every</span>
-            <select name="weekday" defaultValue="1">{DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}</select>
+            <Select name="weekday" defaultValue="1" ariaLabel="Day" options={DAYS.map((d, i) => ({ value: String(i), label: d }))} />
           </label>
           <label className="field"><span className="label">At</span>
-            <select name="hour" defaultValue="8">{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{hourLabel(h)}</option>)}</select>
+            <Select name="hour" defaultValue="8" ariaLabel="Hour" options={Array.from({ length: 24 }, (_, h) => ({ value: String(h), label: hourLabel(h) }))} />
           </label>
         </div>
       ) : (

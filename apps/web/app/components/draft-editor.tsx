@@ -1,24 +1,27 @@
 'use client';
 
-import { useActionState, useMemo, useState } from 'react';
+import { useActionState, useEffect, useMemo, useState } from 'react';
 import type { Platform } from '@harbor/core';
-import { rewriteDraft, saveDraft, scheduleDraft, type RewriteState } from '../actions';
+import { publishDraft, rewriteDraft, saveDraft, type PublishState, type RewriteState } from '../actions';
 import type { DraftView } from '../api';
 import { PlatformIcon } from '../platform-icon';
 import { CheckIssues, MediaPicker, type PickedMedia } from './media-picker';
+import { Select } from './select';
 
 const NAME: Record<Platform, string> = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', threads: 'Threads' };
 const LIMIT: Record<Platform, number> = { x: 280, linkedin: 3000, instagram: 2200, threads: 500 };
 const THREADS: Record<Platform, boolean> = { x: true, threads: true, linkedin: false, instagram: false };
 const SPLIT = /^\s*---\s*$/m;
 
-export interface ChannelOption { id: string; handle: string }
+export interface PostedSummary { id: string; status: string; url?: string; publishedAt?: string; scheduledFor?: string }
+
+export interface ChannelOption { id: string; handle: string; displayName?: string; avatarUrl?: string }
 
 /** One platform's pane in the Studio: edit, preview, rewrite, save a version, schedule. */
 export function DraftEditor({
-  brandId, brandName, ideaId, platform, draft, versions, channels, apiUrl,
+  brandId, brandName, ideaId, platform, draft, versions, channels, apiUrl, logoUrl, posted = [],
 }: {
-  brandId: string; brandName: string; ideaId: string; platform: Platform; draft?: DraftView; versions: DraftView[]; channels: ChannelOption[]; apiUrl: string;
+  brandId: string; brandName: string; ideaId: string; platform: Platform; draft?: DraftView; versions: DraftView[]; channels: ChannelOption[]; apiUrl: string; logoUrl?: string; posted?: PostedSummary[];
 }) {
   const initial = draft ? draft.parts.map((p) => p.text).join('\n---\n') : '';
   const [body, setBody] = useState(initial);
@@ -88,7 +91,7 @@ export function DraftEditor({
         </div>
       </form>
 
-      <Preview platform={platform} handle={handle} name={brandName} parts={parts} media={media} />
+      <Preview platform={platform} handle={handle} name={channels[0]?.displayName ?? brandName} parts={parts} media={media} avatar={channels[0]?.avatarUrl ?? logoUrl} />
 
       {draft ? (
         <form action={rewriteAction} className="stack" style={{ gap: 8 }}>
@@ -128,33 +131,81 @@ export function DraftEditor({
         </div>
       ) : null}
 
-      {draft ? (
-        <form action={scheduleDraft} className="stack" style={{ gap: 8, borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-          <input type="hidden" name="draftId" value={draft.id} />
-          <input type="hidden" name="ideaId" value={ideaId} />
-          <input type="hidden" name="returnTo" value={returnTo} />
-          <span className="label">Schedule v{draft.version}</span>
-          {channels.length === 0 ? (
-            <span className="dim small">No {NAME[platform]} account connected for {brandName}.</span>
-          ) : (
-            <div className="row">
-              <select name="channelId" aria-label="Account" style={{ width: 'auto' }}>
-                {channels.map((c) => <option key={c.id} value={c.id}>@{c.handle}</option>)}
-              </select>
-              <input name="scheduledFor" type="datetime-local" aria-label="When (empty = now)" style={{ width: 'auto' }} />
-              <button className="primary" type="submit" disabled={dirty}>Schedule</button>
-              {dirty ? <span className="dim small">Save the version first.</span> : <span className="dim small">Empty time = publish now.</span>}
-            </div>
-          )}
-        </form>
-      ) : null}
+      {draft ? <PublishBox draft={draft} ideaId={ideaId} platform={platform} brandName={brandName} channels={channels} dirty={dirty} posted={posted} /> : null}
     </div>
   );
 }
 
+const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
+
+/**
+ * Post now or schedule, with the result shown right here. "Post now" asks once more before sending, since it's
+ * public and immediate. Posts already made from this idea on this platform are listed so nothing goes out twice.
+ */
+function PublishBox({ draft, ideaId, platform, brandName, channels, dirty, posted }: { draft: DraftView; ideaId: string; platform: Platform; brandName: string; channels: ChannelOption[]; dirty: boolean; posted: PostedSummary[] }) {
+  const [state, action, pending] = useActionState<PublishState, FormData>(publishDraft, undefined);
+  const [confirming, setConfirming] = useState(false);
+  const [tz, setTz] = useState('0');
+  useEffect(() => setTz(String(new Date().getTimezoneOffset())), []);
+  useEffect(() => {
+    if (!confirming) return;
+    const t = setTimeout(() => setConfirming(false), 5000);
+    return () => clearTimeout(t);
+  }, [confirming]);
+  useEffect(() => setConfirming(false), [state]);
+  const live = posted.filter((p) => p.status === 'published' || p.status === 'pending' || p.status === 'publishing');
+  const queued = posted.filter((p) => p.status === 'scheduled');
+
+  return (
+    <form action={action} className="stack publish-box" style={{ gap: 10 }}>
+      <input type="hidden" name="draftId" value={draft.id} />
+      <input type="hidden" name="ideaId" value={ideaId} />
+      <input type="hidden" name="tz" value={tz} />
+      <span className="label">Post v{draft.version}</span>
+      {live.length || queued.length ? (
+        <ul className="posted small">
+          {live.map((p) => <li key={p.id}><span className="check ok">✓</span> {p.status === 'published' ? 'Posted' : 'Posting'} {fmt(p.publishedAt)}{p.url ? <> · <a href={p.url} target="_blank" rel="noreferrer">View on {NAME[platform]} ↗</a></> : null} · <a href={`/performance/${p.id}`}>Performance</a></li>)}
+          {queued.map((p) => <li key={p.id}><span className="mono">⏱</span> Scheduled for {fmt(p.scheduledFor)} · <a href={`/performance/${p.id}`}>Open</a></li>)}
+        </ul>
+      ) : null}
+      {channels.length === 0 ? (
+        <span className="dim small">No {NAME[platform]} account connected for {brandName}.</span>
+      ) : (
+        <>
+          <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+            <Select name="channelId" ariaLabel="Account" width="auto" options={channels.map((c) => ({ value: c.id, label: `@${c.handle}` }))} />
+            {confirming ? (
+              <button className="primary" type="submit" name="intent" value="now" disabled={pending}>{pending ? 'Posting…' : `Confirm: post to ${NAME[platform]} now`}</button>
+            ) : (
+              <button className="primary" type="button" onClick={() => setConfirming(true)} disabled={dirty || pending}>Post now</button>
+            )}
+            <span className="dim small">or</span>
+            <input name="scheduledFor" type="datetime-local" aria-label="Schedule for" style={{ width: 'auto' }} />
+            <button type="submit" name="intent" value="schedule" disabled={dirty || pending}>{pending ? 'Saving…' : 'Schedule'}</button>
+          </div>
+          {dirty ? <span className="dim small">Save the version first.</span> : confirming ? <span className="small muted">This publishes publicly right away. Click again to confirm.</span> : null}
+        </>
+      )}
+      {state?.ok && state.status === 'scheduled' ? (
+        <p className="notice small" role="status" style={{ margin: 0 }}>⏱ Scheduled for {fmt(state.when)}. It’s on the calendar; Harbor sends it on time.</p>
+      ) : state?.ok ? (
+        <p className="notice small" role="status" style={{ margin: 0 }}>
+          ✓ {state.status === 'published' ? `Live on ${NAME[platform]}.` : `Sent; ${NAME[platform]} is still processing it.`}
+          {state.url ? <> <a href={state.url} target="_blank" rel="noreferrer">View post ↗</a></> : null}
+          {state.postId ? <> · <a href={`/performance/${state.postId}`}>Track its growth</a></> : null}
+        </p>
+      ) : state?.error ? (
+        <p className="error small" role="alert" style={{ margin: 0 }}>{state.error}{state.postId ? <> · <a href={`/performance/${state.postId}`}>Details</a></> : null}</p>
+      ) : null}
+    </form>
+  );
+}
+
 /** How the post will look. Approximations of each platform's layout, styled with Harbor's tokens. */
-function Preview({ platform, handle, name, parts, media }: { platform: Platform; handle: string; name: string; parts: string[]; media: string }) {
+/** The connected account's own picture (what the post will show), else the brand logo, else the initial. */
+function Preview({ platform, handle, name, parts, media, avatar }: { platform: Platform; handle: string; name: string; parts: string[]; media: string; avatar?: string }) {
   const initials = name.slice(0, 1).toUpperCase();
+  const Avatar = () => (avatar ? <img className="avatar" src={avatar} alt="" referrerPolicy="no-referrer" /> : <span className="avatar">{initials}</span>);
   const Media = () => (media ? <div className="preview-media">{/^https?:/.test(media) ? <img src={media} alt="" /> : 'media'}</div> : null);
   if (!parts.length) return <div className="preview dots"><span className="dim small">The {NAME[platform]} preview appears as you write.</span></div>;
 
@@ -162,7 +213,7 @@ function Preview({ platform, handle, name, parts, media }: { platform: Platform;
     return (
       <div className="preview">
         <span className="label row" style={{ gap: 6 }}><PlatformIcon platform="instagram" size={11} />Preview · Instagram</span>
-        <div className="preview-head"><span className="avatar">{initials}</span><strong style={{ fontWeight: 500 }}>{handle}</strong></div>
+        <div className="preview-head"><Avatar /><strong style={{ fontWeight: 500 }}>{handle}</strong></div>
         {media ? <Media /> : <div className="preview-media">Instagram needs an image or video</div>}
         <div className="preview-body small"><strong style={{ fontWeight: 600 }}>{handle}</strong> {parts[0]}</div>
       </div>
@@ -174,7 +225,7 @@ function Preview({ platform, handle, name, parts, media }: { platform: Platform;
     return (
       <div className="preview">
         <span className="label row" style={{ gap: 6 }}><PlatformIcon platform="linkedin" size={11} />Preview · LinkedIn</span>
-        <div className="preview-head"><span className="avatar">{initials}</span><span className="stack" style={{ gap: 0 }}><strong style={{ fontWeight: 500 }}>{name}</strong><span className="dim small">Now · Public</span></span></div>
+        <div className="preview-head"><Avatar /><span className="stack" style={{ gap: 0 }}><strong style={{ fontWeight: 500 }}>{name}</strong><span className="dim small">Now · Public</span></span></div>
         <div className="preview-body">{cut ? <>{text.slice(0, 210)}<span className="dim">… see more</span></> : text}</div>
         <Media />
         {parts.length > 1 ? <span className="dim small">+ {parts.length - 1} comment{parts.length > 2 ? 's' : ''} posted under it</span> : null}
@@ -186,7 +237,7 @@ function Preview({ platform, handle, name, parts, media }: { platform: Platform;
       <span className="label row" style={{ gap: 6 }}><PlatformIcon platform={platform} size={11} />Preview · {NAME[platform]}</span>
       {parts.map((p, i) => (
         <div key={i} className={i > 0 ? 'thread-line stack' : 'stack'} style={{ gap: 6 }}>
-          <div className="preview-head"><span className="avatar">{initials}</span><span><strong style={{ fontWeight: 500 }}>{name}</strong> <span className="dim small">@{handle}</span></span></div>
+          <div className="preview-head"><Avatar /><span><strong style={{ fontWeight: 500 }}>{name}</strong> <span className="dim small">@{handle}</span></span></div>
           <div className="preview-body">{p}</div>
           {i === 0 ? <Media /> : null}
         </div>

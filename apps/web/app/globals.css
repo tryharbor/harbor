@@ -646,3 +646,24 @@ mark { background: var(--yellow-soft); color: inherit; padding: 0 1px; }
 .reveal > *:nth-child(5) { animation-delay: 240ms; } .reveal > *:nth-child(6) { animation-delay: 300ms; } .reveal > *:nth-child(n+7) { animation-delay: 360ms; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .voice-saved { border-color: var(--good); }
+img.avatar { object-fit: cover; padding: 0; }
+.publish-box { border-top: 1px solid var(--line); padding-top: 12px; }
+.posted { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+
+/* ---- Select: Harbor's own, never the native dropdown ---- */
+.select { position: relative; min-width: 140px; width: 100%; }
+.select-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; font: inherit; font-size: 14px; color: var(--ink); background: var(--sunken); border: 1px solid var(--line-strong); border-radius: var(--r-input); text-align: left; cursor: pointer; }
+.select-trigger:hover { border-color: var(--ink); background: var(--sunken); }
+.select.open .select-trigger { border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-soft); }
+.select-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.select-value.placeholder { color: var(--dim); }
+.select-chevron { flex: none; color: var(--muted); transition: transform 120ms; }
+.select.open .select-chevron { transform: rotate(180deg); }
+.select-list { position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 4px); min-width: max(100%, 240px); max-height: 280px; overflow-y: auto; margin: 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12); }
+.select-list.up { top: auto; bottom: calc(100% + 4px); }
+.select-list li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; align-items: start; padding: 7px 10px; font-size: 14px; color: var(--ink); cursor: pointer; }
+.select-list li.active { background: var(--raised); }
+.select-list li.selected { color: var(--signal-ink); }
+.select-check { font-family: var(--font-mono); font-size: 12px; color: var(--signal-ink); }
+.select-option { display: grid; gap: 2px; min-width: 0; }
+.select-option > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -354,6 +354,38 @@ export async function scheduleDraft(form: FormData) {
   }
 }
 
+export type PublishState = { ok?: boolean; status?: string; url?: string; when?: string; error?: string; postId?: string } | undefined;
+
+/**
+ * Post a saved draft now or at a time, and report the result to the pane that asked (no redirect, so the owner
+ * sees it where they clicked). `intent` is 'now' or 'schedule'.
+ */
+export async function publishDraft(_prev: PublishState, form: FormData): Promise<PublishState> {
+  const intent = text(form, 'intent');
+  const when = text(form, 'scheduledFor');
+  const tz = Number(text(form, 'tz')) || 0;
+  if (intent === 'schedule' && !when) return { error: 'Pick a date and time, or use Post now.' };
+  // datetime-local is the viewer's wall clock; `tz` is their getTimezoneOffset().
+  const scheduledFor = intent === 'schedule' ? (() => {
+    const [d, t] = when.split('T');
+    const [y, m, day] = d!.split('-').map(Number);
+    const [h, min] = (t ?? '00:00').split(':').map(Number);
+    return new Date(Date.UTC(y!, m! - 1, day!, h!, min!) + tz * 60_000).toISOString();
+  })() : undefined;
+  if (scheduledFor && Date.parse(scheduledFor) < Date.now()) return { error: 'That time has passed. Pick a time ahead, or use Post now.' };
+  try {
+    const post = await api<{ id: string; status: string; url?: string; scheduledFor?: string; error?: { message: string } }>('/v1/posts', {
+      method: 'POST',
+      body: JSON.stringify({ channelId: text(form, 'channelId'), draftId: text(form, 'draftId'), ideaId: text(form, 'ideaId') || undefined, scheduledFor }),
+    });
+    refresh();
+    if (post.status === 'failed' || post.status === 'unknown') return { ok: false, status: post.status, error: post.error?.message ?? 'The platform didn’t accept it.', postId: post.id };
+    return { ok: true, status: post.status, url: post.url, when: post.scheduledFor, postId: post.id };
+  } catch (err) {
+    return { error: message(err, 'Could not post that.') };
+  }
+}
+
 // ---- Posts (composer) ----
 
 /**

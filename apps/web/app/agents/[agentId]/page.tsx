@@ -5,6 +5,7 @@ import { getAgent, getBrands, getCampaigns, getChannels, getDrafts, getPosts, ge
 import { BrandMark, Flash, LoadError, PageHeader, PLATFORM_NAME, PlatformTag, when } from '../../ui';
 import { CATEGORY, PRODUCES, RunStatus, SOURCE, TRIGGER, duration } from '../agent-ui';
 import { RunButton } from '../run-button';
+import { Select } from '../../components/select';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,10 +95,7 @@ export default async function AgentRunPage({ params, searchParams }: { params: P
                 return (
                   <label key={input.key} className="field">
                     <span className="label">{input.label}{input.required ? '' : ' · optional'}</span>
-                    <select name={name} defaultValue="">
-                      <option value="">No campaign</option>
-                      {ctx.campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    <Select name={name} defaultValue="" ariaLabel={input.label} options={[{ value: '', label: 'No campaign' }, ...ctx.campaigns.map((c) => ({ value: c.id, label: c.name }))]} />
                     <span className="field-help">{input.help ?? 'Ideas and drafts also land on this campaign’s canvas.'}</span>
                   </label>
                 );
@@ -106,13 +104,7 @@ export default async function AgentRunPage({ params, searchParams }: { params: P
                   <label key={input.key} className="field">
                     <span className="label">{input.label}</span>
                     {posts.length ? (
-                      <select name={name} defaultValue={s.post ?? posts[0]?.id} required={input.required}>
-                        {posts.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {verdictWord(p)} · {PLATFORM_NAME[p.channel.platform]} · {(p.parts[0]?.text ?? '').slice(0, 70)}
-                          </option>
-                        ))}
-                      </select>
+                      <Select name={name} defaultValue={s.post ?? posts[0]?.id} ariaLabel={input.label} options={posts.map((p) => ({ value: p.id, label: (p.parts[0]?.text ?? '').slice(0, 90), hint: `${verdictWord(p)} · ${PLATFORM_NAME[p.channel.platform]}` }))} />
                     ) : <span className="small muted">{brand?.name} has no published posts yet.</span>}
                     {input.help ? <span className="field-help">{input.help}</span> : null}
                   </label>
@@ -122,11 +114,7 @@ export default async function AgentRunPage({ params, searchParams }: { params: P
                   <label key={input.key} className="field">
                     <span className="label">{input.label}</span>
                     {ctx.drafts.length ? (
-                      <select name={name} defaultValue={s.draft ?? ctx.drafts[0]?.id} required={input.required}>
-                        {ctx.drafts.map((d) => (
-                          <option key={d.id} value={d.id}>{PLATFORM_NAME[d.platform]} · v{d.version} · {(d.parts[0]?.text ?? '').slice(0, 70)}</option>
-                        ))}
-                      </select>
+                      <Select name={name} defaultValue={s.draft ?? ctx.drafts[0]?.id} ariaLabel={input.label} options={ctx.drafts.map((d) => ({ value: d.id, label: (d.parts[0]?.text ?? '').slice(0, 90), hint: `${PLATFORM_NAME[d.platform]} · v${d.version}` }))} />
                     ) : <span className="small muted">{brand?.name} has no drafts yet. Draft something in Studio first.</span>}
                   </label>
                 );

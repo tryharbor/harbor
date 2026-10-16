@@ -23,6 +23,7 @@ import { addEdge, addItem, deleteEdge, deleteItem, loadCanvas, runAgent, savePos
 import type { CanvasEdge, CanvasItem, CanvasKind, IdeaView, PostView, SignalView } from '../../api';
 import { CanvasCtx, nodeTypes, type CanvasApi, type ItemNode } from './nodes';
 import { PlatformIcon } from '../../platform-icon';
+import { Select } from '../select';
 
 // ---- Conversions between API items and React Flow nodes ----
 
@@ -314,9 +315,7 @@ function SuggestIdeas({ busy, onRun }: { busy: boolean; onRun: (count: number) =
   const [count, setCount] = useState(5);
   return (
     <div className="row">
-      <select value={count} onChange={(e) => setCount(Number(e.target.value))} aria-label="How many ideas" style={{ width: 'auto' }}>
-        {[3, 5, 8].map((n) => <option key={n} value={n}>{n} ideas</option>)}
-      </select>
+      <Select value={String(count)} onChange={(v) => setCount(Number(v))} ariaLabel="How many ideas" width="auto" options={[3, 5, 8].map((n) => ({ value: String(n), label: `${n} ideas` }))} />
       <button type="button" className="primary" disabled={busy} onClick={() => onRun(count)}>Suggest</button>
     </div>
   );

@@ -3,6 +3,7 @@ import { createCompetitor, deleteCompetitor, deleteListItem, saveListItem, saveS
 import type { Audience, BrandView, Competitor, ExamplePost, KnowledgeItem, MemoryListKey, Product } from '../api';
 import { PLATFORM_NAME, SimTag } from '../ui';
 import { VoiceLearner } from './voice-learner';
+import { Select } from './select';
 
 /** Brand Memory, section by section. Each section saves on its own (the API merges memory by top-level key). */
 
@@ -190,10 +191,7 @@ function ItemFields({ list, item }: { list: MemoryListKey; item?: { id: string }
           <div className="grid-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <div className="field">
               <label>Platform</label>
-              <select name="platform" defaultValue={e?.platform ?? ''}>
-                <option value="">Any</option>
-                {Object.entries(PLATFORM_NAME).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+              <Select name="platform" defaultValue={e?.platform ?? ''} ariaLabel="Platform" options={[{ value: '', label: 'Any' }, ...Object.entries(PLATFORM_NAME).map(([k, v]) => ({ value: k, label: v }))]} />
             </div>
             <div className="field"><label>Link to the original (optional)</label><input name="url" type="url" defaultValue={e?.url} /></div>
           </div>

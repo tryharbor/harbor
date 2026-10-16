@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Channel, Platform } from '@harbor/core';
 import { generateDrafts, moveIdea } from '../../actions';
-import { API_BROWSER_URL, getBrand, getChannels, getDrafts, getIdeas, getSignals, loadAll, type BrandView, type DraftView, type IdeaView, type SignalView } from '../../api';
+import { API_BROWSER_URL, getBrand, getChannels, getDrafts, getIdeas, getPosts, getSignals, loadAll, type BrandView, type DraftView, type IdeaView, type PostView, type SignalView } from '../../api';
 import { DraftEditor } from '../../components/draft-editor';
 import { Flash, LoadError, PageHeader, PLATFORM_NAME } from '../../ui';
 import { PlatformIcon } from '../../platform-icon';
@@ -18,9 +18,12 @@ export default async function StudioIdea({ params, searchParams }: { params: Pro
   const idea = ideasRes.data[0].find((i) => i.id === ideaId);
   if (!idea) return (<><Link href="/studio">← Studio</Link><LoadError message="That idea doesn't exist anymore." /></>);
 
-  const res = await loadAll<[BrandView, Channel[], DraftView[], SignalView[]]>([getBrand(idea.brandId), getChannels(idea.brandId), getDrafts({ ideaId, all: '1' }), getSignals(idea.brandId)]);
+  const res = await loadAll<[BrandView, Channel[], DraftView[], SignalView[], PostView[]]>([
+    getBrand(idea.brandId), getChannels(idea.brandId), getDrafts({ ideaId, all: '1' }), getSignals(idea.brandId), getPosts({ brandId: idea.brandId, limit: '200' }),
+  ]);
   if (!res.ok) return <LoadError message={res.error} />;
-  const [brand, channels, allDrafts, signals] = res.data;
+  const [brand, channels, allDrafts, signals, brandPosts] = res.data;
+  const postsFor = (p: Platform) => brandPosts.filter((x) => x.ideaId === ideaId && x.channel.platform === p).map((x) => ({ id: x.id, status: x.status, url: x.url, publishedAt: x.publishedAt, scheduledFor: x.scheduledFor }));
   const connected = channels.filter((c) => c.status === 'connected');
   const latest = (p: Platform) => allDrafts.filter((d) => d.platform === p).sort((a, b) => b.version - a.version);
   const drafted = PLATFORMS.filter((p) => latest(p).length > 0);
@@ -106,7 +109,9 @@ export default async function StudioIdea({ params, searchParams }: { params: Pro
                 platform={p}
                 draft={versions[0]}
                 versions={[...versions].reverse()}
-                channels={connected.filter((c) => c.platform === p).map((c) => ({ id: c.id, handle: c.account.handle }))}
+                channels={connected.filter((c) => c.platform === p).map((c) => ({ id: c.id, handle: c.account.handle, displayName: c.account.displayName, avatarUrl: c.account.avatarUrl }))}
+                logoUrl={brand.logoUrl}
+                posted={postsFor(p)}
                 apiUrl={API_BROWSER_URL}
               />
             );

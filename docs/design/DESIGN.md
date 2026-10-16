@@ -30,6 +30,7 @@ Date: 2026-10-15. Applies to the app and, later, the marketing site.
 - **Type:** Geist (400 for headlines with −0.03 to −0.04em tracking; 500 for UI emphasis), Geist Mono for uppercase micro-labels (11px, +0.08em), IDs, counts, table headers and code.
 - **Shape:** square controls: buttons, toggles, inputs, picks, chips, tags and status labels have `0` radius (a deliberate departure from Sanity's pills). Panels and cards `10px`. Hairline borders, no shadows except floating menus.
 - **No colored edge accents.** No left/side border in an accent or status color on any element (it reads as generated UI). Status is a small square dot or a label; emphasis is fill or weight; quotes are quote marks.
+- **No native dropdowns.** Never a browser `<select>`: its OS menu ignores every token. Use `components/select.tsx` (square trigger, Harbor-styled listbox, keyboard and typeahead, hidden input for forms). Native date/time pickers are the one open exception until Harbor has its own.
 - **Texture:** dotted grid (Sanity) behind empty states, headers and "Coming next" areas; dashed frames for staging areas (drafts not yet approved, simulated output).
 
 ## Product rules

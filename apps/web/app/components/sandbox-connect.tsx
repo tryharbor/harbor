@@ -1,5 +1,6 @@
 import { connectSandbox } from '../actions';
 import { PLATFORM_NAME } from '../ui';
+import { Select } from './select';
 
 /** Practice accounts for sandbox mode: no OAuth, no real platform. */
 export function SandboxConnect({ brandId, returnTo, preselect }: { brandId: string; returnTo: string; preselect?: string }) {
@@ -14,9 +15,7 @@ export function SandboxConnect({ brandId, returnTo, preselect }: { brandId: stri
       <div className="grid-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <div className="field">
           <label htmlFor="sbx-platform">Platform</label>
-          <select id="sbx-platform" name="platform" defaultValue={preselect ?? 'x'}>
-            {Object.entries(PLATFORM_NAME).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
+          <Select id="sbx-platform" name="platform" defaultValue={preselect ?? 'x'} options={Object.entries(PLATFORM_NAME).map(([k, v]) => ({ value: k, label: v }))} />
         </div>
         <div className="field">
           <label htmlFor="sbx-handle">Handle</label>

@@ -4,6 +4,7 @@ import { createIdea, deleteIdea, moveIdea, suggestIdeas } from '../actions';
 import { getBestTimes, getBrands, getIdeas, getPosts, loadAll, type BestTimes, type BrandView, type IdeaView, type PostView } from '../api';
 import { WeekCalendar } from '../components/week-calendar';
 import { Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, when } from '../ui';
+import { Select } from '../components/select';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,9 +101,7 @@ function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[];
               <form action={createIdea} className="item stack">
                 <input type="hidden" name="returnTo" value={here} />
                 {brandFilter ? <input type="hidden" name="brandId" value={brandFilter} /> : (
-                  <select name="brandId" aria-label="Brand" required>
-                    {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
+                  <Select name="brandId" ariaLabel="Brand" width="auto" options={brands.map((b) => ({ value: b.id, label: b.name }))} />
                 )}
                 <input name="title" placeholder="New idea…" aria-label="Idea" required maxLength={300} />
                 <button type="submit">Add idea</button>
@@ -114,9 +113,7 @@ function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[];
                 <span className="spread"><span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Agent · Suggest ideas</span><span className="tag">Simulated</span></span>
                 <span className="dim small">From what worked, audience pain points and products. Each idea cites its reason.</span>
                 {brandFilter ? <input type="hidden" name="brandId" value={brandFilter} /> : (
-                  <select name="brandId" aria-label="Brand to suggest for" required>
-                    {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
+                  <Select name="brandId" ariaLabel="Brand to suggest for" width="auto" options={brands.map((b) => ({ value: b.id, label: b.name }))} />
                 )}
                 <button type="submit" className="primary">Suggest 5 ideas</button>
               </form>

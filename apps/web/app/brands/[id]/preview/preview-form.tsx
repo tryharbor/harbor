@@ -6,6 +6,7 @@ import type { Platform } from '@harbor/core';
 import { previewMemory, type PreviewState } from '../../../learn-actions';
 import type { AppliedRule, IdeaView } from '../../../api';
 import { PlatformIcon } from '../../../platform-icon';
+import { Select } from '../../../components/select';
 
 const NAMES: Record<Platform, string> = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', threads: 'Threads' };
 const RULE: Record<AppliedRule['kind'], string> = { do: 'Do', avoid: 'Avoid', banned: 'Banned word', excerpt: 'Excerpt', term: 'Term', product: 'Product', audience: 'Audience', value: 'Value' };
@@ -34,10 +35,7 @@ export function PreviewForm({ brandId, brandName, ideas, platforms }: { brandId:
         <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)' }}>
           <label className="field">
             <span className="label">An idea</span>
-            <select name="ideaId" defaultValue={state.ideaId ?? ''}>
-              <option value="">Or write a brief →</option>
-              {ideas.map((i) => <option key={i.id} value={i.id}>{i.title}</option>)}
-            </select>
+            <Select name="ideaId" defaultValue={state.ideaId ?? ''} ariaLabel="An idea" options={[{ value: '', label: 'None: write a brief →' }, ...ideas.map((i) => ({ value: i.id, label: i.title }))]} />
           </label>
           <label className="field">
             <span className="label">A one-line brief</span>

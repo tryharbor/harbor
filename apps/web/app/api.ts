@@ -1,4 +1,6 @@
 import type { Channel, NormalizedMetrics, Platform, PostPart } from '@harbor/core';
+import { createHmac } from 'node:crypto';
+import { requireSession } from './auth';
 
 /** Server-side calls go straight to the API process. */
 export const API_INTERNAL_URL = process.env.HARBOR_API_INTERNAL_URL ?? 'http://localhost:4800';
@@ -10,7 +12,7 @@ export const API_PUBLIC_URL = process.env.HARBOR_API_URL ?? 'http://localhost:48
  */
 export const API_BROWSER_URL = process.env.HARBOR_API_BROWSER_URL ?? 'http://localhost:4800';
 /** Public media URLs in API responses, pointed at the browser address instead (so previews don't go through the tunnel). */
-const forBrowser = (body: string) =>
+export const forBrowser = (body: string) =>
   API_PUBLIC_URL === API_BROWSER_URL ? body : body.split(`${API_PUBLIC_URL}/media/`).join(`${API_BROWSER_URL}/media/`);
 
 // ---- Shapes (mirror the API contract; camelCase) ----
@@ -149,13 +151,31 @@ export interface PlatformInfo {
 
 export class ApiError extends Error {}
 
+/** With HARBOR_INTERNAL_TOKEN set (production), the API only answers /v1 calls that carry it. */
+export const internalAuthHeader = (): Record<string, string> =>
+  process.env.HARBOR_INTERNAL_TOKEN ? { authorization: `Bearer ${process.env.HARBOR_INTERNAL_TOKEN}` } : {};
+
+/**
+ * A short-lived ticket that lets the browser upload one brand's media straight to the API (a proxy through the web
+ * app would cap uploads at the host's body limit). Matches createUploadTicket in apps/api/src/app.ts. Null when no
+ * internal token is set: then the API takes local uploads without one.
+ */
+export function uploadTicket(brandId: string, now = Date.now()): string | null {
+  const token = process.env.HARBOR_INTERNAL_TOKEN;
+  if (!token) return null;
+  const exp = now + 10 * 60_000;
+  return `${exp}.${createHmac('sha256', token).update(`upload:${brandId}:${exp}`).digest('base64url')}`;
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  // Every page load and server action reaches the API through here, so this is the session check behind proxy.ts.
+  await requireSession();
   let res: Response;
   try {
     res = await fetch(`${API_INTERNAL_URL}${path}`, {
       ...init,
       cache: 'no-store',
-      headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+      headers: { 'content-type': 'application/json', ...internalAuthHeader(), ...(init?.headers ?? {}) },
     });
   } catch {
     throw new ApiError(`Can't reach the API at ${API_INTERNAL_URL}. Start it with \`pnpm dev\`.`);

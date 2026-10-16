@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import type { Platform } from '@harbor/core';
-import { ApiError, api, getMedia, getMediaFit, type MediaAsset, type MediaFit } from './api';
+import { ApiError, api, getMedia, getMediaFit, uploadTicket, type MediaAsset, type MediaFit } from './api';
+import { requireSession } from './auth';
 
 const text = (form: FormData, key: string) => String(form.get(key) ?? '').trim();
 const message = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
@@ -78,4 +79,10 @@ export async function fitMedia(id: string, platform: Platform): Promise<MediaFit
 
 export async function refreshMedia() {
   revalidatePath('/media');
+}
+
+/** Asked for just before each upload, so a page left open doesn't hold an expired ticket. */
+export async function getUploadTicket(brandId: string): Promise<string | null> {
+  await requireSession();
+  return uploadTicket(brandId);
 }

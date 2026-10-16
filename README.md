@@ -29,6 +29,14 @@ pnpm install
 pnpm dev            # API on :4800, app on :4801
 ```
 
+Or run all of it in Docker (Postgres, the API with its worker, and the app), with nothing else to install:
+
+```sh
+git clone https://github.com/tryharbor/harbor && cd harbor
+docker compose up -d   # app on http://localhost:4801, API on :4800
+docker compose down    # add -v to delete the database and media volumes
+```
+
 By default Harbor runs in **sandbox** publishing mode with the **simulated** model. Every platform is simulated with its real limits, growth curves are synthetic and deterministic, and nothing leaves your machine.
 
 To see it full of sample data (two demo brands with six weeks of posts, digests, agents, approvals and media):
@@ -45,7 +53,13 @@ pnpm dev:web
 3. Create your platform developer apps and set a stable HTTPS `HARBOR_API_URL` (a tunnel while developing): **[docs/setup/platform-apps.md](docs/setup/platform-apps.md)**.
 4. Run `pnpm --filter @harbor/api dev:live` (live publishing with the simulated model, on its own database) together with `pnpm dev:web`.
 
-Use Postgres anywhere by setting `DATABASE_URL`. Without it, Harbor uses an embedded PGlite database.
+Use Postgres anywhere by setting `DATABASE_URL`. Without it, Harbor uses an embedded PGlite database. The API applies migrations when it starts. To move your data from one database to another (the target must use the same `HARBOR_SECRET_KEY`):
+
+```sh
+pnpm --filter @harbor/api db:copy -- --from .pglite --to postgres://…   # paths are relative to apps/api; stop the API first
+```
+
+`docker compose up` reads the same `.env`. Its ports listen on `127.0.0.1` only. To put Harbor on the internet, set `HARBOR_INTERNAL_TOKEN` and turn on GitHub sign-in first: **[docs/setup/hosting.md](docs/setup/hosting.md)**.
 
 | Env | Default | |
 | --- | --- | --- |

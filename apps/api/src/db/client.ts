@@ -5,8 +5,23 @@ import { MIGRATIONS } from './migrations.ts';
 export interface Db {
   query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T[]>;
   close(): Promise<void>;
+  /** Runs `fn` on one connection inside BEGIN … COMMIT (ROLLBACK when it throws). Nested calls join the outer one. */
+  transaction<T>(fn: (tx: Db) => Promise<T>): Promise<T>;
   /** Which engine is behind this handle. Jobs (pg-boss) need a real Postgres. */
   readonly kind: 'postgres' | 'pglite';
+}
+
+/** The handle a transaction callback gets: same queries, bound to the transaction's connection. */
+function txHandle(kind: Db['kind'], query: Db['query']): Db {
+  const tx: Db = {
+    kind,
+    query,
+    transaction: (fn) => fn(tx),
+    close: async () => {
+      throw new Error('Close the database, not the transaction.');
+    },
+  };
+  return tx;
 }
 
 export const isPostgresUrl = (url?: string): url is string => !!url && /^postgres(ql)?:\/\//.test(url);
@@ -31,6 +46,8 @@ export async function openDb(url = process.env.DATABASE_URL, opts: { migrate?: b
     db = {
       kind: 'postgres',
       query: async <T>(text: string, params: unknown[] = []) => (await sql.unsafe(text, params as never[])) as unknown as T[],
+      transaction: async <T>(fn: (tx: Db) => Promise<T>) =>
+        (await sql.begin((tx) => fn(txHandle('postgres', async <R>(text: string, params: unknown[] = []) => (await tx.unsafe(text, params as never[])) as unknown as R[])))) as T,
       close: () => sql.end(),
     };
   } else {
@@ -39,6 +56,7 @@ export async function openDb(url = process.env.DATABASE_URL, opts: { migrate?: b
     db = {
       kind: 'pglite',
       query: async <T>(text: string, params: unknown[] = []) => (await lite.query<T>(text, params)).rows,
+      transaction: (fn) => lite.transaction((tx) => fn(txHandle('pglite', async <R>(text: string, params: unknown[] = []) => (await tx.query<R>(text, params)).rows))),
       close: () => lite.close(),
     };
   }

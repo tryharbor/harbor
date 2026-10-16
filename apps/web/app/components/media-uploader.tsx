@@ -2,17 +2,22 @@
 
 import { useRouter } from 'next/navigation';
 import { useActionState, useRef, useState } from 'react';
-import { importMediaUrl, refreshMedia } from '../media-actions';
+import { getUploadTicket, importMediaUrl, refreshMedia } from '../media-actions';
 import type { MediaAsset } from '../api';
 
 type Item = { name: string; progress: number; error?: string; done?: boolean };
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/heic,video/mp4,video/quicktime';
 
-/** Upload one XHR per file straight to the API (server actions cap request bodies), with progress. */
-function upload(apiUrl: string, brandId: string, file: File, onProgress: (p: number) => void): Promise<MediaAsset> {
+/**
+ * Upload one XHR per file straight to the API (server actions and hosted functions cap request bodies), with
+ * progress. In production the web app first signs a short-lived upload ticket for this brand.
+ */
+async function upload(apiUrl: string, brandId: string, file: File, onProgress: (p: number) => void): Promise<MediaAsset> {
+  const ticket = await getUploadTicket(brandId);
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${apiUrl}/v1/brands/${brandId}/media`);
+    if (ticket) xhr.setRequestHeader('harbor-upload-ticket', ticket);
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
     xhr.onload = () => {
       const json = (() => { try { return JSON.parse(xhr.responseText); } catch { return {}; } })();

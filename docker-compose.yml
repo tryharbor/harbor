@@ -1,0 +1,78 @@
+# One-command self-hosting: Postgres, the API (with the worker) and the web app.
+#
+#   docker compose up -d        # then open http://localhost:4801
+#
+# Works with no .env: sandbox publishing and the simulated model, so nothing leaves your machine. A .env next to this
+# file (see .env.example) is read by both apps; the values below that wire the containers together always win.
+# Both ports listen on 127.0.0.1 only. To expose Harbor beyond this machine, set HARBOR_INTERNAL_TOKEN (the API then
+# requires it on /v1) and sign-in (GITHUB_CLIENT_ID and friends) first, then drop the "127.0.0.1:" prefixes.
+name: harbor
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: harbor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-harbor}
+      POSTGRES_DB: harbor
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harbor -d harbor"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://harbor:${POSTGRES_PASSWORD:-harbor}@postgres:5432/harbor
+      HARBOR_PUBLISH_MODE: ${HARBOR_PUBLISH_MODE:-sandbox}
+      HARBOR_MODEL: ${HARBOR_MODEL:-simulated}
+      HARBOR_API_PORT: "4800"
+      HARBOR_MEDIA_DIR: /data/media
+      HARBOR_WEB_URL: ${HARBOR_WEB_URL:-http://localhost:4801}
+      # The web app calls the API as http://api:4800, which the local-only gate would treat as a public address.
+      # The port is bound to 127.0.0.1 instead; with HARBOR_INTERNAL_TOKEN set, the token check applies regardless.
+      HARBOR_PUBLIC_API: all
+    volumes:
+      - media:/data/media
+    ports:
+      - "127.0.0.1:4800:4800"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Server-side calls go over the compose network; the browser still uses HARBOR_API_URL (localhost:4800).
+      HARBOR_API_INTERNAL_URL: http://api:4800
+      HARBOR_API_URL: ${HARBOR_API_URL:-http://localhost:4800}
+      HARBOR_WEB_URL: ${HARBOR_WEB_URL:-http://localhost:4801}
+      PORT: "4801"
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "127.0.0.1:4801:4801"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres:
+  media:

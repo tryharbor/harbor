@@ -1,3 +1,4 @@
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import { cors } from 'hono/cors';
@@ -51,6 +52,8 @@ export interface AppOptions {
   mediaStore?: MediaStore;
   /** Used to import media from a URL. Tests inject a fake; defaults to the global fetch. */
   fetch?: typeof fetch;
+  /** Bearer token every /v1 request must carry (production). Defaults to HARBOR_INTERNAL_TOKEN; unset = local-only gate. */
+  internalToken?: string;
 }
 
 /** What routes share. `secrets()` is lazy so brand routes work before HARBOR_SECRET_KEY is set. */
@@ -103,14 +106,18 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
     await next();
     c.header('Harbor-Request-Id', c.get('requestId'));
   });
-  // Until Harbor has user auth, /v1 is only for this machine. Requests that arrive through a tunnel or proxy (a
-  // non-local Host, or X-Forwarded-For) only reach what the outside world needs: OAuth callbacks, public media
-  // (platforms download it), /mcp (API keys) and /health. HARBOR_PUBLIC_API=all turns this off (behind real auth).
-  if (process.env.HARBOR_PUBLIC_API !== 'all') app.use('*', publicGate);
+  // With HARBOR_INTERNAL_TOKEN set (production), every /v1 request needs it as a bearer token: only the web app's
+  // server side holds it. Without it, /v1 is only for this machine. Requests that arrive through a tunnel or proxy
+  // (a non-local Host, or X-Forwarded-For) only reach what the outside world needs: OAuth callbacks, public media
+  // (platforms download it), /mcp (API keys) and /health. HARBOR_PUBLIC_API=all turns that gate off.
+  const internalToken = opts.internalToken ?? process.env.HARBOR_INTERNAL_TOKEN;
+  if (!internalToken && process.env.HARBOR_PUBLIC_API !== 'all') app.use('*', publicGate);
 
   // /mcp is for agents, not browsers, so it stays out of the web app's CORS rule (and authenticates with API keys).
-  // So do the public /media URLs, which platforms download.
+  // So do the public /media URLs, which platforms download. In production the browser never calls /v1 (the web app
+  // proxies), so this only matters locally. It runs before the token check so preflights get their answer.
   app.use('/v1/*', cors({ origin: opts.corsOrigins ?? [deps.webUrl] }));
+  if (internalToken) app.use('/v1/*', internalAuth(internalToken));
 
   app.onError((err, c) => {
     const requestId = c.get('requestId');
@@ -171,3 +178,39 @@ const publicGate = createMiddleware<{ Variables: Vars }>(async (c, next) => {
   if (PUBLIC_ROUTES.some((r) => r.methods.includes(c.req.method) && r.path.test(path))) return next();
   return c.json({ error: new HarborError('NOT_FOUND', 'Not available on the public address. Use Harbor from this machine.').toBody(c.get('requestId')) }, 404);
 });
+
+const digest = (s: string) => createHash('sha256').update(s).digest();
+
+/**
+ * Uploads go from the browser straight to the API (a web-app proxy would cap them at the host's body limit, 4.5 MB on
+ * Vercel). The web app signs a short-lived ticket for one brand with the internal token: `<exp ms>.<HMAC>`.
+ */
+const ticketMac = (token: string, brandId: string, exp: number) => createHmac('sha256', token).update(`upload:${brandId}:${exp}`).digest('base64url');
+export const createUploadTicket = (token: string, brandId: string, now = Date.now(), ttlMs = 10 * 60_000) => {
+  const exp = now + ttlMs;
+  return `${exp}.${ticketMac(token, brandId, exp)}`;
+};
+export function hasUploadTicket(headers: Headers, token: string, brandId: string, now = Date.now()): boolean {
+  const [expRaw, mac] = (headers.get('harbor-upload-ticket') ?? '').split('.');
+  const exp = Number(expRaw);
+  if (!mac || !Number.isFinite(exp) || exp <= now) return false;
+  return timingSafeEqual(digest(mac), digest(ticketMac(token, brandId, exp)));
+}
+const UPLOAD_PATH = /^\/v1\/brands\/([^/]+)\/media$/;
+
+/** True when `Authorization: Bearer <token>` carries `expected`. Compares digests, so neither length nor content leaks timing. */
+export function hasBearerToken(headers: Headers, expected: string): boolean {
+  const m = /^Bearer\s+(\S+)\s*$/i.exec(headers.get('authorization') ?? '');
+  return !!m && timingSafeEqual(digest(m[1]), digest(expected));
+}
+
+/** /v1 behind HARBOR_INTERNAL_TOKEN. The public routes under /v1 (OAuth callbacks) stay open; their state protects them. */
+const internalAuth = (token: string) =>
+  createMiddleware<{ Variables: Vars }>(async (c, next) => {
+    const path = new URL(c.req.url).pathname;
+    if (PUBLIC_ROUTES.some((r) => r.methods.includes(c.req.method) && r.path.test(path))) return next();
+    if (hasBearerToken(c.req.raw.headers, token)) return next();
+    const upload = c.req.method === 'POST' ? UPLOAD_PATH.exec(path) : null;
+    if (upload && hasUploadTicket(c.req.raw.headers, token, decodeURIComponent(upload[1]))) return next();
+    return c.json({ error: new HarborError('UNAUTHORIZED', 'Send the internal API token: Authorization: Bearer <HARBOR_INTERNAL_TOKEN>.').toBody(c.get('requestId')) }, 401);
+  });

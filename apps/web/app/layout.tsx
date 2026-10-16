@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { getApprovals, getBrands, getMemoryProposals, getMode, type BrandView, type Mode } from './api';
+import { authEnabled, currentSession } from './auth';
 import { Icon } from './icons';
 import { NavLink } from './nav-link';
 import { SidebarToggle } from './sidebar-toggle';
@@ -29,6 +30,18 @@ const NAV = [
 ];
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  const session = await currentSession();
+  const jar = await cookies();
+  // Light by default; dark only when chosen with the toggle.
+  const theme: Theme = jar.get('harbor-theme')?.value === 'dark' ? 'dark' : 'light';
+  // Signed out (only the sign-in page gets this far): a bare page, and no API calls.
+  if (!session) {
+    return (
+      <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-theme={theme === 'dark' ? 'dark' : undefined}>
+        <body>{children}</body>
+      </html>
+    );
+  }
   let brands: BrandView[] = [];
   let mode: Mode | undefined;
   let pending = 0;
@@ -45,9 +58,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     // Pages show the connection error themselves; the sidebar renders without brands.
   }
   const live = mode?.publish === 'live';
-  const jar = await cookies();
-  // Light by default; dark only when chosen with the toggle.
-  const theme: Theme = jar.get('harbor-theme')?.value === 'dark' ? 'dark' : 'light';
   const collapsed = jar.get('harbor-sidebar')?.value === 'collapsed';
 
   return (
@@ -92,6 +102,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <NavLink href="/settings" title="Settings"><Icon.settings /><span className="nav-text">Settings</span></NavLink>
                 <span className="nav-text"><ThemeToggle initial={theme} /></span>
               </div>
+              {authEnabled() ? (
+                <form action="/auth/logout" method="post">
+                  <button type="submit" className="nav-link sign-out" title={`Sign out @${session.login}`}>
+                    <Icon.signOut /><span className="nav-text">Sign out <span className="dim">@{session.login}</span></span>
+                  </button>
+                </form>
+              ) : null}
             </div>
           </aside>
           <main className="content">{children}</main>

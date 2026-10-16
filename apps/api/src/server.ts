@@ -3,7 +3,9 @@ import { createApp, createDeps } from './app.ts';
 import { openDb } from './db/client.ts';
 import { startWorker } from './worker.ts';
 
-const port = Number(process.env.HARBOR_API_PORT ?? 4800);
+// HARBOR_API_PORT wins; hosts like Railway set PORT.
+const port = Number(process.env.HARBOR_API_PORT || process.env.PORT || 4800);
+// openDb applies pending migrations before anything listens (idempotent; HARBOR_AUTO_MIGRATE=0 skips them).
 const db = await openDb();
 const deps = createDeps(db);
 const app = createApp(db, { corsOrigins: [deps.webUrl] }, deps);

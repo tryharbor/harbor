@@ -1,0 +1,15 @@
+# Never send secrets, local databases, media uploads or private notes into an image (like .vercelignore).
+.env*
+**/.env*
+!.env.example
+**/.pglite*
+**/pglite-data
+apps/api/.media
+docs/research
+**/node_modules
+**/.next
+**/.vercel
+**/*.tsbuildinfo
+.git
+.claude
+**/.DS_Store

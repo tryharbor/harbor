@@ -19,6 +19,23 @@ describe('provider registry', () => {
     expect(registry.get('threads')!.validate([{ text: 'a'.repeat(501), media: [] }]).ok).toBe(false);
   });
 
+  it("applies core's media rules (checkMedia) in validate", () => {
+    const img = (ext: string) => ({ kind: 'image' as const, url: `https://api.harbor.test/media/med_1/portrait.${ext}` });
+    const video = { kind: 'video' as const, url: 'https://cdn.test/v.mp4' };
+    const issues = (platform: 'x' | 'linkedin' | 'instagram' | 'threads', media: { kind: 'image' | 'video'; url: string }[]) => {
+      const r = registry.get(platform)!.validate([{ text: 'hi', media }]);
+      return r.ok ? [] : r.issues;
+    };
+    expect(issues('x', [img('jpg'), img('png'), img('webp'), img('gif')])).toEqual([]);
+    expect(issues('x', [img('jpg'), video])).toEqual(["X can't mix images and video in one post."]);
+    expect(issues('x', Array.from({ length: 5 }, () => img('jpg')))).toEqual(['X allows 4 images per post, got 5.']);
+    expect(issues('linkedin', [img('jpg'), img('jpg')])).toEqual(['LinkedIn allows 1 image per post, got 2.']);
+    expect(issues('linkedin', [video])).toEqual(["Video on LinkedIn isn't supported yet."]);
+    expect(issues('instagram', [img('png')])[0]).toMatch(/only JPEG/);
+    expect(issues('instagram', [img('jpg'), video])).toEqual([]);
+    expect(issues('threads', [img('png'), video])).toEqual([]);
+  });
+
   it('reports adapter version and metric availability per platform', () => {
     for (const p of registry.values()) {
       expect(p.adapterVersion).toBe('1.0.0');

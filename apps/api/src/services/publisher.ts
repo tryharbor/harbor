@@ -17,6 +17,7 @@ import type { Db } from '../db/client.ts';
 import type { SecretStore } from '../lib/secrets.ts';
 import { getChannelRow, providerContext, setChannelStatus, type ChannelRow } from './channels.ts';
 import { emitEvent } from './events.ts';
+import { refreshParts } from './media.ts';
 import { refreshOutcome } from './outcomes.ts';
 import { refreshPostReplies } from './replies.ts';
 
@@ -139,7 +140,7 @@ async function markPublished(
 
   // Thread replies: each extra part answers the previous one. The post is already live, so a failure here is
   // recorded on the post, never retried as a new publish.
-  const parts = await loadParts(db, post);
+  const parts = await refreshParts(db, channel.platform, await loadParts(db, post));
   if (parts.length > 1) {
     let replyTo = result.platformPostId;
     try {
@@ -179,7 +180,8 @@ export async function publishPost(deps: PublishDeps, postId: string): Promise<vo
   // Everything before provider.publish() sends nothing, so failures here are plain failures.
   let ctx: ProviderContext;
   try {
-    const parts = await loadParts(db, post);
+    // Library media: the current URL of each crop (the focal point may have moved) and the asset's alt text.
+    const parts = await refreshParts(db, channel.platform, await loadParts(db, post));
     const check = provider.validate(parts);
     if (!check.ok) throw new BadRequest(channel.platform, check.issues.join(' '));
     ctx = await providerContext(db, deps.secrets, provider, channel);

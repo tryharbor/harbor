@@ -1,13 +1,14 @@
-import { HarborError, newId, type Platform, type PostPart } from '@harbor/core';
+import { HarborError, newId, type MediaRefInput, type Platform, type PostPartInput } from '@harbor/core';
 import type { AppDeps } from '../app.ts';
 import type { Db } from '../db/client.ts';
 import { iso } from '../lib/http.ts';
 import { loadBrand } from './brands.ts';
-import { DEFAULT_MAX, SELECT_DRAFTS, insertDraft, loadDraft, toDraft, type DraftOut, type DraftRow } from './drafts.ts';
+import { SELECT_DRAFTS, insertDraft, loadDraft, toDraft, type DraftOut, type DraftRow } from './drafts.ts';
+import { resolveParts } from './media.ts';
 import { createPost, type PostOut } from './posts.ts';
 import type { RunSource } from './runs.ts';
 import { openSlots, slotLabel } from './slots.ts';
-import { voiceCheck, type Check } from './voice-check.ts';
+import { checkDraft, type Check } from './voice-check.ts';
 
 /**
  * Approvals: agents never publish. Anything an agent wants posted becomes a pending approval with a proposed slot;
@@ -172,28 +173,36 @@ export async function proposeDraft(
     score = slot.score;
     reason ||= `${slotLabel(slot)} is the next free best-time slot on @${channel.handle}.`;
   }
-  const max = deps.registry.get(draft.platform)?.maxLength() ?? DEFAULT_MAX[draft.platform];
   const id = await insertApproval(db, {
     workspaceId: brand.workspaceId, brandId: brand.id, draftId: draft.id, channelId: channel.id, platform: draft.platform,
-    proposedFor: at, slotScore: score, reason: reason || 'Proposed by an agent.', checks: voiceCheck(brand, draft, max), source: input.source,
+    proposedFor: at, slotScore: score, reason: reason || 'Proposed by an agent.', checks: await checkDraft(deps, brand, draft), source: input.source,
   });
   return loadApproval(db, id);
 }
 
 const notPending = (a: { id: string; status: string }) => new HarborError('CONFLICT', `Approval ${a.id} is already ${a.status}.`);
 
+/** The 400 for approving an Instagram post that has nothing to show. */
+const INSTAGRAM_NEEDS_MEDIA = 'Instagram needs an image or video. Attach one first.';
+
 /**
- * Approve: schedule the draft (or, with `parts`, a new human version of it) on the approval's channel at its
- * proposed time or `scheduledFor`. The time must be in the future. Goes through the same path as POST /v1/posts.
+ * Approve: schedule the draft (or, with `parts` or `media`, a new human version of it) on the approval's channel at
+ * its proposed time or `scheduledFor`. `media` replaces the first part's media. The time must be in the future.
+ * Goes through the same path as POST /v1/posts.
  */
 export async function approve(
   deps: Pick<AppDeps, 'db' | 'registry' | 'publishDeps'>,
   id: string,
-  input: { scheduledFor?: string; parts?: PostPart[] } = {},
+  input: { scheduledFor?: string; parts?: PostPartInput[]; media?: MediaRefInput[] } = {},
 ): Promise<{ approval: Approval; post: PostOut }> {
   const { db } = deps;
   const current = await loadApproval(db, id);
   if (current.status !== 'pending') throw notPending(current);
+  const d = current.draft;
+  let edited: PostPartInput[] | undefined = input.parts;
+  if (input.media) edited = (edited ?? d.parts).map((p, i) => (i === 0 ? { ...p, media: input.media! } : p));
+  const parts = edited ? await resolveParts(db, d.brandId, d.platform, edited) : undefined;
+  if (current.channel.platform === 'instagram' && !(parts ?? d.parts)[0]?.media.length) throw new HarborError('INVALID_REQUEST', INSTAGRAM_NEEDS_MEDIA);
   const at = input.scheduledFor ?? current.proposedFor;
   if (new Date(at).getTime() <= Date.now()) {
     throw new HarborError(
@@ -205,11 +214,8 @@ export async function approve(
   const [claimed] = await db.query(`UPDATE approvals SET status = 'approved', decided_at = now() WHERE id = $1 AND status = 'pending' RETURNING id`, [id]);
   if (!claimed) throw notPending(await loadApproval(db, id));
   try {
-    let draftId = current.draft.id;
-    if (input.parts) {
-      const d = current.draft;
-      draftId = await insertDraft(db, { brandId: d.brandId, ideaId: d.ideaId, platform: d.platform, channelId: current.channel.id, parts: input.parts, author: 'human' });
-    }
+    let draftId = d.id;
+    if (parts) draftId = await insertDraft(db, { brandId: d.brandId, ideaId: d.ideaId, platform: d.platform, channelId: current.channel.id, parts, author: 'human' });
     const post = await createPost(deps, { channelId: current.channel.id, draftId, scheduledFor: new Date(at).toISOString(), ideaId: current.ideaId });
     await db.query('UPDATE approvals SET post_id = $2, draft_id = $3 WHERE id = $1', [id, post.id, draftId]);
     return { approval: await loadApproval(db, id), post };

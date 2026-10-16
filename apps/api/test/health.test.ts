@@ -34,7 +34,7 @@ describe('migrations', () => {
     );
     expect(rows.map((r) => r.table_name)).toEqual([
       'agent_events', 'agent_runs', 'api_keys', 'approvals', 'automation_refs', 'automations', 'brands', 'campaigns', 'canvas_edges', 'canvas_items', 'channels',
-      'competitors', 'digests', 'drafts', 'ideas', 'import_scans', 'insights', 'memory_proposals', 'oauth_states',
+      'competitors', 'digests', 'drafts', 'ideas', 'import_scans', 'insights', 'media_assets', 'memory_proposals', 'oauth_states',
       'outcomes', 'post_replies', 'posts', 'schema_migrations', 'secrets', 'signals', 'snapshot_jobs', 'snapshots', 'workspaces',
     ]);
   });

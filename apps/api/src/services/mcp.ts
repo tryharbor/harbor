@@ -1,7 +1,7 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { HarborError, brandMemorySchema, ideaStatusSchema, platformSchema, postStatusSchema, shortId, type Brand } from '@harbor/core';
+import { HarborError, brandMemorySchema, ideaStatusSchema, mediaVariantSchema, platformSchema, postStatusSchema, shortId, type Brand } from '@harbor/core';
 import type { AppDeps } from '../app.ts';
 import { listAgentDefs, loadRunDetail, runAgent } from './agents.ts';
 import type { ApiKeyRow, ApiKeyScope } from './api-keys.ts';
@@ -9,14 +9,16 @@ import { listApprovals, proposeDraft } from './approvals.ts';
 import { bestTimesForBrand } from './best-times.ts';
 import { loadBrand, toBrand, type BrandRow } from './brands.ts';
 import { CARD, SELECT_CAMPAIGNS, gridRightOfAll, insertItem, listItems, loadCampaignRow, toCampaign, toItem, type CampaignRow } from './campaigns.ts';
-import { generateDrafts, loadDraft } from './drafts.ts';
+import { generateDrafts, insertDraft, loadDraft } from './drafts.ts';
 import { SELECT_IDEAS, generateIdeas, insertIdea, loadIdea, toIdea, type IdeaRow } from './ideas.ts';
 import { requireDigest } from './insights.ts';
+import { assetRef, checkPartsMedia, listMedia, loadAssetRow, mediaLookup } from './media.ts';
 import { SAVE_AS, SAVE_SOURCES, saveToMemory } from './memory.ts';
 import { listMemoryProposals } from './memory-proposals.ts';
 import { brandConversation } from './replies.ts';
 import { SELECT_POSTS, loadPost, loadPostDetail, toPost, type PostListRow } from './posts.ts';
 import type { RunOpts } from './runs.ts';
+import { checkDraft } from './voice-check.ts';
 
 /**
  * Harbor's MCP server: read tools (brands, posts, digests, best times …) and write tools (ideas, drafts, proposals,
@@ -186,6 +188,18 @@ const TOOLS: ToolDef<z.ZodRawShape>[] = [
     },
   }),
   tool({
+    name: 'list_media',
+    description:
+      "A brand's media library, newest first: images and videos with alt text, tags, focal point and the public URL of each crop (original, square, portrait, landscape, wide, story). Attach one to a draft with attach_media.",
+    scope: 'read',
+    input: { brandId: id('brand'), tag: z.string().max(100).optional() },
+    async run({ brandId, tag }, ctx) {
+      const b = await ctx.brand(brandId);
+      const res = await listMedia(ctx.deps.db, b.id, { tag, limit: 100 });
+      return { summary: `${plural(res.data.length, 'media item')} for ${b.name}${tag ? ` tagged "${tag}"` : ''}`, data: res };
+    },
+  }),
+  tool({
     name: 'list_agents',
     description: "Harbor's built-in agents: what each does, its inputs and its steps. Run one with run_agent.",
     scope: 'read',
@@ -256,6 +270,37 @@ const TOOLS: ToolDef<z.ZodRawShape>[] = [
       await ctx.brand(draft.brandId);
       const approval = await proposeDraft(ctx.deps, { draftId, proposedFor, reason, source: 'mcp' });
       return { summary: `Proposed for ${approval.proposedFor} on @${approval.channel.handle}; waiting for approval`, data: approval };
+    },
+  }),
+  tool({
+    name: 'attach_media',
+    description:
+      "Attach an image or video from the brand's media library to a draft's first part. Saves a new draft version; the crop defaults to the platform's preferred one (variant: original, square, portrait, landscape, wide or story). Pending approvals of the draft move to the new version.",
+    scope: 'write',
+    input: { draftId: id('draft'), assetId: id('media asset'), variant: mediaVariantSchema.optional() },
+    async run({ draftId, assetId, variant }, ctx) {
+      const { db } = ctx.deps;
+      const draft = await loadDraft(db, draftId);
+      const b = await ctx.brand(draft.brandId);
+      const asset = await loadAssetRow(db, assetId);
+      if (asset.brand_id !== b.id) throw new HarborError('INVALID_REQUEST', `Media ${assetId} isn't in ${b.name}'s library.`);
+      const ref = assetRef(asset, draft.platform, { variant });
+      const [first, ...rest] = draft.parts;
+      const media = [...(first?.media ?? []).filter((m) => m.assetId !== asset.id), ref];
+      const parts = [{ text: first?.text ?? '', media }, ...rest];
+      const check = checkPartsMedia(draft.platform, parts, await mediaLookup(db, [{ parts }]));
+      if (!check.ok) throw new HarborError('INVALID_REQUEST', check.issues.filter((i) => i.level === 'fail').map((i) => i.message).join(' '));
+      const savedId = await insertDraft(db, { brandId: b.id, ideaId: draft.ideaId, platform: draft.platform, channelId: draft.channelId, parts, author: 'agent' });
+      const saved = await loadDraft(db, savedId);
+      const checks = await checkDraft(ctx.deps, b, saved);
+      const moved = await db.query<{ id: string }>(
+        "UPDATE approvals SET draft_id = $2, checks = $3 WHERE draft_id = $1 AND status = 'pending' RETURNING id",
+        [draft.id, saved.id, JSON.stringify(checks)],
+      );
+      return {
+        summary: `Attached the ${ref.variant} ${asset.kind} to a new version (v${saved.version}) of the ${draft.platform} draft${moved.length ? `; ${plural(moved.length, 'pending approval')} updated` : ''}`,
+        data: { draft: saved, checks, approvalIds: moved.map((r) => r.id) },
+      };
     },
   }),
   tool({

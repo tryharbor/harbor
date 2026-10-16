@@ -5,6 +5,7 @@ import type { Platform } from '@harbor/core';
 import { rewriteDraft, saveDraft, scheduleDraft, type RewriteState } from '../actions';
 import type { DraftView } from '../api';
 import { PlatformIcon } from '../platform-icon';
+import { CheckIssues, MediaPicker, type PickedMedia } from './media-picker';
 
 const NAME: Record<Platform, string> = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', threads: 'Threads' };
 const LIMIT: Record<Platform, number> = { x: 280, linkedin: 3000, instagram: 2200, threads: 500 };
@@ -15,13 +16,18 @@ export interface ChannelOption { id: string; handle: string }
 
 /** One platform's pane in the Studio: edit, preview, rewrite, save a version, schedule. */
 export function DraftEditor({
-  brandId, brandName, ideaId, platform, draft, versions, channels,
+  brandId, brandName, ideaId, platform, draft, versions, channels, apiUrl,
 }: {
-  brandId: string; brandName: string; ideaId: string; platform: Platform; draft?: DraftView; versions: DraftView[]; channels: ChannelOption[];
+  brandId: string; brandName: string; ideaId: string; platform: Platform; draft?: DraftView; versions: DraftView[]; channels: ChannelOption[]; apiUrl: string;
 }) {
   const initial = draft ? draft.parts.map((p) => p.text).join('\n---\n') : '';
   const [body, setBody] = useState(initial);
   const [media, setMedia] = useState(draft?.parts[0]?.media[0]?.url ?? '');
+  const saved = draft?.parts[0]?.media[0] as (DraftView['parts'][number]['media'][number] & { assetId?: string; variant?: string }) | undefined;
+  const [picked, setPicked] = useState<Pick<PickedMedia, 'assetId' | 'variant' | 'kind'> & { check?: PickedMedia['check'] } | undefined>(
+    saved?.assetId ? { assetId: saved.assetId, variant: (saved.variant ?? 'original') as PickedMedia['variant'], kind: saved.kind } : undefined,
+  );
+  const [picking, setPicking] = useState(false);
   const [rewrite, rewriteAction, rewriting] = useActionState<RewriteState, FormData>(rewriteDraft, undefined);
   const parts = useMemo(() => body.split(SPLIT).map((t) => t.trim()).filter(Boolean), [body]);
   const limit = LIMIT[platform];
@@ -53,8 +59,28 @@ export function DraftEditor({
           </span>
         </div>
         <div className="field">
-          <label htmlFor={`media-${platform}`}>Image or video URL{platform === 'instagram' ? ' (required)' : ''}</label>
-          <input id={`media-${platform}`} name="mediaUrl" type="url" value={media} onChange={(e) => setMedia(e.target.value)} placeholder="https://…" />
+          <span className="label">Image or video{platform === 'instagram' ? ' · required' : ''}</span>
+          <input type="hidden" name="mediaUrl" value={media} />
+          <input type="hidden" name="mediaAssetId" value={picked?.assetId ?? ''} />
+          <input type="hidden" name="mediaVariant" value={picked?.variant ?? ''} />
+          <input type="hidden" name="mediaKind" value={picked?.kind ?? ''} />
+          {media ? (
+            <div className="attached">
+              {picked?.kind === 'video' || /\.(mp4|mov)(\?|$)/i.test(media) ? <span className="media-video mono">▶</span> : <img src={media} alt="" />}
+              <span className="stack" style={{ gap: 4, minWidth: 0 }}>
+                <span className="small">{picked ? <>From the library · <span className="mono">{picked.variant}</span> crop</> : <span className="evidence-text">{media}</span>}</span>
+                <CheckIssues check={picked?.check} />
+              </span>
+              <button type="button" className="link-button small" onClick={() => { setMedia(''); setPicked(undefined); }}>Remove</button>
+            </div>
+          ) : null}
+          <div className="row" style={{ gap: 6 }}>
+            <button type="button" className="mono-button" onClick={() => setPicking(true)}>{media ? 'Replace' : 'Choose from library'}</button>
+            {!picked ? <input aria-label="Or paste a media URL" type="url" value={media} onChange={(e) => { setMedia(e.target.value); setPicked(undefined); }} placeholder="or paste a URL" style={{ maxWidth: 260 }} /> : null}
+          </div>
+          {picking ? (
+            <MediaPicker apiUrl={apiUrl} brandId={brandId} platform={platform} onClose={() => setPicking(false)} onPick={(m) => { setMedia(m.url); setPicked(m); setPicking(false); }} />
+          ) : null}
         </div>
         <div className="row">
           <button type="submit" className={dirty ? 'inverse' : undefined} disabled={!dirty || over || !parts.length}>Save version</button>

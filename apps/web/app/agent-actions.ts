@@ -55,8 +55,10 @@ export async function approve(form: FormData) {
   const original = text(form, 'original');
   const edited = text(form, 'text');
   const parts = edited && edited !== original ? edited.split(/^\s*---\s*$/m).map((t) => ({ text: t.trim() })).filter((p) => p.text) : undefined;
+  const assetId = text(form, 'mediaAssetId');
+  const media = assetId ? [{ assetId, variant: text(form, 'mediaVariant') || undefined }] : undefined;
   try {
-    await api(`/v1/approvals/${id}/approve`, { method: 'POST', body: JSON.stringify({ scheduledFor, parts }) });
+    await api(`/v1/approvals/${id}/approve`, { method: 'POST', body: JSON.stringify({ scheduledFor, parts, media }) });
   } catch (err) {
     go(returnTo(form, '/approvals'), { error: message(err, 'Could not approve that post.') });
   }

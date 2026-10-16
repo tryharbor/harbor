@@ -22,6 +22,17 @@ const returnTo = (form: FormData, fallback: string) => {
   return r.startsWith('/') && !r.startsWith('//') ? r : fallback;
 };
 const refresh = () => revalidatePath('/', 'layout');
+type MediaField = { kind: 'image' | 'video'; url?: string; assetId?: string; variant?: string };
+/** Media for part 1: a library asset (mediaAssetId + its variant URL) or a pasted URL. */
+const mediaFrom = (form: FormData): MediaField | undefined => {
+  const url = text(form, 'mediaUrl');
+  if (!url) return undefined;
+  const kind = text(form, 'mediaKind') === 'video' || /\.(mp4|mov)(\?|$)/i.test(url) ? 'video' : 'image';
+  const assetId = text(form, 'mediaAssetId') || undefined;
+  // Library media: the API fills the public URL from the asset (the URL here may be the browser's local one).
+  if (assetId) return { kind, assetId, variant: text(form, 'mediaVariant') || undefined } as MediaField;
+  return { kind, url };
+};
 const shortId = () => Math.random().toString(36).slice(2, 10);
 const patchMemory = (brandId: string, memory: Record<string, unknown>) =>
   api(`/v1/brands/${brandId}`, { method: 'PATCH', body: JSON.stringify({ memory }) });
@@ -300,9 +311,9 @@ export async function generateDrafts(form: FormData) {
 export async function saveDraft(form: FormData) {
   const ideaId = text(form, 'ideaId');
   const back = returnTo(form, `/studio/${ideaId}`);
-  const parts = blocks(text(form, 'body')).map((t) => ({ text: t, media: [] as { kind: 'image' | 'video'; url: string }[] }));
-  const media = text(form, 'mediaUrl');
-  if (media && parts[0]) parts[0].media.push({ kind: /\.(mp4|mov)(\?|$)/i.test(media) ? 'video' : 'image', url: media });
+  const parts = blocks(text(form, 'body')).map((t) => ({ text: t, media: [] as MediaField[] }));
+  const media = mediaFrom(form);
+  if (media && parts[0]) parts[0].media.push(media);
   if (!parts.length) go(back, { error: 'The draft is empty.' });
   try {
     await api('/v1/drafts', { method: 'POST', body: JSON.stringify({ brandId: text(form, 'brandId'), ideaId: ideaId || undefined, platform: text(form, 'platform'), parts, author: 'human' }) });
@@ -351,9 +362,9 @@ export async function scheduleDraft(form: FormData) {
  */
 export async function createPost(form: FormData) {
   const back = returnTo(form, '/compose');
-  const parts = blocks(text(form, 'body')).map((t) => ({ text: t, media: [] as { kind: 'image' | 'video'; url: string }[] }));
-  const mediaUrl = text(form, 'mediaUrl');
-  if (mediaUrl && parts[0]) parts[0].media.push({ kind: /\.(mp4|mov)(\?|$)/i.test(mediaUrl) ? 'video' : 'image', url: mediaUrl });
+  const parts = blocks(text(form, 'body')).map((t) => ({ text: t, media: [] as MediaField[] }));
+  const media = mediaFrom(form);
+  if (media && parts[0]) parts[0].media.push(media);
   if (parts.length === 0) go(back, { error: 'Write something first.' });
 
   const when = text(form, 'scheduledFor');

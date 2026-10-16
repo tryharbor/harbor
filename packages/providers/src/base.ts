@@ -6,6 +6,8 @@ import {
   PublishOutcomeUnknown,
   RateLimited,
   RefreshNeeded,
+  checkMedia,
+  mimeFromUrl,
   type AuthCallback,
   type AuthUrl,
   type JsonObject,
@@ -178,7 +180,7 @@ export abstract class BaseProvider implements PlatformProvider {
   readonly maxConcurrentJobs: number = 1;
   /** Platforms that let Harbor read replies override this. */
   readonly reportsReplies: boolean = false;
-  /** Max media items per part; 0 = text only. */
+  /** Max media items per part the adapter can publish; validate() checks core MEDIA_RULES. */
   protected readonly maxMedia: number = 4;
   /** Platforms like Instagram can't publish text alone. */
   protected readonly requiresMedia: boolean = false;
@@ -207,7 +209,12 @@ export abstract class BaseProvider implements PlatformProvider {
       const where = parts.length > 1 ? `Part ${i + 1}: ` : '';
       if ([...p.text].length > max) issues.push(`${where}${this.name} allows ${max} characters, got ${[...p.text].length}.`);
       if (!p.text.trim() && p.media.length === 0) issues.push(`${where}empty.`);
-      if (p.media.length > this.maxMedia) issues.push(`${where}${this.name} allows ${this.maxMedia} media items, got ${p.media.length}.`);
+      // The platform's media rules (core MEDIA_RULES). A bare URL only tells us the kind and, from its extension,
+      // the type; the API checks library assets' sizes and dimensions before it gets here.
+      if (p.media.length) {
+        const items = p.media.map((m) => ({ kind: m.kind, mime: mimeFromUrl(m.url) }));
+        for (const issue of checkMedia(this.identifier, items).issues) if (issue.level === 'fail') issues.push(`${where}${issue.message}`);
+      }
     });
     if (this.requiresMedia && (parts[0]?.media.length ?? 0) === 0) issues.push(`${this.name} posts need an image or video.`);
     return issues.length ? { ok: false, issues } : { ok: true };

@@ -23,6 +23,7 @@ const NAV = [
   { href: '/campaigns', label: 'Campaigns', icon: Icon.campaigns },
   { href: '/studio', label: 'Studio', icon: Icon.studio },
   { href: '/agents', label: 'Agents', icon: Icon.agents },
+  { href: '/media', label: 'Media', icon: Icon.media },
   { href: '/performance', label: 'Performance', icon: Icon.performance },
   { href: '/insights', label: 'Insights', icon: Icon.insights },
 ];

@@ -105,7 +105,7 @@ describe('weekly plan', () => {
       expect(at(a.proposedFor)).toBeGreaterThan(now + HOUR);
       expect(at(a.proposedFor)).toBeLessThan(now + 9 * 24 * HOUR);
       expect(a.reason).toMatch(/best (X|LinkedIn) slots\. From last week's digest: /);
-      expect(a.checks.map((c: any) => c.key)).toEqual(['banned_words', 'avoid', 'length', 'hashtags', 'style_rules', 'hook']);
+      expect(a.checks.map((c: any) => c.key)).toEqual(['banned_words', 'avoid', 'length', 'hashtags', 'style_rules', 'hook', 'media']);
       expect(a.draft).toMatchObject({ author: 'agent', platform: a.channel.platform, simulated: true });
       expect(a.ideaTitle).toBeTruthy();
     }

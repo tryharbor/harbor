@@ -19,13 +19,14 @@ import {
 import { DEFAULT_MAX, generateDrafts, loadDraft, type DraftOut } from './drafts.ts';
 import { generateIdeas, insertIdea, loadIdea } from './ideas.ts';
 import { generateDigest, latestDigestRow } from './insights.ts';
+import { assetRef, imageForIdea, mediaLookup } from './media.ts';
 import { insertMemoryProposal } from './memory-proposals.ts';
 import { refreshBrandOutcomes } from './outcomes.ts';
 import { loadPost } from './posts.ts';
 import { AgentRunRecorder, SELECT_RUNS, toRunSummary, withRun, type AgentRunRow, type AgentRunView, type RunOpts, type RunRef, type RunStep } from './runs.ts';
 import { derivePerformanceSignals } from './signals.ts';
 import { openSlots, slotLabel, type Slot } from './slots.ts';
-import { PLATFORM_NAMES, checksSummary, voiceCheck, type Check } from './voice-check.ts';
+import { PLATFORM_NAMES, checkDraft, checksSummary, voiceCheck, type Check } from './voice-check.ts';
 import { featureLifts, loadLearningPosts, proposeChanges, ruleCoverage, type ProposedChange } from './voice-learning.ts';
 
 /**
@@ -113,7 +114,8 @@ const maxLengthOf = (deps: Pick<AgentDeps, 'registry'>, platform: Platform) => d
 
 async function checkDrafts(deps: AgentDeps, brand: Brand, drafts: DraftOut[], rec: AgentRunRecorder): Promise<Map<string, Check[]>> {
   return rec.step('checks', 'Voice check', async () => {
-    const out = new Map(drafts.map((d) => [d.id, voiceCheck(brand, d, maxLengthOf(deps, d.platform))]));
+    const assets = await mediaLookup(deps.db, drafts);
+    const out = new Map(drafts.map((d) => [d.id, voiceCheck(brand, d, maxLengthOf(deps, d.platform), assets)]));
     const flagged = [...out.values()].filter((cs) => cs.some((c) => !c.ok)).length;
     return { value: out, detail: `${plural(drafts.length, 'draft')} checked; ${flagged ? `${flagged} with issues` : 'all pass'}.` };
   });
@@ -242,16 +244,23 @@ const weeklyPlan = spec({
     const drafts = await rec.step('drafts', 'Draft every idea', async () => {
       const out: DraftOut[] = [];
       const runs: RunRef[] = [];
+      let attached = 0;
       for (const ideaId of ideaIds) {
         const idea = await loadIdea(db, ideaId);
         const { ids, run } = await generateDrafts(deps, brand, idea, targets, [], { run: rec.child });
         runs.push({ kind: 'run', id: run.id, label: `Drafts: ${idea.title}` });
         const made = await Promise.all(ids.map((id) => loadDraft(db, id)));
+        for (const [i, d] of made.entries()) {
+          if (!(await attachIdeaImage(db, d, idea.title))) continue;
+          attached++;
+          made[i] = await loadDraft(db, d.id);
+        }
         out.push(...made);
         if (campaign) await placeDrafts(db, campaign, ideaId, ids);
       }
       const refs = out.map((d): RunRef => ({ kind: 'draft', id: d.id, label: PLATFORM_NAMES[d.platform] }));
-      return { value: out, detail: `${plural(out.length, 'draft')} for ${platformList(targets)}.`, refs: [...refs, ...runs] };
+      const images = targets.includes('instagram') ? ` ${attached ? `Attached a library image to ${plural(attached, 'Instagram draft')}.` : 'No library image matched the Instagram drafts.'}` : '';
+      return { value: out, detail: `${plural(out.length, 'draft')} for ${platformList(targets)}.${images}`, refs: [...refs, ...runs] };
     });
 
     const checks = await checkDrafts(deps, brand, drafts, rec);
@@ -274,6 +283,20 @@ const weeklyPlan = spec({
   { brandId: string; platforms?: Platform[]; postsPerPlatform: number; campaignId?: string },
   Prepared & { channels: ChannelRef[]; campaign?: CampaignRow; count: number }
 >);
+
+/**
+ * Instagram can't post without media: give a fresh Instagram draft the brand's most recently used image tagged for
+ * the idea's topic, if any. Without one the media stays empty, and the voice check flags it in Approvals. The draft
+ * is the agent's own, just written, so it's updated in place rather than versioned.
+ */
+async function attachIdeaImage(db: Db, draft: DraftOut, title: string): Promise<boolean> {
+  if (draft.platform !== 'instagram' || draft.parts[0]?.media.length) return false;
+  const image = await imageForIdea(db, draft.brandId, title);
+  if (!image) return false;
+  const parts = draft.parts.map((p, i) => (i === 0 ? { ...p, media: [assetRef(image, 'instagram')] } : p));
+  await db.query('UPDATE drafts SET parts = $2 WHERE id = $1', [draft.id, JSON.stringify(parts)]);
+  return true;
+}
 
 /** Idea cards go into the campaign's Ideas frame. */
 async function placeIdeas(db: Db, campaign: CampaignRow, ideaIds: string[]) {
@@ -403,7 +426,7 @@ const voiceCheckAgent = spec({
   },
   async execute(deps, p, rec) {
     const checks = await rec.step('checks', 'Check the draft', async () => {
-      const cs = voiceCheck(p.brand, p.draft, maxLengthOf(deps, p.draft.platform));
+      const cs = await checkDraft(deps, p.brand, p.draft);
       return { value: cs, detail: checksSummary(cs), refs: [{ kind: 'draft', id: p.draft.id, label: PLATFORM_NAMES[p.draft.platform] }] };
     });
     return { summary: checksSummary(checks), output: { report: { draftId: p.draft.id, ok: checks.every((c) => c.ok), checks } } };

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HarborError, postPartSchema } from '@harbor/core';
+import { HarborError, postPartInputSchema } from '@harbor/core';
 import type { App, AppDeps } from '../app.ts';
 import { body } from '../lib/http.ts';
 import { SELECT_POSTS, createPost, loadPost as loadPostOut, loadPostDetail, toPost, type PostListRow } from '../services/posts.ts';
@@ -7,8 +7,8 @@ import { SELECT_POSTS, createPost, loadPost as loadPostOut, loadPostDetail, toPo
 const postCreateSchema = z
   .object({
     channelId: z.string().min(1),
-    /** The post's text and media. Give either `parts` or `draftId`. */
-    parts: z.array(postPartSchema).min(1).max(25).optional(),
+    /** The post's text and media (library assets as `{ assetId, variant? }`). Give either `parts` or `draftId`. */
+    parts: z.array(postPartInputSchema).min(1).max(25).optional(),
     /** Publish an existing draft (its platform must match the channel's). */
     draftId: z.string().min(1).optional(),
     /** Omit to publish now. */

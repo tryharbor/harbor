@@ -1,10 +1,9 @@
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { DEFAULT_WORKSPACE_ID, HarborError } from '@harbor/core';
 import type { App, AppDeps } from '../app.ts';
+import { apiUrl } from '../lib/http.ts';
 import { authenticateKey } from '../services/api-keys.ts';
 import { MCP_TOOLS, MEMORY_RESOURCE, createMcpServer } from '../services/mcp.ts';
-
-export const apiUrl = () => (process.env.HARBOR_API_URL || 'http://localhost:4800').replace(/\/+$/, '');
 
 /**
  * The MCP server at /mcp: Streamable HTTP in stateless mode (a fresh server and transport per request), behind

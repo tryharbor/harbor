@@ -1,4 +1,4 @@
-import { postPartSchema, type BrandVoice, type Platform } from '@harbor/core';
+import { MEDIA_RULES, postPartSchema, type BrandVoice, type MediaKind, type Platform } from '@harbor/core';
 import { splitSentences, words, type DraftChange } from '@harbor/ai';
 import type { Db } from '../db/client.ts';
 import { COMPARABLE_WINDOW_DAYS, median, type Verdict } from './outcomes.ts';
@@ -11,6 +11,7 @@ import { PLATFORM_NAMES } from './voice-check.ts';
  *
  * - Lift of a feature = median(ratio of posts with it) / median(ratio of posts without it), where ratio is the
  *   post's outcome against the brand + platform median. It only counts with at least 3 posts on each side.
+ * - Media features (has_image, carousel, video) only compare posts on platforms where media is optional.
  * - Lift ≥ 1.25 → a `do` rule; lift ≤ 0.8 → an `avoid` rule; skipped when an equivalent rule exists (the rule
  *   contains one of the feature's canonical phrases, case-insensitive).
  * - An existing rule that maps to a feature pointing the other way is proposed for removal.
@@ -35,7 +36,13 @@ export interface FeatureDef {
   /** Plain wording, used when the model doesn't polish it. */
   doText: string;
   avoidText: string;
-  test(parts: string[]): boolean;
+  /** `media`: the kinds of the first part's media items. */
+  test(parts: string[], media: MediaKind[]): boolean;
+  /**
+   * Media features only compare posts on platforms where media is optional: every Instagram post has media, so it
+   * says nothing there.
+   */
+  mediaOptionalOnly?: boolean;
 }
 
 const first = (parts: string[]) => (parts[0] ?? '').trim();
@@ -97,7 +104,25 @@ export const FEATURES: FeatureDef[] = [
     doText: 'End with a question.', avoidText: 'Ending with a question.',
     test: (p) => first(p).endsWith('?'),
   },
+  {
+    key: 'has_image', label: 'Posts with an image', phrases: ['an image', 'images', 'photo'], mediaOptionalOnly: true,
+    doText: 'Add an image.', avoidText: 'Images on text posts.',
+    test: (_p, m) => m.includes('image'),
+  },
+  {
+    key: 'carousel', label: 'Carousels (more than one media item)', phrases: ['carousel'], mediaOptionalOnly: true,
+    doText: 'Use a carousel.', avoidText: 'Carousels.',
+    test: (_p, m) => m.length > 1,
+  },
+  {
+    key: 'video', label: 'Posts with video', phrases: ['video'], mediaOptionalOnly: true,
+    doText: 'Post video.', avoidText: 'Video posts.',
+    test: (_p, m) => m.includes('video'),
+  },
 ];
+
+/** Platforms where a post can go out without media, so having media is a choice worth learning from. */
+const mediaOptional = (platform: Platform) => !MEDIA_RULES[platform].required;
 
 const featureOf = (key: string) => FEATURES.find((f) => f.key === key)!;
 
@@ -108,6 +133,8 @@ export interface LearningPost {
   id: string;
   platform: Platform;
   parts: string[];
+  /** The kinds of the first part's media items. */
+  media?: MediaKind[];
   ratio: number;
   verdict: Verdict;
   /** Its post_performance signal. */
@@ -130,8 +157,9 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export function featureLifts(posts: LearningPost[]): FeatureLift[] {
   const out: FeatureLift[] = [];
   for (const f of FEATURES) {
-    const yes = posts.filter((p) => f.test(p.parts));
-    const no = posts.filter((p) => !f.test(p.parts));
+    const pool = f.mediaOptionalOnly ? posts.filter((p) => mediaOptional(p.platform)) : posts;
+    const yes = pool.filter((p) => f.test(p.parts, p.media ?? []));
+    const no = pool.filter((p) => !f.test(p.parts, p.media ?? []));
     if (yes.length < MIN_POSTS_PER_SIDE || no.length < MIN_POSTS_PER_SIDE) continue;
     const base = median(no.map((p) => p.ratio));
     if (!(base > 0)) continue;
@@ -241,12 +269,16 @@ export async function loadLearningPosts(db: Db, brandId: string): Promise<Learni
      ORDER BY p.published_at, p.id`,
     [brandId, COMPARABLE_WINDOW_DAYS],
   );
-  return rows.map((r) => ({
-    id: r.id,
-    platform: r.platform,
-    parts: postPartSchema.array().catch([]).parse(r.parts ?? []).map((x) => x.text),
-    ratio: round2(Number(r.ratio)),
-    verdict: r.verdict,
-    ...(r.signal_id ? { signalId: r.signal_id } : {}),
-  }));
+  return rows.map((r) => {
+    const parts = postPartSchema.array().catch([]).parse(r.parts ?? []);
+    return {
+      id: r.id,
+      platform: r.platform,
+      parts: parts.map((x) => x.text),
+      media: (parts[0]?.media ?? []).map((m) => m.kind),
+      ratio: round2(Number(r.ratio)),
+      verdict: r.verdict,
+      ...(r.signal_id ? { signalId: r.signal_id } : {}),
+    };
+  });
 }

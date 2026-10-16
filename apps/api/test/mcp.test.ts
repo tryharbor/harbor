@@ -108,7 +108,7 @@ describe('/mcp', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.id).toBe(7);
-    expect(body.result.tools.length).toBe(21);
+    expect(body.result.tools.length).toBe(23);
     const { data: keys } = await json('GET', '/v1/api-keys', undefined, 200);
     expect(keys.find((k: any) => k.id === readKey.id).lastUsedAt).toEqual(expect.any(String));
     const get = await app.request('/mcp', { headers: { authorization: `Bearer ${readKey.key}`, accept: 'text/event-stream' } });
@@ -122,7 +122,7 @@ describe('/mcp', () => {
       [
         'list_brands', 'get_brand_memory', 'list_posts', 'get_post', 'get_digest', 'best_times', 'list_campaigns', 'list_ideas', 'list_approvals',
         'list_agents', 'get_agent_run', 'create_idea', 'suggest_ideas', 'draft_idea', 'propose_post', 'run_agent', 'add_knowledge', 'add_canvas_note',
-        'list_memory_proposals', 'get_conversation', 'save_to_memory',
+        'list_memory_proposals', 'get_conversation', 'save_to_memory', 'list_media', 'attach_media',
       ].sort(),
     );
     const propose = tools.find((t) => t.name === 'propose_post')!;
@@ -171,7 +171,7 @@ describe('/mcp', () => {
     const approval = data(proposed);
     expect(approval).toMatchObject({ status: 'pending', source: 'mcp', draft: { id: drafts[0].id }, channel: { platform: 'x' }, reason: expect.stringMatching(/next free best-time slot/) });
     expect(new Date(approval.proposedFor).getTime()).toBeGreaterThan(Date.now() + 3_600_000);
-    expect(approval.checks.length).toBe(6);
+    expect(approval.checks.length).toBe(7);
     expect((await json('GET', '/v1/approvals?status=pending', undefined, 200)).data.map((a: any) => a.id)).toEqual([approval.id]);
     expect((await json('GET', `/v1/posts?brandId=${brandId}`, undefined, 200)).data).toEqual([]);
 
@@ -227,7 +227,7 @@ describe('/mcp', () => {
   it('describes itself at GET /v1/mcp', async () => {
     const info = await json('GET', '/v1/mcp', undefined, 200);
     expect(info).toMatchObject({ url: 'http://localhost:4800/mcp', transport: 'streamable-http' });
-    expect(info.tools).toHaveLength(21);
+    expect(info.tools).toHaveLength(23);
     expect(info.tools.find((t: any) => t.name === 'propose_post')).toMatchObject({ scope: 'write', description: expect.any(String) });
     expect(info.tools.find((t: any) => t.name === 'list_posts').scope).toBe('read');
     expect(info.resources).toContainEqual({ uri: `harbor://brands/${brandId}/memory`, name: 'Harbor: Brand Memory' });

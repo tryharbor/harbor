@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { bulkApprovals } from '../agent-actions';
-import { getAgents, getApprovals, getBrands, getMemoryProposals, loadAll, type AgentDef, type Approval, type ApprovalCounts, type BrandView, type MemoryProposal, type ProposalCounts } from '../api';
+import { API_BROWSER_URL, getAgents, getApprovals, getBrands, getMemoryProposals, loadAll, type AgentDef, type Approval, type ApprovalCounts, type BrandView, type MemoryProposal, type ProposalCounts } from '../api';
 import { checksPass } from '../agents/agent-ui';
 import { Flash, LoadError, PageHeader } from '../ui';
 import { ApprovalCard } from './approval-card';
@@ -88,7 +88,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
           <div key={day} className="stack" style={{ gap: 10 }}>
             {status === 'pending' ? <span className="label">{day}</span> : null}
             <div className="approval-list">
-              {items.map((a) => <ApprovalCard key={a.id} a={a} agentName={a.agentId ? agentName.get(a.agentId) : undefined} returnTo={here} selectable={status === 'pending'} />)}
+              {items.map((a) => <ApprovalCard key={a.id} a={a} agentName={a.agentId ? agentName.get(a.agentId) : undefined} returnTo={here} selectable={status === 'pending'} apiUrl={API_BROWSER_URL} />)}
             </div>
           </div>
         ))

@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { HarborError, platformSchema, postPartSchema } from '@harbor/core';
+import { HarborError, platformSchema, postPartInputSchema } from '@harbor/core';
 import { REWRITE_INSTRUCTIONS } from '@harbor/ai';
 import type { App, AppDeps } from '../app.ts';
 import { body } from '../lib/http.ts';
 import { loadBrand } from '../services/brands.ts';
 import { DEFAULT_MAX, SELECT_DRAFTS, generateDrafts, insertDraft, loadDraft, toDraft, type DraftRow } from '../services/drafts.ts';
+import { resolveParts } from '../services/media.ts';
 import { withRun } from '../services/runs.ts';
 
 const createSchema = z
@@ -12,7 +13,8 @@ const createSchema = z
     brandId: z.string().min(1),
     ideaId: z.string().min(1).optional(),
     platform: platformSchema,
-    parts: z.array(postPartSchema).min(1).max(25),
+    /** Media can be library assets, `{ assetId, variant? }`; the variant defaults to the platform's preferred crop. */
+    parts: z.array(postPartInputSchema).min(1).max(25),
     author: z.literal('human').default('human'),
   })
   .strict();
@@ -78,7 +80,8 @@ export function registerDrafts(app: App, deps: AppDeps) {
       const idea = await loadIdea(input.ideaId);
       if (idea.brand_id !== brand.id) throw new HarborError('INVALID_REQUEST', `Idea ${idea.id} belongs to another brand.`);
     }
-    const id = await insertDraft(db, { brandId: brand.id, ideaId: input.ideaId, platform: input.platform, parts: input.parts, author: input.author });
+    const parts = await resolveParts(db, brand.id, input.platform, input.parts);
+    const id = await insertDraft(db, { brandId: brand.id, ideaId: input.ideaId, platform: input.platform, parts, author: input.author });
     return c.json(await loadDraft(db, id), 201);
   });
 

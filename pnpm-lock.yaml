@@ -44,6 +44,9 @@ importers:
       postgres:
         specifier: 3.4.9
         version: 3.4.9
+      sharp:
+        specifier: 0.35.5
+        version: 0.35.5(@types/node@22.20.4)
       zod:
         specifier: 3.25.76
         version: 3.25.76
@@ -1578,8 +1581,7 @@ snapshots:
     dependencies:
       hono: 4.13.9
 
-  '@img/colour@1.1.0':
-    optional: true
+  '@img/colour@1.1.0': {}
 
   '@img/sharp-darwin-arm64@0.35.5':
     optionalDependencies:
@@ -2057,8 +2059,7 @@ snapshots:
 
   depd@2.0.0: {}
 
-  detect-libc@2.1.2:
-    optional: true
+  detect-libc@2.1.2: {}
 
   dunder-proto@1.0.1:
     dependencies:
@@ -2419,8 +2420,7 @@ snapshots:
 
   scheduler@0.28.0: {}
 
-  semver@7.8.5:
-    optional: true
+  semver@7.8.5: {}
 
   send@1.2.1:
     dependencies:
@@ -2481,7 +2481,6 @@ snapshots:
       '@img/sharp-win32-ia32': 0.35.5
       '@img/sharp-win32-x64': 0.35.5
       '@types/node': 22.20.4
-    optional: true
 
   shebang-command@2.0.0:
     dependencies:

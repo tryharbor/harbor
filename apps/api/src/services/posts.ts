@@ -1,10 +1,11 @@
-import { HarborError, newId, normalizedMetricsSchema, postPartSchema, type PostPart } from '@harbor/core';
+import { HarborError, newId, normalizedMetricsSchema, postPartSchema, type PostPartInput } from '@harbor/core';
 import type { AppDeps } from '../app.ts';
 import type { Db } from '../db/client.ts';
 import { iso } from '../lib/http.ts';
 import { campaignForBrand } from './campaigns.ts';
 import { getChannelRow } from './channels.ts';
 import { insertDraft, loadDraft } from './drafts.ts';
+import { checkPartsMedia, mediaLookup, resolveParts } from './media.ts';
 import { OUTCOME_SELECT, postBaselineCurve, toOutcomeView, type OutcomeColumns } from './outcomes.ts';
 import { publishPost, type PostRow } from './publisher.ts';
 
@@ -87,8 +88,8 @@ export async function loadPostDetail(db: Db, id: string) {
 
 export interface PostCreate {
   channelId: string;
-  /** The post's text and media. Give either `parts` or `draftId`. */
-  parts?: PostPart[];
+  /** The post's text and media (library assets as `{ assetId, variant? }`). Give either `parts` or `draftId`. */
+  parts?: PostPartInput[];
   /** Publish an existing draft (its platform must match the channel's). */
   draftId?: string;
   /** Omit to publish now. */
@@ -112,11 +113,14 @@ export async function createPost(deps: Pick<AppDeps, 'db' | 'registry' | 'publis
     throw new HarborError('INVALID_REQUEST', `Draft ${draft.id} is for ${draft.platform}, but this channel is ${channel.platform}.`);
   }
   if (draft && draft.brandId !== channel.brand_id) throw new HarborError('INVALID_REQUEST', `Draft ${draft.id} belongs to another brand.`);
-  const parts = draft?.parts ?? input.parts;
-  if (!parts?.length) throw new HarborError('INVALID_REQUEST', 'parts: Give either parts or draftId.');
+  if (!draft && !input.parts?.length) throw new HarborError('INVALID_REQUEST', 'parts: Give either parts or draftId.');
+  const parts = draft?.parts ?? (await resolveParts(db, channel.brand_id, channel.platform, input.parts!));
   const ideaId = input.ideaId ?? draft?.ideaId;
   const check = provider.validate(parts);
   if (!check.ok) throw new HarborError('INVALID_REQUEST', check.issues.join(' '));
+  // Library assets: sizes and dimensions of the chosen crops, which a bare URL can't tell the provider.
+  const media = checkPartsMedia(channel.platform, parts, await mediaLookup(db, [{ parts }]));
+  if (!media.ok) throw new HarborError('INVALID_REQUEST', media.issues.filter((i) => i.level === 'fail').map((i) => i.message).join(' '));
   if (channel.status !== 'connected') throw new HarborError('INVALID_REQUEST', `@${channel.handle} needs to be reconnected before posting.`);
 
   let campaignId = input.campaignId;

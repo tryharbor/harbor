@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MEDIA_KINDS, mediaVariantSchema } from './media.ts';
 import { brandMemoryPatchSchema, brandMemorySchema } from './memory.ts';
 import { normalizedMetricsSchema, platformSchema } from './metrics.ts';
 
@@ -206,10 +207,14 @@ export type Idea = z.infer<typeof ideaSchema>;
 // ---- Draft ----
 
 export const mediaRefSchema = z.object({
-  kind: z.enum(['image', 'video']),
-  /** Publicly reachable URL (Instagram/Threads require one). */
+  kind: z.enum(MEDIA_KINDS),
+  /** Publicly reachable URL (Instagram/Threads require one). For a library asset, the API fills it with the variant's URL. */
   url: z.string().url(),
   alt: z.string().optional(),
+  /** A media library asset (`med_…`). */
+  assetId: id.optional(),
+  /** Which of the asset's crops `url` points at. */
+  variant: mediaVariantSchema.optional(),
 });
 export type MediaRef = z.infer<typeof mediaRefSchema>;
 
@@ -219,6 +224,27 @@ export const postPartSchema = z.object({
   media: z.array(mediaRefSchema).default([]),
 });
 export type PostPart = z.infer<typeof postPartSchema>;
+
+/**
+ * Media as API clients send it: a full MediaRef, or a library asset `{ assetId, variant? }` whose URL (and alt text,
+ * when `alt` isn't set) the API fills in. The variant defaults to the platform's preferred crop.
+ */
+export const mediaRefInputSchema = z
+  .object({
+    kind: z.enum(MEDIA_KINDS).optional(),
+    url: z.string().url().optional(),
+    alt: z.string().optional(),
+    assetId: id.optional(),
+    variant: mediaVariantSchema.optional(),
+  })
+  .refine((m) => !!m.assetId || (!!m.url && !!m.kind), { message: 'give an assetId, or a kind and url' });
+export type MediaRefInput = z.infer<typeof mediaRefInputSchema>;
+
+export const postPartInputSchema = z.object({
+  text: z.string(),
+  media: z.array(mediaRefInputSchema).default([]),
+});
+export type PostPartInput = z.infer<typeof postPartInputSchema>;
 
 export const draftSchema = z.object({
   id,

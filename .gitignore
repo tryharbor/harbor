@@ -16,3 +16,6 @@ pglite-data/
 !.env.example
 .pglite-demo/
 **/.pglite-demo/
+
+# Media library uploads and generated variants (HARBOR_MEDIA_DIR)
+apps/api/.media/

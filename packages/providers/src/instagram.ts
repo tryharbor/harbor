@@ -32,7 +32,7 @@ const API = `${GRAPH}/${INSTAGRAM_GRAPH_VERSION}`;
 export class InstagramProvider extends MetaGraphProvider {
   readonly identifier = 'instagram' as const;
   readonly name = 'Instagram';
-  readonly scopes = ['instagram_business_basic', 'instagram_business_content_publish', 'instagram_business_manage_insights'] as const;
+  readonly scopes = ['instagram_business_basic', 'instagram_business_content_publish', 'instagram_business_manage_insights', 'instagram_business_manage_comments'] as const;
   override readonly reportsReplies = true;
   protected override readonly maxMedia = 10;
   protected override readonly requiresMedia = true;

@@ -22,6 +22,7 @@ export const ID_PREFIX = {
   memoryProposal: 'mpr',
   reply: 'rpl',
   importScan: 'imp',
+  mediaAsset: 'med',
   request: 'req',
 } as const;
 

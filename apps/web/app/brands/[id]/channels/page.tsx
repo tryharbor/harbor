@@ -1,6 +1,6 @@
 import type { Channel } from '@harbor/core';
 import { disconnectChannel } from '../../../actions';
-import { API_PUBLIC_URL, getChannels, getMode, getPlatforms, loadAll, type Mode, type PlatformInfo } from '../../../api';
+import { API_BROWSER_URL, getChannels, getMode, getPlatforms, loadAll, type Mode, type PlatformInfo } from '../../../api';
 import { ImportPosts } from '../../../components/import-posts';
 import { SandboxConnect } from '../../../components/sandbox-connect';
 import { Flash, LoadError, PLATFORM_NAME, PlatformTag, when } from '../../../ui';
@@ -22,7 +22,7 @@ export default async function ChannelsPage({ params, searchParams }: { params: P
   if (!res.ok) return <LoadError message={res.error} />;
   const [channels, platforms, mode] = res.data;
   const sandbox = mode.publish === 'sandbox';
-  const connectUrl = (platform: string) => `${API_PUBLIC_URL}/v1/channels/${platform}/connect?brandId=${id}`;
+  const connectUrl = (platform: string) => `${API_BROWSER_URL}/v1/channels/${platform}/connect?brandId=${id}`;
 
   return (
     <>

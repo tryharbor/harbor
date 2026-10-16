@@ -2,8 +2,16 @@ import type { Channel, NormalizedMetrics, Platform, PostPart } from '@harbor/cor
 
 /** Server-side calls go straight to the API process. */
 export const API_INTERNAL_URL = process.env.HARBOR_API_INTERNAL_URL ?? 'http://localhost:4800';
-/** What the browser uses for OAuth links. Same as HARBOR_API_URL (an HTTPS tunnel when testing Meta apps). */
+/** The API's public address (HARBOR_API_URL): what platforms reach for OAuth callbacks and media downloads. */
 export const API_PUBLIC_URL = process.env.HARBOR_API_URL ?? 'http://localhost:4800';
+/**
+ * What your own browser uses to reach the API (uploads, media previews, starting a connection). Stays on this
+ * machine even when HARBOR_API_URL is a tunnel: the tunnel only exposes callbacks, media and /mcp.
+ */
+export const API_BROWSER_URL = process.env.HARBOR_API_BROWSER_URL ?? 'http://localhost:4800';
+/** Public media URLs in API responses, pointed at the browser address instead (so previews don't go through the tunnel). */
+const forBrowser = (body: string) =>
+  API_PUBLIC_URL === API_BROWSER_URL ? body : body.split(`${API_PUBLIC_URL}/media/`).join(`${API_BROWSER_URL}/media/`);
 
 // ---- Shapes (mirror the API contract; camelCase) ----
 
@@ -153,7 +161,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(`Can't reach the API at ${API_INTERNAL_URL}. Start it with \`pnpm dev\`.`);
   }
   if (res.status === 204) return undefined as T;
-  const json = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+  const json = (await res.text().then((t) => JSON.parse(forBrowser(t))).catch(() => ({}))) as { error?: { message?: string } };
   if (!res.ok) throw new ApiError(json.error?.message ?? `The API answered ${res.status}.`);
   return json as T;
 }
@@ -414,3 +422,33 @@ export const getMemoryProposals = (params: { status?: string; brandId?: string }
   api<{ data: MemoryProposal[]; counts: ProposalCounts }>(`/v1/memory-proposals${qs(params)}`);
 export const getReplies = (postId: string) => api<{ data: ReplyView[]; themes: Theme[]; supported: boolean }>(`/v1/posts/${postId}/replies`);
 export const getConversation = (brandId: string, days?: string) => api<Conversation>(`/v1/brands/${brandId}/conversation${qs({ days })}`);
+
+// ---- Media library (docs/design/media-library.md) ----
+
+export type MediaVariant = 'original' | 'square' | 'portrait' | 'landscape' | 'wide' | 'story';
+export interface MediaAsset {
+  id: string;
+  brandId: string;
+  kind: 'image' | 'video';
+  mime: string;
+  bytes: number;
+  width?: number;
+  height?: number;
+  originalName?: string;
+  alt?: string;
+  tags: string[];
+  focal: { x: number; y: number };
+  url: string;
+  variants: Partial<Record<MediaVariant, string>>;
+  usageCount: number;
+  createdAt: string;
+}
+export interface MediaUsage { kind: 'draft' | 'post' | 'approval'; id: string; status?: string; platform: Platform; text: string }
+export interface MediaDetail extends MediaAsset { usage: MediaUsage[] }
+export interface MediaCheck { ok: boolean; issues: { level: 'fail' | 'warn'; message: string }[] }
+export interface MediaFit { variant: MediaVariant; url: string; width: number; height: number; check: MediaCheck }
+
+export const getMedia = (brandId: string, params: { kind?: string; tag?: string; q?: string; limit?: string } = {}) =>
+  api<{ data: MediaAsset[]; tags: { tag: string; count: number }[] }>(`/v1/brands/${brandId}/media${qs(params)}`);
+export const getMediaAsset = (id: string) => api<MediaDetail>(`/v1/media/${id}`);
+export const getMediaFit = (id: string, platform: Platform) => api<MediaFit>(`/v1/media/${id}/fit${qs({ platform })}`);

@@ -34,7 +34,7 @@ export class ThreadsProvider extends MetaGraphProvider {
   readonly identifier = 'threads' as const;
   readonly name = 'Threads';
   /** threads_manage_replies: Meta's reply docs list it for POSTing replies (reply_to_id), which comment() does. */
-  readonly scopes = ['threads_basic', 'threads_content_publish', 'threads_manage_insights', 'threads_manage_replies'] as const;
+  readonly scopes = ['threads_basic', 'threads_content_publish', 'threads_manage_insights', 'threads_read_replies', 'threads_manage_replies'] as const;
   override readonly reportsReplies = true;
   protected override readonly maxMedia = 10;
   protected readonly envNames = ['THREADS_APP_ID', 'THREADS_APP_SECRET'] as const;

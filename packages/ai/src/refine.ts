@@ -18,6 +18,9 @@ export const VOICE_CHANGE_TEMPLATES: Record<string, { do: string; avoid: string 
   long: { do: 'Go long when the point needs it: over 400 characters.', avoid: 'Long posts (over 400 characters); cut to the point.' },
   thread: { do: 'Turn bigger points into a thread.', avoid: 'Threads; say it in one post.' },
   endsQuestion: { do: 'End with a question for the reader.', avoid: 'Ending with a question; end on the point.' },
+  has_image: { do: 'Add an image or photo when you have one.', avoid: 'Images on text-first posts; let the words carry it.' },
+  carousel: { do: 'Use a carousel when there is more than one thing to show.', avoid: 'Carousels; pick the one best picture.' },
+  video: { do: 'Post a short video when you can.', avoid: 'Video; a still picture or plain text does better.' },
 };
 
 /**

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Channel, Platform } from '@harbor/core';
 import { generateDrafts, moveIdea } from '../../actions';
-import { getBrand, getChannels, getDrafts, getIdeas, getSignals, loadAll, type BrandView, type DraftView, type IdeaView, type SignalView } from '../../api';
+import { API_BROWSER_URL, getBrand, getChannels, getDrafts, getIdeas, getSignals, loadAll, type BrandView, type DraftView, type IdeaView, type SignalView } from '../../api';
 import { DraftEditor } from '../../components/draft-editor';
 import { Flash, LoadError, PageHeader, PLATFORM_NAME } from '../../ui';
 import { PlatformIcon } from '../../platform-icon';
@@ -107,6 +107,7 @@ export default async function StudioIdea({ params, searchParams }: { params: Pro
                 draft={versions[0]}
                 versions={[...versions].reverse()}
                 channels={connected.filter((c) => c.platform === p).map((c) => ({ id: c.id, handle: c.account.handle }))}
+                apiUrl={API_BROWSER_URL}
               />
             );
           })}

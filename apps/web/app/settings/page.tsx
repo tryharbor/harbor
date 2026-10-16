@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { revokeApiKey } from '../agent-actions';
-import { API_INTERNAL_URL, API_PUBLIC_URL, getApiKeys, getMcpInfo, getPlatforms, loadAll, type ApiKey, type McpInfo, type PlatformInfo } from '../api';
+import { API_BROWSER_URL, API_INTERNAL_URL, API_PUBLIC_URL, getApiKeys, getMcpInfo, getPlatforms, loadAll, type ApiKey, type McpInfo, type PlatformInfo } from '../api';
 import { Flash, LoadError, PageHeader, PLATFORM_NAME, when } from '../ui';
 import { NewApiKey } from './api-keys';
 
@@ -103,7 +103,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <h2>Install</h2>
         <ul className="list small">
           <li><strong>API (server side)</strong><code>{API_INTERNAL_URL}</code></li>
-          <li><strong>API (browser and OAuth)</strong><code>{API_PUBLIC_URL}</code></li>
+          <li><strong>API (your browser)</strong><code>{API_BROWSER_URL}</code></li>
+          <li><strong>API (public: OAuth callbacks, media, MCP only)</strong><code>{API_PUBLIC_URL}</code></li>
           <li><strong>Setup guide</strong><code>docs/setup/platform-apps.md</code></li>
         </ul>
       </section>

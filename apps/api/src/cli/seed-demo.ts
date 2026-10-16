@@ -1,14 +1,16 @@
-import type { Platform, PostPart } from '@harbor/core';
+import type { MediaVariant, Platform, PostPart } from '@harbor/core';
 import { createApp, createDeps } from '../app.ts';
 import { openDb } from '../db/client.ts';
+import { LocalDiskStore } from '../lib/media-store.ts';
 import { loadAutomationRow, runAutomation } from '../services/automations.ts';
 import { refreshPostReplies, regroupBrandThemes } from '../services/replies.ts';
 import { insertHistoricalPost } from '../services/sandbox-history.ts';
+import { demoImages } from './demo-media.ts';
 
 /**
  * Fill a throwaway database with sample brands, Brand Memory, competitors, sandbox channels, posts with growth
- * curves and replies, ideas and drafts, campaigns, digests, agent runs, automations, approvals and a voice refresh waiting
- * for approval, so the UI can be seen with data. Everything goes through Harbor's own API in sandbox
+ * curves and replies, a media library per brand, ideas and drafts, campaigns, digests, agent runs, automations,
+ * approvals and a voice refresh waiting for approval, so the UI can be seen with data. Everything goes through Harbor's own API in sandbox
  * mode with the simulated model: no network, no keys. Sandbox channel tokens are fake but stored encrypted like real
  * ones (HARBOR_SECRET_KEY, or the sandbox dev key when unset), so publishing from the demo works.
  *
@@ -37,7 +39,11 @@ if (existing) {
   // Demo data from before Brand Memory learned has no replies or memory proposal.
   const [proposal] = await db.query('SELECT 1 FROM memory_proposals WHERE brand_id = $1 LIMIT 1', [existing.id]).catch(() => []);
   const [reply] = await db.query('SELECT 1 FROM post_replies WHERE brand_id = $1 LIMIT 1', [existing.id]).catch(() => []);
-  if (usable && campaign && digest && automation && proposal && reply) {
+  // Demo data from before the media library has no images (or its files were deleted from HARBOR_MEDIA_DIR).
+  const [media] = await db.query<{ storage_key: string }>('SELECT storage_key FROM media_assets WHERE brand_id = $1 LIMIT 1', [existing.id]).catch(() => []);
+  const mediaFile = media ? await new LocalDiskStore().get(media.storage_key) : undefined;
+  await mediaFile?.stream.cancel();
+  if (usable && campaign && digest && automation && proposal && reply && mediaFile) {
     console.log('Demo data already present.');
     await db.close();
     process.exit(0);
@@ -61,8 +67,6 @@ async function call<T = any>(method: string, path: string, body?: unknown): Prom
 }
 const advance = (hours: number) => call('POST', '/v1/sandbox/advance', { hours });
 const hoursAhead = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
-// Sandbox never downloads media, so a placeholder URL is enough.
-const IMG = (n: number) => `https://sandbox.harbor.local/media/tidewater-batch-${n}.jpg`;
 
 // ---- Brands with Brand Memory v2 ----
 
@@ -179,9 +183,35 @@ const hth = await ch(harbor.id, 'threads', 'harborhq');
 const tig = await ch(tidewater.id, 'instagram', 'tidewatercoffee');
 const tth = await ch(tidewater.id, 'threads', 'tidewatercoffee');
 
+// ---- Media library: brand-colored demo images (SVG rendered with sharp), tagged, with off-center focal points ----
+
+interface Asset { id: string; alt?: string; tags: string[]; variants: Record<MediaVariant, string> }
+
+async function uploadImages(brandId: string, which: 'harbor' | 'tidewater'): Promise<Asset[]> {
+  const out: Asset[] = [];
+  for (const img of await demoImages(which)) {
+    const form = new FormData();
+    form.set('file', new File([new Uint8Array(img.bytes)], img.name, { type: img.type }));
+    form.set('alt', img.alt);
+    form.set('tags', img.tags.join(','));
+    const res = await app.request(`/v1/brands/${brandId}/media`, { method: 'POST', body: form });
+    const asset = await res.json();
+    if (!res.ok) throw new Error(`upload ${img.name} → ${res.status}: ${JSON.stringify(asset)}`);
+    out.push(await call('PATCH', `/v1/media/${asset.id}`, { focal: img.focal }));
+  }
+  return out;
+}
+const harborImages = await uploadImages(harbor.id, 'harbor');
+const tidewaterImages = await uploadImages(tidewater.id, 'tidewater');
+console.log(`Media library: ${harborImages.length} Harbor images, ${tidewaterImages.length} Tidewater images.`);
+
+/** A stored media ref to a library image (historical posts skip the API, so they carry the resolved URL). */
+const imageRef = (a: Asset, variant: MediaVariant) => ({ kind: 'image' as const, url: a.variants[variant], ...(a.alt ? { alt: a.alt } : {}), assetId: a.id, variant });
+const tagged = (images: Asset[], tag: string) => images.filter((a) => a.tags.includes(tag));
+
 // ---- Posts, published through the sandbox and aged with the time machine so each has a real growth curve ----
 
-const publish = (channelId: string, parts: { text: string; media?: { kind: 'image'; url: string }[] }[], scheduledFor?: string) =>
+const publish = (channelId: string, parts: { text: string; media?: { assetId: string; variant?: MediaVariant }[] }[], scheduledFor?: string) =>
   call('POST', '/v1/posts', { channelId, parts, scheduledFor });
 
 await publish(hx.id, [
@@ -194,11 +224,13 @@ await publish(hli.id, [{ text: "Why I'm building a content strategist, not anoth
 await advance(24);
 await publish(hth.id, [{ text: "Shipped: Harbor now publishes to X, LinkedIn, Instagram and Threads through each platform's own API." }]);
 await advance(19);
-await publish(tig.id, [{ text: 'Batch #41 is roasting. Notes of cherry and cocoa, from the Gómez farm in Huila.', media: [{ kind: 'image', url: IMG(41) }] }]);
+await publish(tig.id, [{ text: 'Batch #41 is roasting. Notes of cherry and cocoa, from the Gómez farm in Huila.', media: [{ assetId: tagged(tidewaterImages, 'roast')[0]!.id }] }]);
 await advance(7);
 
 await publish(hx.id, [{ text: 'What every social API actually gives you in 2026 (with costs).' }], hoursAhead(30));
-await publish(tig.id, [{ text: 'Weekend pour-over guide: 15 g, 250 g water, 3 minutes.', media: [{ kind: 'image', url: IMG(42) }] }], hoursAhead(54));
+// A carousel: the guide, then the beans.
+const guide = [tagged(tidewaterImages, 'brew-guide')[0]!, tagged(tidewaterImages, 'roast')[1]!];
+await publish(tig.id, [{ text: 'Weekend pour-over guide: 15 g, 250 g water, 3 minutes.', media: guide.map((a) => ({ assetId: a.id })) }], hoursAhead(54));
 
 // ---- Six weeks of history: published sandbox posts with full growth curves ----
 //
@@ -277,8 +309,10 @@ function harborPlan(): Planned[] {
     const n = Math.floor(i / 3);
     const hook = kind === 1 ? HARBOR_NUMBER_HOOKS[n % HARBOR_NUMBER_HOOKS.length]! : kind === 2 ? HARBOR_LINK_HOOKS[n % HARBOR_LINK_HOOKS.length]! : HARBOR_OTHER_HOOKS[n % HARBOR_OTHER_HOOKS.length]!;
     const thread = platform === 'threads' && (i % 5 === 0 || i % 5 === 2);
-    const media = platform === 'threads' && i % 4 < 2;
-    const parts: PostPart[] = [{ text: hook, media: media ? [{ kind: 'image', url: `https://sandbox.harbor.local/media/harbor-${i}.png` }] : [] }];
+    // Images on about half the Threads posts and a few X posts, so the voice refresh can weigh has_image.
+    const media = (platform === 'threads' && i % 4 < 2) || (platform === 'x' && i % 6 === 3);
+    const image = harborImages[i % harborImages.length]!;
+    const parts: PostPart[] = [{ text: hook, media: media ? [imageRef(image, platform === 'x' ? 'wide' : 'portrait')] : [] }];
     if (thread) for (let r = 0; r < 1 + (i % 3); r++) parts.push({ text: HARBOR_REPLIES[(i + r) % HARBOR_REPLIES.length]!, media: [] });
     const hour = (PEAK[platform] + (kind === 1 ? 0 : kind === 2 ? 10 : 2)) % 24;
     out.push({ brandId: harbor.id, channelId: channel.id, platform, parts, daysAgo: 41 - Math.floor((i * 41) / 30), hour, key: `harbor-${i}` });
@@ -293,9 +327,11 @@ function tidewaterPlan(): Planned[] {
     const platform = channel.platform as Platform;
     const numberHook = i % 3 === 0;
     const hook = numberHook ? TIDEWATER_NUMBER_HOOKS[i % TIDEWATER_NUMBER_HOOKS.length]! : TIDEWATER_OTHER_HOOKS[i % TIDEWATER_OTHER_HOOKS.length]!;
-    // Instagram always needs media; on Threads about half the posts have a photo.
+    // Instagram always needs media (every few posts a carousel); on Threads about half the posts have a photo.
     const media = platform === 'instagram' || i % 2 === 0;
-    const parts: PostPart[] = [{ text: hook, media: media ? [{ kind: 'image', url: IMG(30 + i) }] : [] }];
+    const image = tidewaterImages[i % tidewaterImages.length]!;
+    const extra = platform === 'instagram' && i % 4 === 1 ? [imageRef(tidewaterImages[(i + 3) % tidewaterImages.length]!, 'portrait')] : [];
+    const parts: PostPart[] = [{ text: hook, media: media ? [imageRef(image, 'portrait'), ...extra] : [] }];
     out.push({ brandId: tidewater.id, channelId: channel.id, platform, parts, daysAgo: 41 - Math.floor((i * 41) / 12), hour: TIDEWATER_HOURS[(i * 5) % TIDEWATER_HOURS.length]!, key: `tidewater-${i}` });
   }
   return out;

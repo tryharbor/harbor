@@ -1,8 +1,12 @@
-import type { Brand, Platform, PostPart } from '@harbor/core';
+import { preferredVariant, type Brand, type Platform, type PostPart } from '@harbor/core';
+import type { AppDeps } from '../app.ts';
+import { DEFAULT_MAX } from './drafts.ts';
+import { checkPartsMedia, mediaLookup, type MediaAssetRow } from './media.ts';
 
 /**
  * The voice check: deterministic, no model call. Banned words and the voice's avoid phrases, length against the
- * platform limit, hashtag count, the style rules that can be checked mechanically, and the hook.
+ * platform limit, hashtag count, the style rules that can be checked mechanically, the hook, and the media (the
+ * platform's media rules, and whether the recommended crop is used).
  */
 
 export interface Check {
@@ -44,7 +48,16 @@ export function avoidPhrases(rule: string): string[] {
 
 const pass = (key: string, label: string, detail: string): Check => ({ key, ok: true, severity: 'info', label, detail });
 
-export function voiceCheck(brand: Pick<Brand, 'memory'>, draft: { platform: Platform; parts: PostPart[] }, maxLength: number): Check[] {
+/**
+ * `assets` are the library assets the draft's media references (see mediaLookup); without them, library media is
+ * checked from its URL only.
+ */
+export function voiceCheck(
+  brand: Pick<Brand, 'memory'>,
+  draft: { platform: Platform; parts: PostPart[] },
+  maxLength: number,
+  assets: ReadonlyMap<string, MediaAssetRow> = new Map(),
+): Check[] {
   const { voice, styleRules } = brand.memory;
   const text = draft.parts.map((p) => p.text).join('\n');
   const checks: Check[] = [];
@@ -110,7 +123,43 @@ export function voiceCheck(brand: Pick<Brand, 'memory'>, draft: { platform: Plat
         ? { key: 'hook', ok: false, severity: 'warn', label: 'Hook', detail: `The hook is very short (${[...hook].length} characters).` }
         : pass('hook', 'Hook', 'The first line works as a hook.'),
   );
+  checks.push(mediaCheck(draft, assets));
   return checks;
+}
+
+/**
+ * fail: Instagram without media, or anything checkMedia fails. warn: checkMedia's advice, or an image that isn't in
+ * the platform's recommended crop. ok otherwise.
+ */
+function mediaCheck(draft: { platform: Platform; parts: PostPart[] }, assets: ReadonlyMap<string, MediaAssetRow>): Check {
+  const name = PLATFORM_NAMES[draft.platform];
+  const label = 'Media';
+  const media = draft.parts.flatMap((p) => p.media);
+  if (draft.platform === 'instagram' && !draft.parts[0]?.media.length) {
+    return { key: 'media', ok: false, severity: 'fail', label, detail: 'Instagram needs an image or video. Attach one first.' };
+  }
+  const { issues } = checkPartsMedia(draft.platform, draft.parts, assets);
+  const fails = issues.filter((i) => i.level === 'fail').map((i) => i.message);
+  if (fails.length) return { key: 'media', ok: false, severity: 'fail', label, detail: fails.join(' ') };
+  const warns = issues.filter((i) => i.level === 'warn').map((i) => i.message);
+  if (!warns.length) {
+    const preferred = preferredVariant(draft.platform);
+    const off = [...new Set(media.filter((m) => m.kind === 'image' && m.assetId && m.variant && m.variant !== preferred).map((m) => m.variant!))];
+    if (off.length) warns.push(`${name} works best with the ${preferred} crop; this uses ${off.join(', ')}.`);
+  }
+  if (warns.length) return { key: 'media', ok: false, severity: 'warn', label, detail: [...new Set(warns)].join(' ') };
+  if (!media.length) return pass('media', label, `No media; ${name} posts can be text only.`);
+  return pass('media', label, `${media.length} ${media.length === 1 ? 'item fits' : 'items fit'} ${name}.`);
+}
+
+/** The voice check for a stored draft, with its library assets loaded. */
+export async function checkDraft(
+  deps: Pick<AppDeps, 'db' | 'registry'>,
+  brand: Pick<Brand, 'memory'>,
+  draft: { platform: Platform; parts: PostPart[] },
+): Promise<Check[]> {
+  const max = deps.registry.get(draft.platform)?.maxLength() ?? DEFAULT_MAX[draft.platform];
+  return voiceCheck(brand, draft, max, await mediaLookup(deps.db, [draft]));
 }
 
 /** "2 issues: Banned words, Length" or "All checks pass". */

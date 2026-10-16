@@ -14,6 +14,7 @@ export const Icon = {
   insights: () => <Svg><path d="M3 13.5V9.5M6.5 13.5V6M10 13.5V8M13.5 13.5V3" /></Svg>,
   agents: () => <Svg><path d="M3 5.5h10v8H3Z" /><path d="M8 2.5v3M6 9.5v0.5M10 9.5v0.5" /></Svg>,
   approvals: () => <Svg><path d="M2.5 9.5h3l1 2h3l1-2h3v4h-11Z" /><path d="M5.5 5 7.5 7l3.5-4" /></Svg>,
+  media: () => <Svg><path d="M2.5 3.5h11v9h-11Z" /><path d="M2.5 10.5 6 7.5l3 2.5 2-1.5 2.5 2" /><path d="M10.5 5.5h.5" /></Svg>,
   key: () => <Svg><path d="M2.5 6.5h5v5h-5Z" /><path d="M7.5 9h6M11.5 9v2.5M13.5 9v2" /></Svg>,
   settings: () => <Svg><path d="M8 5.5v-3M8 13.5v-3M5.5 8h-3M13.5 8h-3" /><path d="M6 6h4v4H6Z" /></Svg>,
   plus: () => <Svg><path d="M8 3v10M3 8h10" /></Svg>,

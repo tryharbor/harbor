@@ -28,6 +28,8 @@ Harbor publishes through your own developer apps (decision: `docs/decisions/0001
 
 Scopes Harbor asks for: `tweet.read tweet.write users.read offline.access media.write`. Images work; video on X isn't supported yet.
 
+Replies and past-post import on X are **billed reads**, so they're off by default. Set `HARBOR_X_READ_REPLIES=true` only if you want them and have a spending limit set.
+
 ## 2. LinkedIn
 
 1. At linkedin.com/developers, **Create app**. LinkedIn requires a Company Page to associate the app with; any page you admin works (the app still posts as you, personally).
@@ -47,10 +49,10 @@ Requirements: the Instagram account must be a **professional account** (Business
 2. In that use case's settings, find the **Instagram app ID and Instagram app secret**. These are different from the Meta app ID at the top of the dashboard. Copy them into `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`.
 3. **Business login settings:** add the redirect URL from the table.
 4. **Roles:** add your Instagram account as an **Instagram tester**, then accept the invite from the Instagram account (in Instagram: Settings → Apps and websites → Tester invites, or the equivalent on the web).
-5. Keep the app in **development mode**. Permissions Harbor requests: `instagram_business_basic`, `instagram_business_content_publish`, `instagram_business_manage_insights`.
+5. Keep the app in **development mode**. Permissions Harbor requests: `instagram_business_basic`, `instagram_business_content_publish`, `instagram_business_manage_insights`, `instagram_business_manage_comments` (to read replies).
 
 Limits:
-- Every Instagram post needs an image or video at a **public URL** (Instagram downloads it). Harbor doesn't host uploads yet, so use a URL from your site or a CDN.
+- Every Instagram post needs an image or video at a **public URL** (Instagram downloads it). Harbor's media library serves uploads from `HARBOR_API_URL`, so your HTTPS tunnel covers this while developing.
 - One image → feed post; one video → Reel; 2–10 items → carousel.
 - Long-lived tokens last 60 days; Harbor refreshes them automatically.
 
@@ -59,7 +61,7 @@ Limits:
 1. In the same Meta developer account, create an app (or add a use case) for **Access the Threads API**.
 2. In the Threads use case settings, copy the **Threads app ID and secret** into `THREADS_APP_ID` / `THREADS_APP_SECRET`. Add the redirect URL from the table as a callback URL (also set the uninstall and delete callbacks to any URL on your domain).
 3. **Roles:** add your Threads profile as a **Threads tester** and accept the invite in Threads (Settings → Account → Website permissions → Invites).
-4. Permissions: `threads_basic`, `threads_content_publish`, `threads_manage_insights`.
+4. Permissions: `threads_basic`, `threads_content_publish`, `threads_manage_insights`, `threads_read_replies` (to read replies), `threads_manage_replies` (to post threads as replies to your own post).
 
 Threads: 500 characters per post; a line with `---` in Harbor's composer starts a reply in the thread. Tokens refresh automatically.
 

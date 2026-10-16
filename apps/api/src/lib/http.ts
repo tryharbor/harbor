@@ -24,3 +24,6 @@ export function check<T extends z.ZodTypeAny>(schema: T, raw: unknown): z.infer<
 export const isUniqueViolation = (err: unknown) => (err as { code?: string } | null)?.code === '23505';
 
 export const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : new Date(String(v)).toISOString());
+
+/** Harbor's public base URL (HARBOR_API_URL): OAuth callbacks, the MCP endpoint and public media URLs. */
+export const apiUrl = () => (process.env.HARBOR_API_URL || 'http://localhost:4800').replace(/\/+$/, '');

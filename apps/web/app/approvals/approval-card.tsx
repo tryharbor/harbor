@@ -6,6 +6,7 @@ import { approve, reject } from '../agent-actions';
 import type { Approval } from '../api';
 import { Checks } from '../agents/agent-ui';
 import { BrandMark, PlatformTag } from '../ui';
+import { CheckIssues, MediaPicker, type PickedMedia } from '../components/media-picker';
 
 const LIMIT = { x: 280, linkedin: 3000, instagram: 2200, threads: 500 } as const;
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -16,7 +17,7 @@ const toLocalInput = (iso: string) => {
 };
 
 /** One proposed post: what, where, when and why, the voice checks, then approve / edit / reject. */
-export function ApprovalCard({ a, agentName, returnTo, selectable }: { a: Approval; agentName?: string; returnTo: string; selectable: boolean }) {
+export function ApprovalCard({ a, agentName, returnTo, selectable, apiUrl }: { a: Approval; agentName?: string; returnTo: string; selectable: boolean; apiUrl: string }) {
   const [mode, setMode] = useState<'view' | 'edit' | 'reject'>('view');
   const [tz, setTz] = useState('0');
   const original = a.draft.parts.map((p) => p.text).join('\n---\n');
@@ -26,6 +27,13 @@ export function ApprovalCard({ a, agentName, returnTo, selectable }: { a: Approv
   const limit = LIMIT[a.channel.platform];
   const past = new Date(a.proposedFor).getTime() < Date.now();
   const decided = a.status !== 'pending';
+  const current = a.draft.parts[0]?.media[0];
+  const [picked, setPicked] = useState<PickedMedia>();
+  const [picking, setPicking] = useState(false);
+  const shownMedia = picked?.url ?? current?.url;
+  const needsMedia = a.channel.platform === 'instagram' && !shownMedia;
+  /** Hidden fields so whichever form submits (approve or approve with changes) carries the picked media. */
+  const MediaFields = () => (picked ? <><input type="hidden" name="mediaAssetId" value={picked.assetId} /><input type="hidden" name="mediaVariant" value={picked.variant} /></> : null);
 
   return (
     <article id={a.id} className={`approval${decided ? ' decided' : ''}`}>
@@ -44,6 +52,7 @@ export function ApprovalCard({ a, agentName, returnTo, selectable }: { a: Approv
           <input type="hidden" name="returnTo" value={returnTo} />
           <input type="hidden" name="original" value={original} />
           <input type="hidden" name="tz" value={tz} />
+          <MediaFields />
           <label className="field">
             <span className="label">Post{a.draft.parts.length > 1 ? ' · separate thread parts with a line of ---' : ''}</span>
             <textarea name="text" value={text} onChange={(e) => setText(e.target.value)} style={{ minHeight: 160 }} />
@@ -63,6 +72,18 @@ export function ApprovalCard({ a, agentName, returnTo, selectable }: { a: Approv
           {a.draft.parts.map((p, i) => <p key={i}>{p.text}</p>)}
         </div>
       )}
+
+      {shownMedia || !decided ? (
+        <div className="attached">
+          {shownMedia ? ((picked?.kind ?? current?.kind) === 'video' ? <span className="media-video mono">▶</span> : <img src={shownMedia} alt={picked?.alt ?? current?.alt ?? ''} />) : <span className="media-video mono">{needsMedia ? 'Needs an image' : 'No media'}</span>}
+          <span className="stack" style={{ gap: 4, minWidth: 0 }}>
+            <span className="small">{picked ? <>Attached · <span className="mono">{picked.variant}</span> crop</> : shownMedia ? 'Attached by the agent' : needsMedia ? 'Instagram won’t publish without an image or video.' : 'Text only.'}</span>
+            <CheckIssues check={picked?.check} />
+          </span>
+          {!decided ? <button type="button" className={needsMedia ? 'primary' : 'mono-button'} onClick={() => setPicking(true)}>{shownMedia ? 'Replace' : 'Attach'}</button> : null}
+        </div>
+      ) : null}
+      {picking ? <MediaPicker apiUrl={apiUrl} brandId={a.brandId} platform={a.channel.platform} onClose={() => setPicking(false)} onPick={(m) => { setPicked(m); setPicking(false); }} /> : null}
 
       <p className="approval-why small"><span className="label">Why</span> {a.reason}</p>
       <Checks checks={a.checks} compact={decided} />
@@ -93,7 +114,8 @@ export function ApprovalCard({ a, agentName, returnTo, selectable }: { a: Approv
               <form action={approve}>
                 <input type="hidden" name="approvalId" value={a.id} />
                 <input type="hidden" name="returnTo" value={returnTo} />
-                <button type="submit" className="primary">Approve</button>
+                <MediaFields />
+                <button type="submit" className="primary" disabled={needsMedia} title={needsMedia ? 'Attach an image first' : undefined}>Approve</button>
               </form>
             )}
           </span>

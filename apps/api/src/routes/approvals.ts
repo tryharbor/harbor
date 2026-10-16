@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HarborError, postPartSchema } from '@harbor/core';
+import { HarborError, mediaRefInputSchema, postPartInputSchema } from '@harbor/core';
 import type { App, AppDeps } from '../app.ts';
 import { body, check } from '../lib/http.ts';
 import { approve, listApprovals, reject } from '../services/approvals.ts';
@@ -11,7 +11,9 @@ const approveSchema = z
     /** Overrides the proposed time. Must be in the future. */
     scheduledFor: z.string().datetime({ offset: true }).optional(),
     /** Edited text: saved as a new draft version (author 'human') before scheduling. */
-    parts: z.array(postPartSchema).min(1).max(25).optional(),
+    parts: z.array(postPartInputSchema).min(1).max(25).optional(),
+    /** Media for part 1 (`{ assetId, variant? }`), saved as a new draft version the same way. */
+    media: z.array(mediaRefInputSchema).max(10).optional(),
   })
   .strict();
 

@@ -6,6 +6,7 @@ import type { Db } from './db/client.ts';
 import { SecretStore } from './lib/secrets.ts';
 import { registerBrands } from './routes/brands.ts';
 import { registerChannels } from './routes/channels.ts';
+import { registerIdeas } from './routes/ideas.ts';
 import { registerPosts } from './routes/posts.ts';
 import type { PublishDeps } from './services/publisher.ts';
 
@@ -73,5 +74,6 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerBrands(app, db);
   registerChannels(app, deps);
   registerPosts(app, deps);
+  registerIdeas(app, deps);
   return app;
 }

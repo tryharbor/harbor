@@ -22,6 +22,12 @@ export function registerChannels(app: App, deps: AppDeps) {
     }),
   );
 
+  /** Every connected account across brands (Home shows the ones that need attention). */
+  app.get('/v1/channels', async (c) => {
+    const rows = await db.query<ChannelRow>('SELECT * FROM channels ORDER BY brand_id, platform, handle');
+    return c.json({ data: rows.map(toChannel) });
+  });
+
   app.get('/v1/brands/:brandId/channels', async (c) => {
     const rows = await db.query<ChannelRow>('SELECT * FROM channels WHERE brand_id = $1 ORDER BY platform, handle', [c.req.param('brandId')]);
     return c.json({ data: rows.map(toChannel) });

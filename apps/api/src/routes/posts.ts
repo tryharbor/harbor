@@ -24,6 +24,7 @@ const resolveSchema = z
   .strict();
 
 interface PostListRow extends PostRow {
+  brand_name: string;
   platform: string;
   handle: string;
   parts: unknown;
@@ -35,6 +36,7 @@ interface PostListRow extends PostRow {
 const toPost = (r: PostListRow) => ({
   id: r.id,
   brandId: r.brand_id,
+  brandName: r.brand_name,
   channelId: r.channel_id,
   channel: { platform: r.platform, handle: r.handle },
   ideaId: r.idea_id ?? undefined,
@@ -55,10 +57,11 @@ const toPost = (r: PostListRow) => ({
 });
 
 const SELECT_POSTS = `
-  SELECT p.*, ch.platform, ch.handle, d.parts,
+  SELECT p.*, b.name AS brand_name, ch.platform, ch.handle, d.parts,
     s.metrics AS latest_metrics, s.age_hours AS latest_age_hours,
     (SELECT count(*) FROM snapshots WHERE post_id = p.id) AS snapshot_count
   FROM posts p
+  JOIN brands b ON b.id = p.brand_id
   JOIN channels ch ON ch.id = p.channel_id
   LEFT JOIN drafts d ON d.id = p.draft_id
   LEFT JOIN LATERAL (SELECT metrics, age_hours FROM snapshots WHERE post_id = p.id ORDER BY taken_at DESC LIMIT 1) s ON true`;
@@ -70,6 +73,21 @@ export function registerPosts(app: App, deps: AppDeps) {
     if (!row) throw new HarborError('NOT_FOUND', `Post ${id} not found.`);
     return toPost(row);
   };
+
+  /** Posts across every brand (Home, calendar). Filters: ?brandId= ?status= ?from= ?to= (ISO, by scheduled/published time). */
+  app.get('/v1/posts', async (c) => {
+    const q = (k: string) => c.req.query(k) ?? null;
+    const limit = Math.min(Number(q('limit') ?? 200) || 200, 500);
+    const rows = await db.query<PostListRow>(
+      `${SELECT_POSTS}
+       WHERE ($1::text IS NULL OR p.brand_id = $1) AND ($2::text IS NULL OR p.status = $2)
+         AND ($3::timestamptz IS NULL OR COALESCE(p.published_at, p.scheduled_for, p.created_at) >= $3)
+         AND ($4::timestamptz IS NULL OR COALESCE(p.published_at, p.scheduled_for, p.created_at) < $4)
+       ORDER BY COALESCE(p.published_at, p.scheduled_for, p.created_at) DESC LIMIT $5`,
+      [q('brandId'), q('status'), q('from'), q('to'), limit],
+    );
+    return c.json({ data: rows.map(toPost) });
+  });
 
   app.get('/v1/brands/:brandId/posts', async (c) => {
     const limit = Math.min(Number(c.req.query('limit') ?? 50) || 50, 200);
@@ -112,6 +130,9 @@ export function registerPosts(app: App, deps: AppDeps) {
       `INSERT INTO posts (id, brand_id, channel_id, draft_id, idea_id, status, scheduled_for) VALUES ($1, $2, $3, $4, $5, 'scheduled', $6)`,
       [postId, channel.brand_id, channel.id, draftId, input.ideaId ?? null, input.scheduledFor ?? new Date().toISOString()],
     );
+    if (input.ideaId) {
+      await db.query("UPDATE ideas SET status = 'scheduled', updated_at = now() WHERE id = $1 AND status IN ('idea', 'drafting', 'approved')", [input.ideaId]);
+    }
     if (!input.scheduledFor) await publishPost(deps.publishDeps(), postId);
     return c.json(await loadPost(postId), 201);
   });

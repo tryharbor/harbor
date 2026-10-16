@@ -1,0 +1,8 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "harbor-api", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@harbor/api", "dev"], "port": 4800 },
+    { "name": "harbor-api-demo", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@harbor/api", "dev:demo"], "port": 4800 },
+    { "name": "harbor-web", "runtimeExecutable": "pnpm", "runtimeArgs": ["--filter", "@harbor/web", "dev"], "port": 4801 }
+  ]
+}

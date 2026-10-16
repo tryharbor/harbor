@@ -3,8 +3,8 @@ import type { MetricAvailabilityMap, NormalizedMetrics, Platform } from './metri
 
 /**
  * The contract every social platform adapter implements. The shape (OAuth helpers, validate, publish →
- * checkStatus → finalize for async platforms, typed failures) follows the design described in
- * docs/research/postiz-publishing.md. This is original code; no Postiz source is used.
+ * checkStatus → finalize for async platforms, typed failures) was informed by studying how Postiz publishes.
+ * This is original code; no Postiz source is used.
  */
 
 export type JsonObject = Record<string, unknown>;

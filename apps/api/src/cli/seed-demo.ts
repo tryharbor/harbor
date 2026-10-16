@@ -131,7 +131,7 @@ const harbor = await call('POST', '/v1/brands', {
         kind: 'note',
         body: 'Self-hosting stays free forever. Cloud pays for development. AGPL keeps hosted forks open.',
       },
-      { title: 'Platform API costs (2026)', kind: 'link', url: 'https://github.com/tryharbor/harbor/tree/main/docs/research' },
+      { title: 'Platform API costs (2026)', kind: 'link', url: 'https://github.com/tryharbor/harbor/blob/main/docs/setup/platform-apps.md' },
     ],
     styleRules: {
       terms: [

@@ -19,3 +19,6 @@ pglite-data/
 
 # Media library uploads and generated variants (HARBOR_MEDIA_DIR)
 apps/api/.media/
+
+# Private research notes (kept locally, never published)
+docs/research/

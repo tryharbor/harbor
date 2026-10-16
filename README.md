@@ -63,7 +63,7 @@ Use Postgres anywhere by setting `DATABASE_URL`. Without it, Harbor uses an embe
 | `packages/core` | Domain types and schemas, Brand Memory, platform metric and media rules, the publishing interface |
 | `packages/providers` | X, LinkedIn, Instagram and Threads adapters, plus a sandbox that simulates all four |
 | `packages/ai` | The content model interface, the simulated model and the Anthropic stub |
-| `docs/` | [API reference](docs/api.md), design contracts, [decisions](docs/decisions), research |
+| `docs/` | [API reference](docs/api.md), design contracts, [decisions](docs/decisions), [setup](docs/setup/platform-apps.md) |
 
 ```sh
 pnpm test        # every package (PGlite in memory, no network)

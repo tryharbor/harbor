@@ -4,7 +4,7 @@ Date: 2026-10-15. Status: accepted.
 
 ## Decision
 
-Harbor talks to X, LinkedIn, Instagram and Threads through each platform's own API, using our own developer apps. Postiz is a design reference only (see `docs/research/postiz-publishing.md`); Harbor neither calls its API nor uses its code.
+Harbor talks to X, LinkedIn, Instagram and Threads through each platform's own API, using our own developer apps. Postiz is a design reference only; Harbor neither calls its API nor uses its code.
 
 ## Why
 

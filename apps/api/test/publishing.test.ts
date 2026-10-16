@@ -103,7 +103,7 @@ async function connect(platform: Platform): Promise<string> {
 beforeAll(async () => {
   db = await openDb('memory://');
   const registry = new Map<Platform, PlatformProvider>([['x', x], ['instagram', ig]]);
-  deps = createDeps(db, { registry, secretKey: randomBytes(32).toString('base64'), webUrl: 'http://web.test' });
+  deps = createDeps(db, { publishMode: 'live', registry, secretKey: randomBytes(32).toString('base64'), webUrl: 'http://web.test' });
   app = createApp(db, {}, deps);
   const res = await send('POST', '/v1/brands', { name: 'Harbor' });
   brandId = (await res.json()).id;

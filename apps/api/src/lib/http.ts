@@ -3,10 +3,15 @@ import type { z } from 'zod';
 import { HarborError } from '@harbor/core';
 
 /** Parse and validate a JSON body, turning failures into typed INVALID_REQUEST errors. */
-export async function body<T extends z.ZodTypeAny>(c: Context, schema: T): Promise<z.infer<T>> {
+export async function body<T extends z.ZodTypeAny>(c: Context, schema: T, prepare?: (raw: unknown) => unknown): Promise<z.infer<T>> {
   const raw = await c.req.json().catch(() => {
     throw new HarborError('INVALID_REQUEST', 'Request body must be JSON.');
   });
+  return check(schema, prepare ? prepare(raw) : raw);
+}
+
+/** Validate a value, turning failures into typed INVALID_REQUEST errors. */
+export function check<T extends z.ZodTypeAny>(schema: T, raw: unknown): z.infer<T> {
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];

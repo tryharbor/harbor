@@ -266,7 +266,8 @@ export async function takeSnapshot(deps: PublishDeps, postId: string, ageHours: 
     const channel = await getChannelRow(db, post.channel_id);
     const provider = providerFor(deps, channel);
     if (!provider.fetchPostMetrics) throw new Error(`${provider.name} doesn't report post metrics.`);
-    const ctx = await providerContext(db, deps.secrets, provider, channel);
+    // publishedAt lets the sandbox provider place the post on its growth curve; real providers ignore it.
+    const ctx = await providerContext(db, deps.secrets, provider, channel, { settings: { publishedAt: new Date(post.published_at).toISOString() } });
     const m = await provider.fetchPostMetrics(ctx, post.platform_post_id);
     const age = (Date.now() - new Date(post.published_at).getTime()) / 3_600_000;
     await db.query(

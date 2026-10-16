@@ -40,6 +40,10 @@ export function registerChannels(app: App, deps: AppDeps) {
     if (!brand) throw new HarborError('NOT_FOUND', `Brand ${brandId || '(missing brandId)'} not found.`);
     const provider = getProvider(registry, c.req.param('platform'));
     if (!provider) throw new HarborError('NOT_FOUND', `Unknown platform ${c.req.param('platform')}.`);
+    // Sandbox: no consent screen. The web app asks for a handle and calls POST /v1/sandbox/channels.
+    if (deps.publishMode === 'sandbox') {
+      return c.redirect(`${webUrl}/brands/${encodeURIComponent(brandId)}/channels?${new URLSearchParams({ sandbox: provider.identifier })}`, 302);
+    }
     try {
       const auth = await provider.generateAuthUrl();
       await db.query('INSERT INTO oauth_states (state, platform, brand_id, code_verifier) VALUES ($1, $2, $3, $4)', [

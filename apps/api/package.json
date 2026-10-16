@@ -10,10 +10,11 @@
     "db:migrate": "tsx --env-file-if-exists=../../.env src/cli/migrate.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "dev:demo": "DATABASE_URL=.pglite-demo tsx src/cli/seed-demo.ts && DATABASE_URL=.pglite-demo HARBOR_SECRET_KEY=${HARBOR_SECRET_KEY:-ZGVtby1rZXktZGVtby1rZXktZGVtby1rZXktZGVtbyE=} tsx --env-file-if-exists=../../.env src/server.ts"
+    "dev:demo": "export DATABASE_URL=.pglite-demo HARBOR_PUBLISH_MODE=sandbox HARBOR_MODEL=simulated; tsx --env-file-if-exists=../../.env src/cli/seed-demo.ts && tsx --env-file-if-exists=../../.env src/server.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.3.16",
+    "@harbor/ai": "workspace:*",
     "@harbor/core": "workspace:*",
     "@harbor/providers": "workspace:*",
     "@hono/node-server": "1.19.17",

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { NormalizedMetrics } from '@harbor/core';
-import { getPlatforms, getPosts, loadAll, type PlatformInfo, type PostView } from '../api';
+import { advanceSandbox } from '../actions';
+import { getMode, getPlatforms, getPosts, loadAll, type Mode, type PlatformInfo, type PostView } from '../api';
 import { Flash, LoadError, PageHeader, PlatformTag, StatusPill, compact, when } from '../ui';
 
 export const dynamic = 'force-dynamic';
@@ -16,17 +17,28 @@ const COLUMNS: { key: keyof NormalizedMetrics; label: string }[] = [
 
 export default async function PerformancePage({ searchParams }: { searchParams: Promise<{ notice?: string; error?: string }> }) {
   const flash = await searchParams;
-  const res = await loadAll<[PostView[], PlatformInfo[]]>([getPosts({ limit: '300' }), getPlatforms()]);
+  const res = await loadAll<[PostView[], PlatformInfo[], Mode]>([getPosts({ limit: '300' }), getPlatforms(), getMode()]);
   if (!res.ok) return (<><PageHeader title="Performance" /><LoadError message={res.error} /></>);
-  const [posts, platforms] = res.data;
+  const [posts, platforms, mode] = res.data;
   const noMetrics = new Set(platforms.filter((p) => !p.reportsMetrics).map((p) => p.platform));
   const published = posts.filter((p) => p.status === 'published');
   const total = (k: keyof NormalizedMetrics) => published.reduce((sum, p) => sum + (p.latest?.metrics[k] ?? 0), 0);
 
   return (
     <>
-      <PageHeader title="Performance" sub="Every post Harbor published, across brands. Each one is checked at 1h, 6h, 24h, 72h and 7 days." />
+      <PageHeader eyebrow="Performance" title="What your posts actually did" sub="Every post Harbor published, across brands. Each one is checked at 1h, 6h, 24h, 72h and 7 days." />
       <Flash params={flash} />
+      {mode.publish === 'sandbox' ? (
+        <form action={advanceSandbox} className="spread staging" style={{ padding: '12px 16px' }}>
+          <input type="hidden" name="returnTo" value="/performance" />
+          <span className="row small"><span className="tag">Sandbox</span><span className="muted">Simulated numbers. Fast-forward time to watch growth curves fill in.</span></span>
+          <span className="row">
+            {[['1', '+1h'], ['6', '+6h'], ['24', '+1 day'], ['168', '+7 days']].map(([h, label]) => (
+              <button key={h} type="submit" name="hours" value={h} className="mono-button">{label}</button>
+            ))}
+          </span>
+        </form>
+      ) : null}
       <div className="grid">
         <div className="card stat"><span className="muted small">Posts published</span><strong>{published.length}</strong></div>
         <div className="card stat"><span className="muted small">Views (latest snapshot)</span><strong>{compact(total('views'))}</strong></div>

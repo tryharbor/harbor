@@ -13,3 +13,15 @@ export { LinkedInProvider, DEFAULT_LINKEDIN_VERSION, escapeLittleText, toComment
 export { InstagramProvider, INSTAGRAM_GRAPH_VERSION, mapInstagramInsights } from './instagram.ts';
 export { ThreadsProvider, THREADS_GRAPH_VERSION, mapThreadsInsights } from './threads.ts';
 export { createProviderRegistry, getProvider, type ProviderRegistry } from './registry.ts';
+export {
+  SandboxProvider,
+  SANDBOX_ADAPTER_VERSION,
+  SANDBOX_URL_BASE,
+  createSandboxRegistry,
+  newSandboxPostId,
+  sandboxCurve,
+  sandboxMetricsAt,
+  sandboxPostTime,
+  type SandboxCurve,
+  type SandboxProviderOptions,
+} from './sandbox.ts';

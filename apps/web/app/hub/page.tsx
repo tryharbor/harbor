@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import type { Brand, IdeaStatus } from '@harbor/core';
-import { createIdea, deleteIdea, moveIdea } from '../actions';
-import { getBrands, getIdeas, getPosts, loadAll, type IdeaView, type PostView } from '../api';
+import type { IdeaStatus } from '@harbor/core';
+import { createIdea, deleteIdea, moveIdea, suggestIdeas } from '../actions';
+import { getBrands, getIdeas, getPosts, loadAll, type BrandView, type IdeaView, type PostView } from '../api';
 import { Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, when } from '../ui';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,7 @@ const href = (s: Search, patch: Partial<Search>) => {
 export default async function HubPage({ searchParams }: { searchParams: Promise<Search> }) {
   const s = await searchParams;
   const view: View = s.view === 'table' || s.view === 'calendar' ? s.view : 'board';
-  const res = await loadAll<[Brand[], IdeaView[], PostView[]]>([getBrands(), getIdeas({ brandId: s.brand }), getPosts({ brandId: s.brand, limit: '500' })]);
+  const res = await loadAll<[BrandView[], IdeaView[], PostView[]]>([getBrands(), getIdeas({ brandId: s.brand }), getPosts({ brandId: s.brand, limit: '500' })]);
   if (!res.ok) return (<><PageHeader title="Hub" /><LoadError message={res.error} /></>);
   const [brands, ideas, posts] = res.data;
   const here = href(s, { notice: undefined, error: undefined });
@@ -37,8 +37,9 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
   return (
     <>
       <PageHeader
-        title="Hub"
-        sub="Every idea and post across your brands, from first thought to measured result."
+        eyebrow="Hub"
+        title="Every idea, from first thought to measured result"
+        sub="Ideas, drafts and posts across your brands. Board, table or calendar."
         actions={
           <>
             <nav className="segmented" aria-label="View">
@@ -73,7 +74,7 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
   );
 }
 
-function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[]; posts: PostView[]; brands: Brand[]; brandFilter?: string; here: string }) {
+function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[]; posts: PostView[]; brands: BrandView[]; brandFilter?: string; here: string }) {
   const ideaTitle = new Map(ideas.map((i) => [i.id, i.title]));
   const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000).toISOString();
   return (
@@ -104,18 +105,32 @@ function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[];
                 <button type="submit">Add idea</button>
               </form>
             ) : null}
+            {stage.key === 'idea' ? (
+              <form action={suggestIdeas} className="item stack staging" style={{ background: 'transparent' }}>
+                <input type="hidden" name="returnTo" value={here} />
+                <span className="spread"><span className="label">Agent · Suggest ideas</span><span className="tag">Simulated</span></span>
+                <span className="dim small">From what worked, audience pain points and products. Each idea cites its reason.</span>
+                {brandFilter ? <input type="hidden" name="brandId" value={brandFilter} /> : (
+                  <select name="brandId" aria-label="Brand to suggest for" required>
+                    {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  </select>
+                )}
+                <button type="submit" className="primary">Suggest 5 ideas</button>
+              </form>
+            ) : null}
             {stageIdeas.map((i) => (
               <article key={i.id} className="item">
                 <div className="item-title">{i.title}</div>
                 {i.angle ? <div className="muted small">{i.angle}</div> : null}
                 <div className="item-meta">
                   <span>{i.brandName}</span>
-                  {i.basis.length ? <span>{i.basis.length} cited signal{i.basis.length > 1 ? 's' : ''}</span> : <span>added by you</span>}
+                  {i.basis.length ? null : <span>added by you</span>}
                 </div>
+                {i.basis.slice(0, 2).map((b) => <span key={b.signalId} className="cite" style={{ justifySelf: 'start' }}>{b.note ?? 'cited signal'}</span>)}
                 <div className="item-actions">
                   {PREV[i.status] ? <MoveButton id={i.id} to={PREV[i.status]!} label="←" here={here} title={`Back to ${PREV[i.status]}`} /> : null}
                   {NEXT[i.status] ? <MoveButton id={i.id} to={NEXT[i.status]!} label={`To ${NEXT[i.status]} →`} here={here} /> : null}
-                  {i.status === 'approved' ? <Link className="button" href={`/compose?brandId=${i.brandId}&ideaId=${i.id}`}>Write post →</Link> : null}
+                  <Link className="button" href={`/studio/${i.id}`}>Studio →</Link>
                   <form action={deleteIdea} className="inline-form">
                     <input type="hidden" name="ideaId" value={i.id} />
                     <input type="hidden" name="returnTo" value={here} />

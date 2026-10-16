@@ -2,6 +2,9 @@ import { z } from 'zod';
 import { HarborError, canTransitionIdea, citationSchema, ideaStatusSchema, newId, type Idea, type IdeaStatus } from '@harbor/core';
 import type { App, AppDeps } from '../app.ts';
 import { body, iso } from '../lib/http.ts';
+import { loadBrand } from '../services/brands.ts';
+import { withRun } from '../services/runs.ts';
+import { derivePerformanceSignals, ensureMemorySignals, latestSignals, publishedPostsWithMetrics } from '../services/signals.ts';
 
 interface IdeaRow {
   id: string;
@@ -50,6 +53,13 @@ const ideaUpdateSchema = z
   })
   .strict();
 
+const generateSchema = z
+  .object({
+    brandId: z.string().min(1),
+    count: z.number().int().min(1).max(20).default(5),
+  })
+  .strict();
+
 const SELECT_IDEAS = `
   SELECT i.*, b.name AS brand_name, (SELECT count(*) FROM posts WHERE idea_id = i.id) AS post_count
   FROM ideas i JOIN brands b ON b.id = i.brand_id`;
@@ -83,6 +93,38 @@ export function registerIdeas(app: App, deps: AppDeps) {
       id, input.brandId, input.title, input.angle, JSON.stringify(input.basis),
     ]);
     return c.json(toIdea(await load(id)), 201);
+  });
+
+  /**
+   * Generate ideas for a brand. First refreshes the brand's signals (one post_performance signal per published post
+   * with snapshots, plus manual signals from audience pain points), then asks the model; every idea cites at least
+   * one of those signals.
+   */
+  app.post('/v1/ideas/generate', async (c) => {
+    const input = await body(c, generateSchema);
+    const brand = await loadBrand(db, input.brandId);
+    await derivePerformanceSignals(db, brand.id);
+    await ensureMemorySignals(db, brand);
+    const signals = await latestSignals(db, brand.id, 100);
+    const recentPosts = (await publishedPostsWithMetrics(db, brand.id, 20)).map((p) => ({ text: p.text, platform: p.platform, metrics: p.metrics }));
+    const known = new Set(signals.map((s) => s.id));
+    const { value: ids, run } = await withRun(db, brand, 'ideas', { count: input.count, signals: signals.length, recentPosts: recentPosts.length }, deps.model.name, async (runId) => {
+      const res = await deps.model.generateIdeas({ brand, signals, recentPosts, count: input.count });
+      const ids: string[] = [];
+      for (const idea of res.result) {
+        let basis = idea.basis.filter((b) => known.has(b.signalId));
+        if (basis.length === 0 && signals[0]) basis = [{ signalId: signals[0].id, note: signals[0].summary.slice(0, 200) }];
+        const id = newId('idea');
+        await db.query('INSERT INTO ideas (id, brand_id, title, angle, basis, agent_run_id) VALUES ($1, $2, $3, $4, $5, $6)', [
+          id, brand.id, idea.title.slice(0, 300), idea.angle.slice(0, 4000), JSON.stringify(basis), runId,
+        ]);
+        ids.push(id);
+      }
+      return { value: ids, calls: [res], output: { ideaIds: ids } };
+    });
+    const ideas = [];
+    for (const id of ids) ideas.push(toIdea(await load(id)));
+    return c.json({ data: ideas, run }, 201);
   });
 
   /**

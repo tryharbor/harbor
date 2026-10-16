@@ -3,17 +3,22 @@ import { HarborError, newId, normalizedMetricsSchema, postPartSchema } from '@ha
 import type { App, AppDeps } from '../app.ts';
 import { body, iso } from '../lib/http.ts';
 import { getChannelRow } from '../services/channels.ts';
+import { insertDraft, loadDraft } from '../services/drafts.ts';
 import { publishPost, type PostRow } from '../services/publisher.ts';
 
 const postCreateSchema = z
   .object({
     channelId: z.string().min(1),
-    parts: z.array(postPartSchema).min(1).max(25),
+    /** The post's text and media. Give either `parts` or `draftId`. */
+    parts: z.array(postPartSchema).min(1).max(25).optional(),
+    /** Publish an existing draft (its platform must match the channel's). */
+    draftId: z.string().min(1).optional(),
     /** Omit to publish now. */
     scheduledFor: z.string().datetime({ offset: true }).optional(),
     ideaId: z.string().min(1).optional(),
   })
-  .strict();
+  .strict()
+  .refine((v) => (v.parts ? !v.draftId : !!v.draftId), { message: 'Give either parts or draftId.', path: ['parts'] });
 
 const resolveSchema = z
   .object({
@@ -116,22 +121,26 @@ export function registerPosts(app: App, deps: AppDeps) {
     const channel = await getChannelRow(db, input.channelId);
     const provider = registry.get(channel.platform);
     if (!provider) throw new HarborError('INTERNAL_ERROR', `No provider for ${channel.platform}.`);
-    const check = provider.validate(input.parts);
+    const draft = input.draftId ? await loadDraft(db, input.draftId) : undefined;
+    if (draft && draft.platform !== channel.platform) {
+      throw new HarborError('INVALID_REQUEST', `Draft ${draft.id} is for ${draft.platform}, but this channel is ${channel.platform}.`);
+    }
+    if (draft && draft.brandId !== channel.brand_id) throw new HarborError('INVALID_REQUEST', `Draft ${draft.id} belongs to another brand.`);
+    const parts = draft?.parts ?? input.parts!;
+    const ideaId = input.ideaId ?? draft?.ideaId;
+    const check = provider.validate(parts);
     if (!check.ok) throw new HarborError('INVALID_REQUEST', check.issues.join(' '));
     if (channel.status !== 'connected') throw new HarborError('INVALID_REQUEST', `@${channel.handle} needs to be reconnected before posting.`);
 
-    const draftId = newId('draft');
-    await db.query(
-      `INSERT INTO drafts (id, brand_id, idea_id, platform, channel_id, parts, author) VALUES ($1, $2, $3, $4, $5, $6, 'human')`,
-      [draftId, channel.brand_id, input.ideaId ?? null, channel.platform, channel.id, JSON.stringify(input.parts)],
-    );
+    const draftId =
+      draft?.id ?? (await insertDraft(db, { brandId: channel.brand_id, ideaId, platform: channel.platform, channelId: channel.id, parts, author: 'human' }));
     const postId = newId('post');
     await db.query(
       `INSERT INTO posts (id, brand_id, channel_id, draft_id, idea_id, status, scheduled_for) VALUES ($1, $2, $3, $4, $5, 'scheduled', $6)`,
-      [postId, channel.brand_id, channel.id, draftId, input.ideaId ?? null, input.scheduledFor ?? new Date().toISOString()],
+      [postId, channel.brand_id, channel.id, draftId, ideaId ?? null, input.scheduledFor ?? new Date().toISOString()],
     );
-    if (input.ideaId) {
-      await db.query("UPDATE ideas SET status = 'scheduled', updated_at = now() WHERE id = $1 AND status IN ('idea', 'drafting', 'approved')", [input.ideaId]);
+    if (ideaId) {
+      await db.query("UPDATE ideas SET status = 'scheduled', updated_at = now() WHERE id = $1 AND status IN ('idea', 'drafting', 'approved')", [ideaId]);
     }
     if (!input.scheduledFor) await publishPost(deps.publishDeps(), postId);
     return c.json(await loadPost(postId), 201);

@@ -23,5 +23,11 @@ export function newId(kind: IdKind): string {
   return `${ID_PREFIX[kind]}_${body}`;
 }
 
+/** Short random id for items inside a JSON document (Brand Memory audiences, products, …), e.g. `k3j9x0a1qz`. */
+export function shortId(length = 10): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return Array.from(bytes, (b) => (b % 36).toString(36)).join('');
+}
+
 /** The workspace a fresh install starts with (single-owner dogfooding). Seeded by the first migration. */
 export const DEFAULT_WORKSPACE_ID = 'ws_default';

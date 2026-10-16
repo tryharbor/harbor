@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import type { Brand, Channel } from '@harbor/core';
-import { getBrands, getChannels, getIdeas, getPosts, loadAll, type IdeaView, type PostView } from './api';
+import type { Channel } from '@harbor/core';
+import { getBrands, getChannels, getIdeas, getPosts, loadAll, type BrandView, type IdeaView, type PostView } from './api';
 import { Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, Upcoming, when } from './ui';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +9,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const flash = await searchParams;
   const now = new Date();
   const weekAhead = new Date(now.getTime() + 7 * 86_400_000).toISOString();
-  const res = await loadAll<[Brand[], Channel[], PostView[], IdeaView[]]>([getBrands(), getChannels(), getPosts({ limit: '200' }), getIdeas()]);
+  const res = await loadAll<[BrandView[], Channel[], PostView[], IdeaView[]]>([getBrands(), getChannels(), getPosts({ limit: '200' }), getIdeas()]);
   const today = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   if (!res.ok) return (<><PageHeader title="Home" sub={today} /><LoadError message={res.error} /></>);
   const [brands, channels, posts, ideas] = res.data;
@@ -38,8 +38,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return (
     <>
       <PageHeader
-        title="Home"
-        sub={today}
+        eyebrow={`Home · ${today}`}
+        title="Where every brand stands"
+        sub="What needs you, what's going out, and what's working."
         actions={<><Link className="button" href="/hub">Open the hub</Link><Link className="button primary" href="/compose">New post</Link></>}
       />
       <Flash params={flash} />
@@ -118,7 +119,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             return (
               <Link key={b.id} href={`/brands/${b.id}`} className="card stack" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <strong>{b.name}</strong>
-                <span className="muted small">{b.memory.offer.summary || 'No offer described yet'}</span>
+                <span className="muted small">{b.memory.products[0]?.summary || 'No product described yet'}</span>
                 <span className="row small">
                   {bc.length ? bc.map((c) => <PlatformTag key={c.id} platform={c.platform} />) : <span className="muted">No accounts connected</span>}
                 </span>

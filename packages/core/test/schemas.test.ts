@@ -9,6 +9,8 @@ import {
   SNAPSHOT_SCHEDULE_HOURS,
   availableMetrics,
   brandCreateSchema,
+  brandMemoryPatchSchema,
+  brandMemorySchema,
   canAutoRetryPublish,
   canTransitionIdea,
   classifyPublishFailure,
@@ -23,9 +25,11 @@ describe('brand schemas', () => {
   it('fills Brand Memory defaults on create', () => {
     const parsed = brandCreateSchema.parse({ name: 'Acme' });
     expect(parsed.memory).toEqual({
-      voice: { description: '', traits: [], do: [], dont: [] },
-      offer: { summary: '' },
-      audience: { description: '', segments: [], painPoints: [] },
+      voice: { summary: '', values: [], do: [], avoid: [], bannedWords: [], excerpts: [], sources: [] },
+      audiences: [],
+      products: [],
+      knowledge: [],
+      styleRules: { terms: [], formatting: [] },
       examplePosts: [],
     });
   });
@@ -33,6 +37,53 @@ describe('brand schemas', () => {
   it('rejects unknown fields and bad slugs', () => {
     expect(brandCreateSchema.safeParse({ name: 'Acme', color: 'red' }).success).toBe(false);
     expect(brandCreateSchema.safeParse({ name: 'Acme', slug: 'Not A Slug' }).success).toBe(false);
+  });
+});
+
+describe('Brand Memory v1 → v2', () => {
+  const v1 = {
+    voice: { description: 'Plain and specific.', traits: ['Direct', 'Anti-hype'], do: ['Use numbers'], dont: ['leverage'] },
+    offer: { summary: 'Open-source content strategist', callToAction: 'Join the waitlist', url: 'https://harbor.example' },
+    audience: { description: 'Builders with several brands', segments: ['Indie hackers'], painPoints: ['Context switching'] },
+    examplePosts: [{ platform: 'x', text: 'Shipped the poller.' }],
+  };
+
+  it('migrates every v1 field', () => {
+    const m = brandMemorySchema.parse(v1);
+    expect(m.voice).toMatchObject({
+      summary: 'Plain and specific.',
+      values: [{ name: 'Direct', meaning: '' }, { name: 'Anti-hype', meaning: '' }],
+      do: ['Use numbers'],
+      avoid: ['leverage'],
+      bannedWords: [],
+    });
+    expect(m.products).toEqual([
+      { id: expect.any(String), name: 'Main offer', summary: 'Open-source content strategist', cta: 'Join the waitlist', url: 'https://harbor.example', proofPoints: [] },
+    ]);
+    expect(m.audiences).toEqual([
+      { id: expect.any(String), name: 'Primary audience', description: 'Builders with several brands', painPoints: ['Context switching'], goals: [], segments: ['Indie hackers'] },
+    ]);
+    expect(m.examplePosts[0]).toMatchObject({ platform: 'x', text: 'Shipped the poller.', id: expect.any(String) });
+    expect(m).not.toHaveProperty('offer');
+  });
+
+  it('gives migrated items stable ids and keeps v2 documents unchanged', () => {
+    const a = brandMemorySchema.parse(v1);
+    expect(brandMemorySchema.parse(v1)).toEqual(a);
+    expect(brandMemorySchema.parse(a)).toEqual(a);
+  });
+
+  it('skips empty v1 offer and audience', () => {
+    const m = brandMemorySchema.parse({ offer: { summary: '' }, audience: { description: '', segments: [], painPoints: [] } });
+    expect(m.products).toEqual([]);
+    expect(m.audiences).toEqual([]);
+  });
+
+  it('patches only the keys given', () => {
+    expect(brandMemoryPatchSchema.parse({ voice: { summary: 'New' } })).toEqual({
+      voice: { summary: 'New', values: [], do: [], avoid: [], bannedWords: [], excerpts: [], sources: [] },
+    });
+    expect(brandMemoryPatchSchema.safeParse({ colour: 'red' }).success).toBe(false);
   });
 });
 

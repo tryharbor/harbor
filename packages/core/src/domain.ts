@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { brandMemoryPatchSchema, brandMemorySchema } from './memory.ts';
 import { normalizedMetricsSchema, platformSchema } from './metrics.ts';
 
 /**
@@ -20,43 +21,6 @@ export const workspaceSchema = z.object({
 export type Workspace = z.infer<typeof workspaceSchema>;
 
 // ---- Brand + Brand Memory ----
-
-export const examplePostSchema = z.object({
-  platform: platformSchema.optional(),
-  text: z.string().min(1),
-  url: z.string().url().optional(),
-  /** Why this is a good (or bad) example of the brand's voice. */
-  note: z.string().optional(),
-});
-export type ExamplePost = z.infer<typeof examplePostSchema>;
-
-/** Everything Harbor knows about a brand that should shape strategy and drafting. */
-export const brandMemorySchema = z.object({
-  voice: z
-    .object({
-      description: z.string().default(''),
-      traits: z.array(z.string()).default([]),
-      do: z.array(z.string()).default([]),
-      dont: z.array(z.string()).default([]),
-    })
-    .default({}),
-  offer: z
-    .object({
-      summary: z.string().default(''),
-      callToAction: z.string().optional(),
-      url: z.string().url().optional(),
-    })
-    .default({}),
-  audience: z
-    .object({
-      description: z.string().default(''),
-      segments: z.array(z.string()).default([]),
-      painPoints: z.array(z.string()).default([]),
-    })
-    .default({}),
-  examplePosts: z.array(examplePostSchema).default([]),
-});
-export type BrandMemory = z.infer<typeof brandMemorySchema>;
 
 const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'lowercase letters, digits and dashes');
 
@@ -85,7 +49,8 @@ export const brandUpdateSchema = z
   .object({
     name: z.string().min(1).max(200).optional(),
     slug: slug.optional(),
-    memory: brandMemorySchema.optional(),
+    /** Merged at the top level: `{ voice }` replaces only voice. */
+    memory: brandMemoryPatchSchema.optional(),
   })
   .strict();
 export type BrandUpdate = z.input<typeof brandUpdateSchema>;
@@ -291,11 +256,15 @@ export type Outcome = z.infer<typeof outcomeSchema>;
 
 // ---- AgentRun (one model-driven job, for audit and cost tracking) ----
 
+export const AGENT_RUN_KINDS = ['insights', 'ideas', 'draft', 'outcome', 'voice', 'rewrite'] as const;
+export const agentRunKindSchema = z.enum(AGENT_RUN_KINDS);
+export type AgentRunKind = z.infer<typeof agentRunKindSchema>;
+
 export const agentRunSchema = z.object({
   id,
   workspaceId: id,
   brandId: id.optional(),
-  kind: z.enum(['insights', 'ideas', 'draft', 'outcome']),
+  kind: agentRunKindSchema,
   status: z.enum(['running', 'succeeded', 'failed']),
   model: z.string().optional(),
   input: json.default({}),

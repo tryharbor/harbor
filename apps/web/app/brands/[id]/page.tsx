@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import type { Brand, Channel } from '@harbor/core';
-import { getBrand, getChannels, getIdeas, getPosts, loadAll, type IdeaView, type PostView } from '../../api';
+import type { Channel } from '@harbor/core';
+import { getBrand, getChannels, getIdeas, getPosts, loadAll, type BrandView, type IdeaView, type PostView } from '../../api';
 import { Flash, LoadError, MetricLine, PlatformTag, StatusPill, Upcoming, when } from '../../ui';
 
 export const dynamic = 'force-dynamic';
@@ -8,11 +8,11 @@ export const dynamic = 'force-dynamic';
 export default async function BrandOverview({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ connected?: string; notice?: string; error?: string }> }) {
   const { id } = await params;
   const flash = await searchParams;
-  const res = await loadAll<[Brand, Channel[], PostView[], IdeaView[]]>([getBrand(id), getChannels(id), getPosts({ brandId: id, limit: '20' }), getIdeas({ brandId: id })]);
+  const res = await loadAll<[BrandView, Channel[], PostView[], IdeaView[]]>([getBrand(id), getChannels(id), getPosts({ brandId: id, limit: '20' }), getIdeas({ brandId: id })]);
   if (!res.ok) return <LoadError message={res.error} />;
   const [brand, channels, posts, ideas] = res.data;
   const m = brand.memory;
-  const memoryFilled = [m.voice.description, m.offer.summary, m.audience.description].filter(Boolean).length + (m.examplePosts.length ? 1 : 0);
+  const memoryFilled = [m.voice.summary, m.products.length, m.audiences.length, m.examplePosts.length].filter(Boolean).length;
   const steps = [
     { done: memoryFilled >= 3, label: 'Describe the brand', href: `/brands/${id}/memory` },
     { done: channels.length > 0, label: 'Connect an account', href: `/brands/${id}/channels` },

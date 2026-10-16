@@ -16,7 +16,7 @@ try {
   console.warn(`Background worker off: ${err instanceof Error ? err.message : err}`);
 }
 
-const server = serve({ fetch: app.fetch, port }, () => console.log(`Harbor API on http://localhost:${port} (${db.kind})`));
+const server = serve({ fetch: app.fetch, port }, () => console.log(`Harbor API on http://localhost:${port} (${db.kind}; publishing: ${deps.publishMode}; model: ${deps.modelMode})`));
 
 const shutdown = async () => {
   server.close();

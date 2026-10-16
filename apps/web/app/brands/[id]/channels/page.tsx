@@ -1,6 +1,7 @@
 import type { Channel } from '@harbor/core';
 import { disconnectChannel } from '../../../actions';
-import { API_PUBLIC_URL, getChannels, getPlatforms, loadAll, type PlatformInfo } from '../../../api';
+import { API_PUBLIC_URL, getChannels, getMode, getPlatforms, loadAll, type Mode, type PlatformInfo } from '../../../api';
+import { SandboxConnect } from '../../../components/sandbox-connect';
 import { Flash, LoadError, PLATFORM_NAME, PlatformTag, when } from '../../../ui';
 
 export const dynamic = 'force-dynamic';
@@ -12,30 +13,43 @@ const NOTES: Record<string, string> = {
   threads: 'Text, images, video and threaded replies.',
 };
 
-export default async function ChannelsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ notice?: string; error?: string }> }) {
+export default async function ChannelsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ notice?: string; error?: string; sandbox?: string }> }) {
   const { id } = await params;
-  const flash = await searchParams;
-  const res = await loadAll<[Channel[], PlatformInfo[]]>([getChannels(id), getPlatforms()]);
+  const s = await searchParams;
+  const res = await loadAll<[Channel[], PlatformInfo[], Mode]>([getChannels(id), getPlatforms(), getMode()]);
   if (!res.ok) return <LoadError message={res.error} />;
-  const [channels, platforms] = res.data;
+  const [channels, platforms, mode] = res.data;
+  const sandbox = mode.publish === 'sandbox';
   const connectUrl = (platform: string) => `${API_PUBLIC_URL}/v1/channels/${platform}/connect?brandId=${id}`;
 
   return (
     <>
-      <Flash params={flash} />
+      <Flash params={s} />
+      {sandbox ? (
+        <div className="grid-2">
+          <p className="muted small" style={{ alignSelf: 'center' }}>
+            <span className="tag" style={{ marginRight: 8 }}>Sandbox</span>
+            Practice accounts: posts are recorded and measured with simulated numbers, never sent to a platform. Switch to live in <code>.env</code> (<code>HARBOR_PUBLISH_MODE=live</code>) once your developer apps are set up.
+          </p>
+          <SandboxConnect brandId={id} returnTo={`/brands/${id}/channels`} preselect={s.sandbox} />
+        </div>
+      ) : null}
       <div className="grid">
         {platforms.map((p) => {
           const mine = channels.filter((c) => c.platform === p.platform);
           return (
             <section key={p.platform} className="stack">
-              <h2>{PLATFORM_NAME[p.platform]}</h2>
+              <div className="spread">
+                <h2 style={{ margin: 0 }}>{PLATFORM_NAME[p.platform]}</h2>
+                {!p.reportsMetrics ? <span className="tag">No metrics</span> : null}
+              </div>
               <p className="muted small">{NOTES[p.platform]}</p>
               {mine.map((c) => (
-                <div key={c.id} className="stack" style={{ borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+                <div key={c.id} className="stack" style={{ borderTop: '1px solid var(--line)', paddingTop: 12, gap: 8 }}>
                   <span className="row"><PlatformTag platform={c.platform} handle={c.account.handle} /> <span className={`pill s-${c.status}`}>{c.status.replace('_', ' ')}</span></span>
-                  {c.tokenExpiresAt ? <span className="muted small">Access until {when(c.tokenExpiresAt, { dateStyle: 'medium' })}</span> : null}
+                  {c.tokenExpiresAt ? <span className="dim small">Access until {when(c.tokenExpiresAt, { dateStyle: 'medium' })}</span> : null}
                   <div className="row">
-                    {c.status !== 'connected' ? <a className="button primary" href={connectUrl(p.platform)}>Reconnect</a> : null}
+                    {c.status !== 'connected' && !sandbox ? <a className="button primary" href={connectUrl(p.platform)}>Reconnect</a> : null}
                     <form action={disconnectChannel}>
                       <input type="hidden" name="brandId" value={id} />
                       <input type="hidden" name="channelId" value={c.id} />
@@ -44,12 +58,13 @@ export default async function ChannelsPage({ params, searchParams }: { params: P
                   </div>
                 </div>
               ))}
-              <div><a className={`button${mine.length ? '' : ' primary'}`} href={connectUrl(p.platform)}>{mine.length ? 'Connect another' : `Connect ${PLATFORM_NAME[p.platform]}`}</a></div>
+              {mine.length === 0 ? <div className="empty" style={{ padding: 16 }}><span className="dim small">Not connected</span></div> : null}
+              {!sandbox ? <div><a className={`button${mine.length ? '' : ' primary'}`} href={connectUrl(p.platform)}>{mine.length ? 'Connect another' : `Connect ${PLATFORM_NAME[p.platform]}`}</a></div> : null}
             </section>
           );
         })}
       </div>
-      <p className="muted small">Connecting opens the platform's own sign-in page. Your app keys come from <code>.env</code>; see <code>docs/setup/platform-apps.md</code>.</p>
+      {!sandbox ? <p className="dim small">Connecting opens the platform's own sign-in page. App keys come from <code>.env</code>; see <code>docs/setup/platform-apps.md</code>.</p> : null}
     </>
   );
 }

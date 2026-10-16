@@ -5,6 +5,21 @@ import type { PostStatus } from './api';
 
 /** Small shared pieces. Everything styles through the tokens in globals.css. */
 
+/** The Harbor mark (docs/design/brand/harbor-mark.svg), drawn in the current text color. */
+export function HarborMark({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="currentColor" aria-hidden="true">
+      <path d="M0 0H16L32 16V32H16L0 16ZM32 0H48L64 16V32H48L32 16ZM0 32H16L32 48V64H16L0 48ZM32 32H48L64 48V64H48L32 48Z" />
+    </svg>
+  );
+}
+
+/** Marks output from the simulated model or sandbox publishing. */
+export function SimTag({ model }: { model?: string }) {
+  if (model && !model.startsWith('simulated') && model !== 'demo' && model !== 'sandbox') return null;
+  return <span className="tag" title="Made by the simulated model: no API spend.">Simulated</span>;
+}
+
 export const PLATFORM_NAME: Record<Platform, string> = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', threads: 'Threads' };
 
 export const STATUS_LABEL: Record<PostStatus, string> = {
@@ -53,10 +68,11 @@ export function MetricLine({ metrics }: { metrics?: NormalizedMetrics }) {
   );
 }
 
-export function PageHeader({ title, sub, actions }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({ title, sub, actions, eyebrow }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
   return (
     <header className="page-header">
       <div>
+        {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
         <h1>{title}</h1>
         {sub ? <p className="muted">{sub}</p> : null}
       </div>

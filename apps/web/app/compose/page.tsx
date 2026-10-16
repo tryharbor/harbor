@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import type { Brand, Channel } from '@harbor/core';
+import type { Channel } from '@harbor/core';
 import { createPost } from '../actions';
-import { getBrands, getChannels, getIdeas, loadAll, type IdeaView } from '../api';
+import { getBrands, getChannels, getIdeas, loadAll, type BrandView, type IdeaView } from '../api';
 import { Flash, LoadError, PageHeader, PlatformTag, Upcoming } from '../ui';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,7 @@ const LIMITS = 'X 280 · Threads 500 · Instagram 2,200 · LinkedIn 3,000 charac
 
 export default async function ComposePage({ searchParams }: { searchParams: Promise<{ brandId?: string; ideaId?: string; notice?: string; error?: string }> }) {
   const s = await searchParams;
-  const res = await loadAll<[Brand[], Channel[], IdeaView[]]>([getBrands(), getChannels(), getIdeas({ brandId: s.brandId })]);
+  const res = await loadAll<[BrandView[], Channel[], IdeaView[]]>([getBrands(), getChannels(), getIdeas({ brandId: s.brandId })]);
   if (!res.ok) return (<><PageHeader title="New post" /><LoadError message={res.error} /></>);
   const [brands, channels, ideas] = res.data;
   const idea = ideas.find((i) => i.id === s.ideaId);
@@ -22,6 +22,7 @@ export default async function ComposePage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader
+        eyebrow="Quick post"
         title="New post"
         sub={idea ? <>For the idea <strong>{idea.title}</strong> · {idea.brandName}</> : 'Write once, post to any connected account.'}
       />

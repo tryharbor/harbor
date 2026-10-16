@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from 'react';
 import type { Platform } from '@harbor/core';
 import { rewriteDraft, saveDraft, scheduleDraft, type RewriteState } from '../actions';
 import type { DraftView } from '../api';
+import { PlatformIcon } from '../platform-icon';
 
 const NAME: Record<Platform, string> = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', threads: 'Threads' };
 const LIMIT: Record<Platform, number> = { x: 280, linkedin: 3000, instagram: 2200, threads: 500 };
@@ -35,7 +36,7 @@ export function DraftEditor({
   return (
     <div className="pane">
       <div className="pane-head">
-        <span className="row"><span className="ptag">{NAME[platform]}</span>{draft ? <span className="dim small mono">v{draft.version} · {draft.author === 'agent' ? 'drafted by Harbor' : 'edited by you'}</span> : <span className="dim small">No draft yet</span>}</span>
+        <span className="row"><span className="ptag"><PlatformIcon platform={platform} size={13} />{NAME[platform]}</span>{draft ? <span className="dim small mono">v{draft.version} · {draft.author === 'agent' ? 'drafted by Harbor' : 'edited by you'}</span> : <span className="dim small">No draft yet</span>}</span>
         {draft?.author === 'agent' ? <span className="tag">Simulated</span> : null}
       </div>
 
@@ -134,7 +135,7 @@ function Preview({ platform, handle, name, parts, media }: { platform: Platform;
   if (platform === 'instagram') {
     return (
       <div className="preview">
-        <span className="label">Preview · Instagram</span>
+        <span className="label row" style={{ gap: 6 }}><PlatformIcon platform="instagram" size={11} />Preview · Instagram</span>
         <div className="preview-head"><span className="avatar">{initials}</span><strong style={{ fontWeight: 500 }}>{handle}</strong></div>
         {media ? <Media /> : <div className="preview-media">Instagram needs an image or video</div>}
         <div className="preview-body small"><strong style={{ fontWeight: 600 }}>{handle}</strong> {parts[0]}</div>
@@ -146,7 +147,7 @@ function Preview({ platform, handle, name, parts, media }: { platform: Platform;
     const cut = text.length > 210;
     return (
       <div className="preview">
-        <span className="label">Preview · LinkedIn</span>
+        <span className="label row" style={{ gap: 6 }}><PlatformIcon platform="linkedin" size={11} />Preview · LinkedIn</span>
         <div className="preview-head"><span className="avatar">{initials}</span><span className="stack" style={{ gap: 0 }}><strong style={{ fontWeight: 500 }}>{name}</strong><span className="dim small">Now · Public</span></span></div>
         <div className="preview-body">{cut ? <>{text.slice(0, 210)}<span className="dim">… see more</span></> : text}</div>
         <Media />
@@ -156,7 +157,7 @@ function Preview({ platform, handle, name, parts, media }: { platform: Platform;
   }
   return (
     <div className="preview">
-      <span className="label">Preview · {NAME[platform]}</span>
+      <span className="label row" style={{ gap: 6 }}><PlatformIcon platform={platform} size={11} />Preview · {NAME[platform]}</span>
       {parts.map((p, i) => (
         <div key={i} className={i > 0 ? 'thread-line stack' : 'stack'} style={{ gap: 6 }}>
           <div className="preview-head"><span className="avatar">{initials}</span><span><strong style={{ fontWeight: 500 }}>{name}</strong> <span className="dim small">@{handle}</span></span></div>

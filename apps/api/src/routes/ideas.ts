@@ -1,40 +1,10 @@
 import { z } from 'zod';
-import { HarborError, canTransitionIdea, citationSchema, ideaStatusSchema, newId, type Idea, type IdeaStatus } from '@harbor/core';
+import { HarborError, canTransitionIdea, citationSchema, ideaStatusSchema } from '@harbor/core';
 import type { App, AppDeps } from '../app.ts';
-import { body, iso } from '../lib/http.ts';
+import { body } from '../lib/http.ts';
 import { loadBrand } from '../services/brands.ts';
-import { withRun } from '../services/runs.ts';
-import { derivePerformanceSignals, ensureMemorySignals, latestSignals, publishedPostsWithMetrics } from '../services/signals.ts';
-
-interface IdeaRow {
-  id: string;
-  brand_id: string;
-  brand_name: string;
-  title: string;
-  angle: string;
-  status: IdeaStatus;
-  basis: unknown;
-  insight_ids: unknown;
-  agent_run_id: string | null;
-  created_at: Date | string;
-  updated_at: Date | string;
-  post_count: number;
-}
-
-const toIdea = (r: IdeaRow): Idea & { brandName: string; postCount: number } => ({
-  id: r.id,
-  brandId: r.brand_id,
-  brandName: r.brand_name,
-  title: r.title,
-  angle: r.angle,
-  status: r.status,
-  basis: citationSchema.array().parse(r.basis ?? []),
-  insightIds: z.array(z.string()).parse(r.insight_ids ?? []),
-  agentRunId: r.agent_run_id ?? undefined,
-  createdAt: iso(r.created_at),
-  updatedAt: iso(r.updated_at),
-  postCount: Number(r.post_count),
-});
+import { campaignForBrand } from '../services/campaigns.ts';
+import { SELECT_IDEAS, generateIdeas, insertIdea, loadIdeaRow, loadIdea, toIdea, type IdeaRow } from '../services/ideas.ts';
 
 const ideaCreateSchema = z
   .object({
@@ -42,6 +12,7 @@ const ideaCreateSchema = z
     title: z.string().trim().min(1).max(300),
     angle: z.string().max(4000).default(''),
     basis: z.array(citationSchema).default([]),
+    campaignId: z.string().min(1).optional(),
   })
   .strict();
 
@@ -60,26 +31,20 @@ const generateSchema = z
   })
   .strict();
 
-const SELECT_IDEAS = `
-  SELECT i.*, b.name AS brand_name, (SELECT count(*) FROM posts WHERE idea_id = i.id) AS post_count
-  FROM ideas i JOIN brands b ON b.id = i.brand_id`;
-
 export function registerIdeas(app: App, deps: AppDeps) {
   const { db } = deps;
-  const load = async (id: string) => {
-    const [row] = await db.query<IdeaRow>(`${SELECT_IDEAS} WHERE i.id = $1`, [id]);
-    if (!row) throw new HarborError('NOT_FOUND', `Idea ${id} not found.`);
-    return row;
-  };
+  const load = (id: string) => loadIdeaRow(db, id);
 
-  /** Ideas across every brand (the hub), or one brand with ?brandId=. Optional ?status=. */
+  /** Ideas across every brand (the hub), or one brand with ?brandId=. Optional ?status= and ?campaignId=. */
   app.get('/v1/ideas', async (c) => {
     const brandId = c.req.query('brandId') ?? null;
     const status = c.req.query('status') ?? null;
+    const campaignId = c.req.query('campaignId') ?? null;
     const rows = await db.query<IdeaRow>(
       `${SELECT_IDEAS} WHERE ($1::text IS NULL OR i.brand_id = $1) AND ($2::text IS NULL OR i.status = $2)
+         AND ($3::text IS NULL OR i.campaign_id = $3)
        ORDER BY i.updated_at DESC LIMIT 500`,
-      [brandId, status],
+      [brandId, status, campaignId],
     );
     return c.json({ data: rows.map(toIdea) });
   });
@@ -88,42 +53,18 @@ export function registerIdeas(app: App, deps: AppDeps) {
     const input = await body(c, ideaCreateSchema);
     const [brand] = await db.query('SELECT id FROM brands WHERE id = $1', [input.brandId]);
     if (!brand) throw new HarborError('NOT_FOUND', `Brand ${input.brandId} not found.`);
-    const id = newId('idea');
-    await db.query('INSERT INTO ideas (id, brand_id, title, angle, basis) VALUES ($1, $2, $3, $4, $5)', [
-      id, input.brandId, input.title, input.angle, JSON.stringify(input.basis),
-    ]);
-    return c.json(toIdea(await load(id)), 201);
+    if (input.campaignId) await campaignForBrand(db, input.campaignId, input.brandId);
+    const id = await insertIdea(db, { brandId: input.brandId, title: input.title, angle: input.angle, basis: input.basis, campaignId: input.campaignId });
+    return c.json(await loadIdea(db, id), 201);
   });
 
-  /**
-   * Generate ideas for a brand. First refreshes the brand's signals (one post_performance signal per published post
-   * with snapshots, plus manual signals from audience pain points), then asks the model; every idea cites at least
-   * one of those signals.
-   */
+  /** Generate ideas for a brand (see generateIdeas in services/ideas.ts); every idea cites at least one signal. */
   app.post('/v1/ideas/generate', async (c) => {
     const input = await body(c, generateSchema);
     const brand = await loadBrand(db, input.brandId);
-    await derivePerformanceSignals(db, brand.id);
-    await ensureMemorySignals(db, brand);
-    const signals = await latestSignals(db, brand.id, 100);
-    const recentPosts = (await publishedPostsWithMetrics(db, brand.id, 20)).map((p) => ({ text: p.text, platform: p.platform, metrics: p.metrics }));
-    const known = new Set(signals.map((s) => s.id));
-    const { value: ids, run } = await withRun(db, brand, 'ideas', { count: input.count, signals: signals.length, recentPosts: recentPosts.length }, deps.model.name, async (runId) => {
-      const res = await deps.model.generateIdeas({ brand, signals, recentPosts, count: input.count });
-      const ids: string[] = [];
-      for (const idea of res.result) {
-        let basis = idea.basis.filter((b) => known.has(b.signalId));
-        if (basis.length === 0 && signals[0]) basis = [{ signalId: signals[0].id, note: signals[0].summary.slice(0, 200) }];
-        const id = newId('idea');
-        await db.query('INSERT INTO ideas (id, brand_id, title, angle, basis, agent_run_id) VALUES ($1, $2, $3, $4, $5, $6)', [
-          id, brand.id, idea.title.slice(0, 300), idea.angle.slice(0, 4000), JSON.stringify(basis), runId,
-        ]);
-        ids.push(id);
-      }
-      return { value: ids, calls: [res], output: { ideaIds: ids } };
-    });
+    const { ids, run } = await generateIdeas(deps, brand, input.count);
     const ideas = [];
-    for (const id of ids) ideas.push(toIdea(await load(id)));
+    for (const id of ids) ideas.push(await loadIdea(db, id));
     return c.json({ data: ideas, run }, 201);
   });
 

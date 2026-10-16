@@ -24,11 +24,40 @@ export type Workspace = z.infer<typeof workspaceSchema>;
 
 const slug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'lowercase letters, digits and dashes');
 
+/** Largest logo accepted as a data URI (decoded bytes). */
+export const BRAND_LOGO_MAX_BYTES = 300 * 1024;
+const LOGO_DATA_URI = /^data:image\/(png|jpeg|webp|svg\+xml|gif);base64,([A-Za-z0-9+/]+={0,2})$/;
+
+/** A brand logo: an https URL, or a base64 `data:image/(png|jpeg|webp|svg+xml|gif)` URI of at most 300 KB. */
+export const brandLogoUrlSchema = z.string().superRefine((v, ctx) => {
+  if (v.startsWith('data:')) {
+    const m = LOGO_DATA_URI.exec(v);
+    if (!m) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'must be a base64 data:image/(png|jpeg|webp|svg+xml|gif) URI' });
+      return;
+    }
+    const b64 = m[2]!;
+    const bytes = Math.floor((b64.length * 3) / 4) - (b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0);
+    if (bytes > BRAND_LOGO_MAX_BYTES) ctx.addIssue({ code: z.ZodIssueCode.custom, message: `image must be at most ${BRAND_LOGO_MAX_BYTES / 1024} KB` });
+    return;
+  }
+  let url: URL | undefined;
+  try {
+    url = new URL(v);
+  } catch {
+    url = undefined;
+  }
+  if (!url || url.protocol !== 'https:' || v.length > 2048) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'must be an https URL (up to 2048 characters) or an image data URI' });
+  }
+});
+
 export const brandSchema = z.object({
   id,
   workspaceId: id,
   name: z.string().min(1).max(200),
   slug,
+  logoUrl: brandLogoUrlSchema.optional(),
   memory: brandMemorySchema,
   createdAt: timestamp,
   updatedAt: timestamp,
@@ -40,6 +69,7 @@ export const brandCreateSchema = z
     workspaceId: id.optional(),
     name: z.string().min(1).max(200),
     slug: slug.optional(),
+    logoUrl: brandLogoUrlSchema.optional(),
     memory: brandMemorySchema.default({}),
   })
   .strict();
@@ -49,6 +79,8 @@ export const brandUpdateSchema = z
   .object({
     name: z.string().min(1).max(200).optional(),
     slug: slug.optional(),
+    /** null removes the logo. */
+    logoUrl: brandLogoUrlSchema.nullable().optional(),
     /** Merged at the top level: `{ voice }` replaces only voice. */
     memory: brandMemoryPatchSchema.optional(),
   })
@@ -158,6 +190,8 @@ export const ideaSchema = z.object({
   basis: z.array(citationSchema).default([]),
   insightIds: z.array(id).default([]),
   agentRunId: id.optional(),
+  /** The campaign this idea belongs to, if any. */
+  campaignId: id.optional(),
   createdAt: timestamp,
   updatedAt: timestamp,
 });
@@ -209,6 +243,7 @@ export const postSchema = z.object({
   channelId: id,
   draftId: id.optional(),
   ideaId: id.optional(),
+  campaignId: id.optional(),
   status: postStatusSchema,
   scheduledFor: timestamp.optional(),
   publishedAt: timestamp.optional(),
@@ -275,3 +310,74 @@ export const agentRunSchema = z.object({
   finishedAt: timestamp.optional(),
 });
 export type AgentRun = z.infer<typeof agentRunSchema>;
+
+// ---- Campaign + Canvas (an infinite board of cards for one brand) ----
+
+export const CAMPAIGN_STATUSES = ['planning', 'active', 'done'] as const;
+export const campaignStatusSchema = z.enum(CAMPAIGN_STATUSES);
+export type CampaignStatus = z.infer<typeof campaignStatusSchema>;
+
+/** Calendar date, `YYYY-MM-DD`. */
+export const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'a date like 2026-10-15');
+
+export const campaignSchema = z.object({
+  id,
+  brandId: id,
+  brandName: z.string(),
+  name: z.string().min(1).max(200),
+  goal: z.string().default(''),
+  status: campaignStatusSchema,
+  startsOn: isoDateSchema.optional(),
+  endsOn: isoDateSchema.optional(),
+  /** Cards on the canvas, frames excluded. */
+  itemCount: z.number().int().nonnegative(),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+});
+export type Campaign = z.infer<typeof campaignSchema>;
+
+export const CANVAS_ITEM_KINDS = ['idea', 'draft', 'post', 'signal', 'note', 'frame'] as const;
+export const canvasItemKindSchema = z.enum(CANVAS_ITEM_KINDS);
+export type CanvasItemKind = z.infer<typeof canvasItemKindSchema>;
+
+/** Kinds whose card shows an existing Harbor object (refId → that object's id). */
+export const CANVAS_REF_KINDS = ['idea', 'draft', 'post', 'signal'] as const;
+export type CanvasRefKind = (typeof CANVAS_REF_KINDS)[number];
+export const isCanvasRefKind = (k: CanvasItemKind): k is CanvasRefKind => (CANVAS_REF_KINDS as readonly string[]).includes(k);
+
+export const canvasItemDataSchema = z
+  .object({
+    title: z.string().max(300).optional(),
+    text: z.string().max(10_000).optional(),
+    color: z.string().max(40).optional(),
+  })
+  .strict();
+export type CanvasItemData = z.infer<typeof canvasItemDataSchema>;
+
+/**
+ * One card on the canvas. Positions are relative to the parent frame when `parentId` is set (React Flow
+ * semantics). `entity` is the referenced idea/draft/post/signal, absent when it was deleted.
+ */
+export const canvasItemSchema = z.object({
+  id,
+  campaignId: id,
+  kind: canvasItemKindSchema,
+  refId: id.optional(),
+  parentId: id.optional(),
+  x: z.number(),
+  y: z.number(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  data: canvasItemDataSchema,
+  entity: z.unknown().optional(),
+});
+export type CanvasItem = z.infer<typeof canvasItemSchema>;
+
+export const canvasEdgeSchema = z.object({
+  id,
+  campaignId: id,
+  source: id,
+  target: id,
+  label: z.string().optional(),
+});
+export type CanvasEdge = z.infer<typeof canvasEdgeSchema>;

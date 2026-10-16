@@ -106,3 +106,48 @@ describe('/v1/brands', () => {
     expect((await send('DELETE', `/v1/brands/${brand.id}`)).status).toBe(404);
   });
 });
+
+describe('brand logos', () => {
+  const PNG = `data:image/png;base64,${Buffer.from('fake-png-bytes').toString('base64')}`;
+
+  it('sets, replaces and removes a logo, and returns it on every brand response', async () => {
+    const created = await (await send('POST', '/v1/brands', { name: 'Logo Co', logoUrl: 'https://cdn.example.com/logo.png' })).json();
+    expect(created.logoUrl).toBe('https://cdn.example.com/logo.png');
+    expect(brandSchema.safeParse(created).success).toBe(true);
+
+    const replaced = await (await send('PATCH', `/v1/brands/${created.id}`, { logoUrl: PNG })).json();
+    expect(replaced.logoUrl).toBe(PNG);
+    expect((await (await send('GET', `/v1/brands/${created.id}`)).json()).logoUrl).toBe(PNG);
+    const listed = (await (await send('GET', '/v1/brands')).json()).data.find((b: Brand) => b.id === created.id);
+    expect(listed.logoUrl).toBe(PNG);
+
+    // Other edits leave the logo alone.
+    expect((await (await send('PATCH', `/v1/brands/${created.id}`, { name: 'Logo Co 2' })).json()).logoUrl).toBe(PNG);
+
+    const removed = await (await send('PATCH', `/v1/brands/${created.id}`, { logoUrl: null })).json();
+    expect(removed.logoUrl).toBeUndefined();
+    expect((await (await send('GET', `/v1/brands/${created.id}`)).json()).logoUrl).toBeUndefined();
+  });
+
+  it('accepts only https URLs and small base64 image data URIs', async () => {
+    const [{ id }] = (await (await send('GET', '/v1/brands')).json()).data;
+    const bad = [
+      'http://cdn.example.com/logo.png',
+      'not a url',
+      'data:text/html;base64,PGgxPg==',
+      'data:image/png,rawbytes',
+      'data:image/bmp;base64,AAAA',
+      `data:image/jpeg;base64,${Buffer.alloc(300 * 1024 + 1).toString('base64')}`,
+    ];
+    for (const logoUrl of bad) {
+      const res = await send('PATCH', `/v1/brands/${id}`, { logoUrl });
+      expect(res.status, logoUrl.slice(0, 40)).toBe(400);
+      expect((await res.json()).error.message).toMatch(/^logoUrl:/);
+    }
+    expect((await send('POST', '/v1/brands', { name: 'Bad logo', logoUrl: 'ftp://x.example/logo.png' })).status).toBe(400);
+    for (const type of ['png', 'jpeg', 'webp', 'svg+xml', 'gif']) {
+      const logoUrl = `data:image/${type};base64,${Buffer.alloc(300 * 1024).toString('base64')}`;
+      expect((await send('PATCH', `/v1/brands/${id}`, { logoUrl })).status).toBe(200);
+    }
+  });
+});

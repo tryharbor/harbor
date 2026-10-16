@@ -11,6 +11,9 @@ export const ID_PREFIX = {
   insight: 'ins',
   outcome: 'out',
   agentRun: 'run',
+  campaign: 'cpg',
+  canvasItem: 'cvi',
+  canvasEdge: 'cve',
   request: 'req',
 } as const;
 

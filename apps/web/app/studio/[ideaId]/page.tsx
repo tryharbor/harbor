@@ -4,6 +4,7 @@ import { generateDrafts, moveIdea } from '../../actions';
 import { getBrand, getChannels, getDrafts, getIdeas, getSignals, loadAll, type BrandView, type DraftView, type IdeaView, type SignalView } from '../../api';
 import { DraftEditor } from '../../components/draft-editor';
 import { Flash, LoadError, PageHeader, PLATFORM_NAME } from '../../ui';
+import { PlatformIcon } from '../../platform-icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +58,7 @@ export default async function StudioIdea({ params, searchParams }: { params: Pro
       <form action={generateDrafts} className="agent-panel">
         <div className="spread">
           <div className="stack" style={{ gap: 4 }}>
-            <span className="label">Agent · Draft for each platform</span>
+            <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Agent · Draft for each platform</span>
             <strong style={{ fontWeight: 500 }}>{drafted.length ? 'Draft again (adds a new version per platform)' : 'Draft this idea in the brand’s voice'}</strong>
           </div>
           <span className="tag">Simulated · no spend</span>
@@ -81,7 +82,7 @@ export default async function StudioIdea({ params, searchParams }: { params: Pro
             {PLATFORMS.map((p) => (
               <label key={p} className="channel-pick">
                 <input type="checkbox" name="platform" value={p} defaultChecked={defaults.has(p)} />
-                {PLATFORM_NAME[p]}
+                <PlatformIcon platform={p} size={13} />{PLATFORM_NAME[p]}
                 {connected.some((c) => c.platform === p) ? null : <span className="dim small">(not connected)</span>}
               </label>
             ))}

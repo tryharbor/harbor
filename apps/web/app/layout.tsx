@@ -3,9 +3,11 @@ import type { ReactNode } from 'react';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { getBrands, getMode, type BrandView, type Mode } from './api';
+import { Icon } from './icons';
 import { NavLink } from './nav-link';
+import { SidebarToggle } from './sidebar-toggle';
 import { ThemeToggle, type Theme } from './theme-toggle';
-import { HarborMark } from './ui';
+import { BrandMark, HarborMark } from './ui';
 import './globals.css';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
@@ -13,6 +15,14 @@ const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono'
 
 export const metadata = { title: 'Harbor', description: 'The open-source content strategist for builders who run more than one brand.' };
 export const dynamic = 'force-dynamic';
+
+const NAV = [
+  { href: '/', label: 'Home', icon: Icon.home, exact: true },
+  { href: '/hub', label: 'Hub', icon: Icon.hub },
+  { href: '/campaigns', label: 'Campaigns', icon: Icon.campaigns },
+  { href: '/studio', label: 'Studio', icon: Icon.studio },
+  { href: '/performance', label: 'Performance', icon: Icon.performance },
+];
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   let brands: BrandView[] = [];
@@ -23,35 +33,41 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     // Pages show the connection error themselves; the sidebar renders without brands.
   }
   const live = mode?.publish === 'live';
+  const jar = await cookies();
   // Light by default; dark only when chosen with the toggle.
-  const theme: Theme = (await cookies()).get('harbor-theme')?.value === 'dark' ? 'dark' : 'light';
+  const theme: Theme = jar.get('harbor-theme')?.value === 'dark' ? 'dark' : 'light';
+  const collapsed = jar.get('harbor-sidebar')?.value === 'collapsed';
 
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-theme={theme === 'dark' ? 'dark' : undefined}>
       <body>
-        <div className="shell">
+        <div className={`shell${collapsed ? ' collapsed' : ''}`}>
           <aside className="sidebar" aria-label="Main">
-            <Link href="/" className="wordmark"><HarborMark /> Harbor</Link>
-            <Link href="/compose" className="button primary new-post">New post</Link>
+            <div className="sidebar-top">
+              <Link href="/" className="wordmark" title="Harbor"><HarborMark /> <span className="nav-text">Harbor</span><span className="pixels nav-text" aria-hidden="true" style={{ width: 20, height: 4 }} /></Link>
+              <SidebarToggle initial={collapsed} />
+            </div>
+            <Link href="/compose" className="button primary new-post" title="New post"><Icon.plus /><span className="nav-text">New post</span></Link>
             <nav className="nav-group" aria-label="Workspace">
-              <NavLink href="/" exact>Home</NavLink>
-              <NavLink href="/hub">Hub</NavLink>
-              <NavLink href="/studio">Studio</NavLink>
-              <NavLink href="/performance">Performance</NavLink>
-            </nav>
-            <nav className="nav-group" aria-label="Brands">
-              <div className="nav-label">Brands</div>
-              {brands.map((b) => (
-                <NavLink key={b.id} href={`/brands/${b.id}`}>
-                  <span className="brand-dot" aria-hidden="true">{b.name.slice(0, 1).toUpperCase()}</span>
-                  {b.name}
+              {NAV.map((n) => (
+                <NavLink key={n.href} href={n.href} exact={n.exact} title={n.label}>
+                  <n.icon /><span className="nav-text">{n.label}</span>
                 </NavLink>
               ))}
-              <NavLink href="/brands/new">+ Add brand</NavLink>
+            </nav>
+            <nav className="nav-group" aria-label="Brands">
+              <div className="nav-label nav-text">Brands</div>
+              {brands.map((b) => (
+                <NavLink key={b.id} href={`/brands/${b.id}`} title={b.name}>
+                  <BrandMark name={b.name} logoUrl={b.logoUrl} size={20} />
+                  <span className="nav-text">{b.name}</span>
+                </NavLink>
+              ))}
+              <NavLink href="/brands/new" title="Add brand"><Icon.plus /><span className="nav-text">Add brand</span></NavLink>
             </nav>
             <div className="nav-group nav-bottom">
               {mode ? (
-                <div className="mode-badge" title="Sandbox and Simulated spend nothing. Switch in .env when you're ready.">
+                <div className="mode-badge nav-text" title="Sandbox and Simulated spend nothing. Switch in .env when you're ready.">
                   <span className="label">Mode</span>
                   <span className="row">
                     <span className={`pill ${live ? 's-live' : 'plain'}`}>{live ? 'Live publishing' : 'Sandbox'}</span>
@@ -59,9 +75,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   </span>
                 </div>
               ) : null}
-              <div className="spread">
-                <NavLink href="/settings">Settings</NavLink>
-                <ThemeToggle initial={theme} />
+              <div className="sidebar-foot">
+                <NavLink href="/settings" title="Settings"><Icon.settings /><span className="nav-text">Settings</span></NavLink>
+                <span className="nav-text"><ThemeToggle initial={theme} /></span>
               </div>
             </div>
           </aside>

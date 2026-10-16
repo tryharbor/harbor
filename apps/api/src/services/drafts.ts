@@ -1,6 +1,9 @@
-import { HarborError, newId, postPartSchema, type Draft, type Platform, type PostPart } from '@harbor/core';
+import { HarborError, newId, postPartSchema, type Brand, type Draft, type Platform, type PostPart } from '@harbor/core';
+import type { DraftContextItem, ModelResult } from '@harbor/ai';
+import type { AppDeps } from '../app.ts';
 import type { Db } from '../db/client.ts';
 import { iso } from '../lib/http.ts';
+import { withRun, type RunInfo } from './runs.ts';
 
 export interface DraftRow {
   id: string;
@@ -61,4 +64,34 @@ export async function insertDraft(
   // Working on an idea moves it from Idea to Drafting.
   if (d.ideaId) await db.query("UPDATE ideas SET status = 'drafting', updated_at = now() WHERE id = $1 AND status = 'idea'", [d.ideaId]);
   return id;
+}
+
+/** Fallback when a platform has no provider registered (shouldn't happen in practice). */
+export const DEFAULT_MAX: Record<Platform, number> = { x: 280, linkedin: 3000, instagram: 2200, threads: 500 };
+
+/**
+ * Write one agent draft per platform for an idea, each a new version, recorded as one 'draft' agent run.
+ * `context` (e.g. cards connected to the idea on a canvas) is passed to the model as extra material.
+ */
+export async function generateDrafts(
+  deps: Pick<AppDeps, 'db' | 'model' | 'registry'>,
+  brand: Brand,
+  idea: { id: string; title: string; angle: string },
+  platforms: Platform[],
+  context: DraftContextItem[] = [],
+): Promise<{ ids: string[]; run: RunInfo }> {
+  const { db, model } = deps;
+  const input = { ideaId: idea.id, platforms, ...(context.length ? { context: context.map((c) => c.kind) } : {}) };
+  const { value: ids, run } = await withRun(db, brand, 'draft', input, model.name, async (runId) => {
+    const calls: ModelResult<unknown>[] = [];
+    const ids: string[] = [];
+    for (const platform of platforms) {
+      const maxLength = deps.registry.get(platform)?.maxLength() ?? DEFAULT_MAX[platform];
+      const res = await model.draft({ brand, idea: { title: idea.title, angle: idea.angle }, platform, maxLength, ...(context.length ? { context } : {}) });
+      calls.push(res);
+      ids.push(await insertDraft(db, { brandId: brand.id, ideaId: idea.id, platform, parts: res.result, author: 'agent', agentRunId: runId }));
+    }
+    return { value: ids, calls, output: { draftIds: ids } };
+  });
+  return { ids, run };
 }

@@ -118,6 +118,16 @@ function GrowthChart({ snapshots, metric }: { snapshots: PostDetail['snapshots']
   const label = (h: number) => (h >= 24 ? `${h / 24}d` : `${h}h`);
   return (
     <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${metric} by post age`}>
+      <defs>
+        {/* The growth line runs along the logo palette, early (pink) to mature (yellow). */}
+        <linearGradient id="growth-gradient" x1={L} x2={W - R} y1="0" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="var(--pink)" />
+          <stop offset="35%" stopColor="var(--violet)" />
+          <stop offset="65%" stopColor="var(--coral)" />
+          <stop offset="85%" stopColor="var(--amber)" />
+          <stop offset="100%" stopColor="var(--yellow)" />
+        </linearGradient>
+      </defs>
       <line className="axis" x1={L} x2={W - R} y1={H - B} y2={H - B} />
       <line className="axis" x1={L} x2={L} y1={T} y2={H - B} />
       {SNAPSHOT_SCHEDULE_HOURS.map((h) => (

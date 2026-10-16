@@ -43,12 +43,21 @@ export interface IdeaSuggestion {
   basis: { signalId: string; note: string }[];
 }
 
+/** Extra material the owner put next to an idea (e.g. cards connected to it on a campaign canvas). */
+export interface DraftContextItem {
+  kind: 'post' | 'signal' | 'note';
+  /** Post: its first part. Signal: its summary. Note: the note's text. */
+  text: string;
+}
+
 export interface DraftInput {
   brand: Brand;
   idea: { title: string; angle: string };
   platform: Platform;
   /** Max characters per part. */
   maxLength: number;
+  /** Optional context, most relevant first: posts best-performing first, then notes, then signals. */
+  context?: DraftContextItem[];
 }
 
 export const REWRITE_INSTRUCTIONS = ['shorter', 'punchier', 'more_specific', 'hook_variations'] as const;

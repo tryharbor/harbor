@@ -39,6 +39,8 @@ export interface BrandView {
   id: string;
   workspaceId: string;
   name: string;
+  /** https URL or data: URI; absent → monogram. */
+  logoUrl?: string;
   slug: string;
   memory: BrandMemoryV2;
   createdAt: string;
@@ -157,3 +159,53 @@ export async function loadAll<T extends readonly unknown[]>(calls: { [K in keyof
     return { ok: false, error: err instanceof ApiError ? err.message : 'Something went wrong loading this page.' };
   }
 }
+
+// ---- Campaigns and the canvas ----
+
+export interface Campaign {
+  id: string;
+  brandId: string;
+  brandName: string;
+  name: string;
+  goal: string;
+  status: 'planning' | 'active' | 'done';
+  startsOn?: string;
+  endsOn?: string;
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CanvasKind = 'idea' | 'draft' | 'post' | 'signal' | 'note' | 'frame';
+
+export interface CanvasItem {
+  id: string;
+  campaignId: string;
+  kind: CanvasKind;
+  refId?: string;
+  parentId?: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  data: { title?: string; text?: string; color?: string };
+  /** The idea / draft / post / signal behind the card; absent if it was deleted. */
+  entity?: IdeaView | (DraftView & { simulated?: boolean; model?: string }) | PostView | Pick<SignalView, 'id' | 'kind' | 'summary' | 'observedAt'>;
+}
+
+export interface CanvasEdge {
+  id: string;
+  campaignId: string;
+  source: string;
+  target: string;
+  label?: string;
+}
+
+export interface CanvasData {
+  campaign: Campaign;
+  items: CanvasItem[];
+  edges: CanvasEdge[];
+}
+
+export const getCampaigns = (brandId?: string) => api<{ data: Campaign[] }>(`/v1/campaigns${qs({ brandId })}`).then(data);
+export const getCanvas = (campaignId: string) => api<CanvasData>(`/v1/campaigns/${campaignId}/canvas`);

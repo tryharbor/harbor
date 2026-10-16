@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import type { Channel } from '@harbor/core';
 import { getBrand, getChannels, getIdeas, getPosts, loadAll, type BrandView, type IdeaView, type PostView } from '../../api';
-import { Flash, LoadError, MetricLine, PlatformTag, StatusPill, Upcoming, when } from '../../ui';
+import { saveLogo } from '../../actions';
+import { BrandMark, Flash, LoadError, MetricLine, PlatformTag, StatusPill, Upcoming, when } from '../../ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,6 +75,23 @@ export default async function BrandOverview({ params, searchParams }: { params: 
                 ))}
               </ul>
             )}
+          </section>
+          <section className="stack">
+            <h2 style={{ margin: 0 }}>Logo</h2>
+            <div className="row" style={{ gap: 14, alignItems: 'center' }}>
+              {brand.logoUrl ? <BrandMark name={brand.name} logoUrl={brand.logoUrl} size={56} /> : <span className="logo-slot">Logo</span>}
+              <span className="dim small">Shown in the sidebar, campaigns and post previews. Square images work best.</span>
+            </div>
+            <form action={saveLogo} className="stack" style={{ gap: 8 }}>
+              <input type="hidden" name="brandId" value={brand.id} />
+              <input type="hidden" name="returnTo" value={`/brands/${brand.id}`} />
+              <input type="file" name="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" aria-label="Logo file" />
+              <input type="url" name="url" placeholder="…or paste an image link" aria-label="Logo link" />
+              <div className="row">
+                <button type="submit" className="inverse">Save logo</button>
+                {brand.logoUrl ? <label className="row small"><input type="checkbox" name="remove" style={{ width: 'auto' }} /> Remove instead</label> : null}
+              </div>
+            </form>
           </section>
           <Upcoming title="Ideas from what worked">
             Harbor will suggest ideas for {brand.name} from its best posts, the questions people ask in replies and what competitors are getting traction on. Each idea will cite its reason.

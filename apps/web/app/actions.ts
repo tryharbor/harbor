@@ -402,3 +402,34 @@ export async function disconnectChannel(form: FormData) {
   refresh();
   go(`/brands/${brandId}/channels`, { notice: 'Disconnected.' });
 }
+
+// ---- Brand logo ----
+
+const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'image/gif'];
+const LOGO_MAX_BYTES = 300 * 1024;
+
+/** Upload (stored as a data URI), link, or remove a brand's logo. */
+export async function saveLogo(form: FormData) {
+  const brandId = text(form, 'brandId');
+  const back = returnTo(form, `/brands/${brandId}`);
+  let logoUrl: string | null = null;
+  if (text(form, 'remove') !== 'on') {
+    const file = form.get('file');
+    if (file instanceof File && file.size > 0) {
+      if (!LOGO_TYPES.includes(file.type)) go(back, { error: 'Logos can be PNG, JPG, WebP, SVG or GIF.' });
+      if (file.size > LOGO_MAX_BYTES) go(back, { error: 'Logos can be up to 300 KB. Try a smaller export.' });
+      logoUrl = `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString('base64')}`;
+    } else if (text(form, 'url')) {
+      logoUrl = text(form, 'url');
+    } else {
+      go(back, { error: 'Choose a file or paste a link.' });
+    }
+  }
+  try {
+    await api(`/v1/brands/${brandId}`, { method: 'PATCH', body: JSON.stringify({ logoUrl }) });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not save the logo.') });
+  }
+  refresh();
+  go(back, { notice: logoUrl ? 'Logo saved.' : 'Logo removed.' });
+}

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { NormalizedMetrics, Platform } from '@harbor/core';
 import type { PostStatus } from './api';
+import { PlatformIcon } from './platform-icon';
 
 /** Small shared pieces. Everything styles through the tokens in globals.css. */
 
@@ -35,11 +36,23 @@ export function StatusPill({ status }: { status: PostStatus }) {
   return <span className={`pill s-${status}`}>{STATUS_LABEL[status]}</span>;
 }
 
-export function PlatformTag({ platform, handle }: { platform: Platform; handle?: string }) {
+export function PlatformTag({ platform, handle, iconOnly = false }: { platform: Platform; handle?: string; iconOnly?: boolean }) {
   return (
-    <span className={`ptag p-${platform}`}>
-      {PLATFORM_NAME[platform]}
+    <span className={`ptag p-${platform}`} title={iconOnly ? PLATFORM_NAME[platform] : undefined}>
+      <PlatformIcon platform={platform} size={13} />
+      {iconOnly ? <span className="sr-only">{PLATFORM_NAME[platform]}</span> : PLATFORM_NAME[platform]}
       {handle ? <span className="muted"> @{handle}</span> : null}
+    </span>
+  );
+}
+
+/** A brand's logo when it has one, otherwise its initial in a square. */
+export function BrandMark({ name, logoUrl, size = 20 }: { name: string; logoUrl?: string; size?: number }) {
+  return logoUrl ? (
+    <img className="brand-mark" src={logoUrl} alt="" width={size} height={size} />
+  ) : (
+    <span className="brand-mark brand-dot" aria-hidden="true" style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.45)) }}>
+      {name.trim().slice(0, 1).toUpperCase()}
     </span>
   );
 }

@@ -90,6 +90,30 @@ describe('SimulatedModel', () => {
     expect([...short[0]!.text].length).toBeLessThanOrEqual(150);
   });
 
+  it('uses connected context in drafts, deterministically', async () => {
+    const idea = { title: 'My content week before vs. after', angle: '' };
+    const context = [
+      { kind: 'post' as const, text: 'I run four businesses. Every Monday I felt behind.' },
+      { kind: 'post' as const, text: 'A weaker post.' },
+      { kind: 'note' as const, text: 'Hook: open with a real number' },
+      { kind: 'signal' as const, text: 'X post at 2.4x median views' },
+    ];
+    const a = await model.draft({ brand, idea, platform: 'linkedin', maxLength: 3000, context });
+    const b = await model.draft({ brand, idea, platform: 'linkedin', maxLength: 3000, context });
+    expect(a).toEqual(b);
+    const text = a.result[0]!.text;
+    expect(text).toContain('[Note: Hook: open with a real number.]');
+    expect(text).toContain('What worked last time: "I run four businesses."');
+    expect(text).not.toContain('A weaker post');
+    expect(text).not.toContain('Why now');
+    const plain = (await model.draft({ brand, idea, platform: 'linkedin', maxLength: 3000 })).result[0]!.text;
+    expect(plain).not.toContain('[Note:');
+    expect(a.usage.inputTokens).toBeGreaterThan((await model.draft({ brand, idea, platform: 'linkedin', maxLength: 3000 })).usage.inputTokens);
+    const signalOnly = (await model.draft({ brand, idea, platform: 'x', maxLength: 280, context: [context[3]!] })).result;
+    expect(signalOnly.map((p) => p.text).join(' ')).toContain('Why now: X post at 2.4x median views.');
+    for (const p of signalOnly) expect([...p.text].length).toBeLessThanOrEqual(280);
+  });
+
   it('rewrites: 3 hook variations, otherwise 1', async () => {
     const text = EXAMPLES[0]!;
     const hooks = (await model.rewrite({ brand, text, instruction: 'hook_variations', platform: 'x' })).result;

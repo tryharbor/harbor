@@ -23,7 +23,9 @@ if (existing) {
     'SELECT 1 FROM channels c JOIN secrets s ON s.ref = c.token_ref WHERE c.brand_id = $1 LIMIT 1',
     [existing.id],
   );
-  if (usable) {
+  // Demo data from before campaigns existed has no "Launch week" canvas: replace it.
+  const [campaign] = await db.query("SELECT 1 FROM campaigns WHERE brand_id = $1 AND name = 'Launch week' LIMIT 1", [existing.id]);
+  if (usable && campaign) {
     console.log('Demo data already present.');
     await db.close();
     process.exit(0);
@@ -198,8 +200,45 @@ await call('PATCH', `/v1/ideas/${agpl.id}`, { status: 'approved' });
 await call('POST', '/v1/drafts', { brandId: harbor.id, ideaId: apis.id, platform: 'x', parts: [{ text: 'Every social API, what it reports, and what it costs. A thread.' }] });
 
 // Simulated ideas citing the signals derived from the posts above.
-await call('POST', '/v1/ideas/generate', { brandId: harbor.id, count: 4 });
+const generated = await call('POST', '/v1/ideas/generate', { brandId: harbor.id, count: 4 });
 await call('POST', '/v1/ideas/generate', { brandId: tidewater.id, count: 2 });
+
+// ---- Campaign canvas: "Launch week" ----
+
+const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+const launch = await call('POST', '/v1/campaigns', {
+  brandId: harbor.id,
+  name: 'Launch week',
+  goal: 'Get 200 waitlist signups from builders running 2+ brands',
+  startsOn: day(-2),
+  endsOn: day(5),
+});
+await call('PATCH', `/v1/campaigns/${launch.id}`, { status: 'active' });
+const board = await call('GET', `/v1/campaigns/${launch.id}/canvas`);
+const ideasFrame = board.items.find((i: any) => i.kind === 'frame' && i.data.title === 'Ideas');
+const item = (body: Record<string, unknown>) => call('POST', `/v1/campaigns/${launch.id}/items`, body);
+const edge = (source: string, target: string) => call('POST', `/v1/campaigns/${launch.id}/edges`, { source, target });
+
+// Three existing ideas in the Ideas frame (2-column grid of 280×150 cards), and a note connected to the first.
+const contentWeek = (await call('GET', `/v1/ideas?brandId=${harbor.id}&status=idea`)).data.find((i: any) => i.title === 'My content week before vs. after');
+const ideaRefs = [contentWeek.id, generated.data[0].id, generated.data[1].id];
+const ideaCards = [];
+for (const [n, refId] of ideaRefs.entries()) {
+  ideaCards.push(await item({ kind: 'idea', refId, parentId: ideasFrame.id, x: 20 + (n % 2) * 300, y: 48 + Math.floor(n / 2) * 170, width: 280, height: 150 }));
+}
+const hookNote = await item({ kind: 'note', parentId: ideasFrame.id, x: 320, y: 218, width: 280, height: 150, data: { text: 'Hook: open with a real number', color: 'yellow' } });
+await edge(hookNote.id, ideaCards[0].id);
+
+// Evidence: the two best posts in Published, two signals left of Ideas.
+await call('POST', `/v1/campaigns/${launch.id}/agent`, { action: 'add_top_posts', count: 2 });
+await call('POST', `/v1/campaigns/${launch.id}/agent`, { action: 'add_signals', count: 2 });
+
+// Draft the first idea for X and LinkedIn: cards land in Drafts, linked from the idea, using the note as context.
+await call('POST', `/v1/campaigns/${launch.id}/agent`, { action: 'draft', ideaItemId: ideaCards[0].id, platforms: ['x', 'linkedin'] });
+
+// A free-standing frame for proof posts, with one note inside.
+const proof = await item({ kind: 'frame', x: 0, y: 620, width: 900, height: 360, data: { title: 'Proof posts' } });
+await item({ kind: 'note', parentId: proof.id, x: 20, y: 48, width: 320, height: 140, data: { text: 'Screenshot three real growth curves (1h → 7d) for launch day. Real numbers, including the flat one.' } });
 
 console.log('Seeded demo data (sandbox channels, simulated model).');
 await db.close();

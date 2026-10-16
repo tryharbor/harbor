@@ -39,8 +39,8 @@ export function registerBrands(app: App, deps: AppDeps) {
     const slug = input.slug ?? slugify(input.name);
     try {
       const [row] = await db.query<BrandRow>(
-        'INSERT INTO brands (id, workspace_id, name, slug, memory) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [newId('brand'), workspaceId, input.name, slug, JSON.stringify(input.memory)],
+        'INSERT INTO brands (id, workspace_id, name, slug, memory, logo_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [newId('brand'), workspaceId, input.name, slug, JSON.stringify(input.memory), input.logoUrl ?? null],
       );
       return c.json(toBrand(row!), 201);
     } catch (err) {
@@ -52,7 +52,7 @@ export function registerBrands(app: App, deps: AppDeps) {
   app.get('/v1/brands/:id', async (c) => c.json(await loadBrand(db, c.req.param('id'))));
 
   /**
-   * Update name/slug, and merge `memory` at the top level: each memory key given (voice, audiences, products,
+   * Update name/slug/logoUrl (null removes the logo), and merge `memory` at the top level: each memory key given (voice, audiences, products,
    * knowledge, styleRules, examplePosts) replaces that key; the others are kept.
    */
   app.patch('/v1/brands/:id', async (c) => {
@@ -66,9 +66,10 @@ export function registerBrands(app: App, deps: AppDeps) {
            name = COALESCE($2, name),
            slug = COALESCE($3, slug),
            memory = COALESCE($4::jsonb, memory),
+           logo_url = CASE WHEN $5::boolean THEN $6 ELSE logo_url END,
            updated_at = now()
          WHERE id = $1 RETURNING *`,
-        [id, input.name ?? null, input.slug ?? null, memory ? JSON.stringify(memory) : null],
+        [id, input.name ?? null, input.slug ?? null, memory ? JSON.stringify(memory) : null, input.logoUrl !== undefined, input.logoUrl ?? null],
       );
       if (!row) throw new HarborError('NOT_FOUND', `Brand ${id} not found.`);
       return c.json(toBrand(row));

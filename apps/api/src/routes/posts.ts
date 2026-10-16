@@ -1,10 +1,12 @@
 import { z } from 'zod';
-import { HarborError, newId, normalizedMetricsSchema, postPartSchema } from '@harbor/core';
+import { HarborError, newId, postPartSchema } from '@harbor/core';
 import type { App, AppDeps } from '../app.ts';
 import { body, iso } from '../lib/http.ts';
+import { campaignForBrand } from '../services/campaigns.ts';
 import { getChannelRow } from '../services/channels.ts';
 import { insertDraft, loadDraft } from '../services/drafts.ts';
-import { publishPost, type PostRow } from '../services/publisher.ts';
+import { SELECT_POSTS, loadPost as loadPostOut, toPost, type PostListRow } from '../services/posts.ts';
+import { publishPost } from '../services/publisher.ts';
 
 const postCreateSchema = z
   .object({
@@ -16,6 +18,8 @@ const postCreateSchema = z
     /** Omit to publish now. */
     scheduledFor: z.string().datetime({ offset: true }).optional(),
     ideaId: z.string().min(1).optional(),
+    /** Defaults to the idea's campaign. */
+    campaignId: z.string().min(1).optional(),
   })
   .strict()
   .refine((v) => (v.parts ? !v.draftId : !!v.draftId), { message: 'Give either parts or draftId.', path: ['parts'] });
@@ -28,58 +32,11 @@ const resolveSchema = z
   })
   .strict();
 
-interface PostListRow extends PostRow {
-  brand_name: string;
-  platform: string;
-  handle: string;
-  parts: unknown;
-  latest_metrics: unknown;
-  latest_age_hours: number | null;
-  snapshot_count: number;
-}
-
-const toPost = (r: PostListRow) => ({
-  id: r.id,
-  brandId: r.brand_id,
-  brandName: r.brand_name,
-  channelId: r.channel_id,
-  channel: { platform: r.platform, handle: r.handle },
-  ideaId: r.idea_id ?? undefined,
-  status: r.status,
-  parts: postPartSchema.array().parse(r.parts ?? []),
-  scheduledFor: r.scheduled_for ? iso(r.scheduled_for) : undefined,
-  publishedAt: r.published_at ? iso(r.published_at) : undefined,
-  platformPostId: r.platform_post_id ?? undefined,
-  url: r.url ?? undefined,
-  error: r.error ?? undefined,
-  attempts: r.attempts,
-  latest: r.latest_metrics
-    ? { metrics: normalizedMetricsSchema.parse(r.latest_metrics), ageHours: Number(r.latest_age_hours) }
-    : undefined,
-  snapshotCount: Number(r.snapshot_count),
-  createdAt: iso(r.created_at),
-  updatedAt: iso(r.updated_at),
-});
-
-const SELECT_POSTS = `
-  SELECT p.*, b.name AS brand_name, ch.platform, ch.handle, d.parts,
-    s.metrics AS latest_metrics, s.age_hours AS latest_age_hours,
-    (SELECT count(*) FROM snapshots WHERE post_id = p.id) AS snapshot_count
-  FROM posts p
-  JOIN brands b ON b.id = p.brand_id
-  JOIN channels ch ON ch.id = p.channel_id
-  LEFT JOIN drafts d ON d.id = p.draft_id
-  LEFT JOIN LATERAL (SELECT metrics, age_hours FROM snapshots WHERE post_id = p.id ORDER BY taken_at DESC LIMIT 1) s ON true`;
-
 export function registerPosts(app: App, deps: AppDeps) {
   const { db, registry } = deps;
-  const loadPost = async (id: string) => {
-    const [row] = await db.query<PostListRow>(`${SELECT_POSTS} WHERE p.id = $1`, [id]);
-    if (!row) throw new HarborError('NOT_FOUND', `Post ${id} not found.`);
-    return toPost(row);
-  };
+  const loadPost = (id: string) => loadPostOut(db, id);
 
-  /** Posts across every brand (Home, calendar). Filters: ?brandId= ?status= ?from= ?to= (ISO, by scheduled/published time). */
+  /** Posts across every brand (Home, calendar). Filters: ?brandId= ?status= ?campaignId= ?from= ?to= (ISO, by scheduled/published time). */
   app.get('/v1/posts', async (c) => {
     const q = (k: string) => c.req.query(k) ?? null;
     const limit = Math.min(Number(q('limit') ?? 200) || 200, 500);
@@ -88,8 +45,9 @@ export function registerPosts(app: App, deps: AppDeps) {
        WHERE ($1::text IS NULL OR p.brand_id = $1) AND ($2::text IS NULL OR p.status = $2)
          AND ($3::timestamptz IS NULL OR COALESCE(p.published_at, p.scheduled_for, p.created_at) >= $3)
          AND ($4::timestamptz IS NULL OR COALESCE(p.published_at, p.scheduled_for, p.created_at) < $4)
+         AND ($6::text IS NULL OR p.campaign_id = $6)
        ORDER BY COALESCE(p.published_at, p.scheduled_for, p.created_at) DESC LIMIT $5`,
-      [q('brandId'), q('status'), q('from'), q('to'), limit],
+      [q('brandId'), q('status'), q('from'), q('to'), limit, q('campaignId')],
     );
     return c.json({ data: rows.map(toPost) });
   });
@@ -132,12 +90,19 @@ export function registerPosts(app: App, deps: AppDeps) {
     if (!check.ok) throw new HarborError('INVALID_REQUEST', check.issues.join(' '));
     if (channel.status !== 'connected') throw new HarborError('INVALID_REQUEST', `@${channel.handle} needs to be reconnected before posting.`);
 
+    let campaignId = input.campaignId;
+    if (campaignId) await campaignForBrand(db, campaignId, channel.brand_id);
+    else if (ideaId) {
+      const [idea] = await db.query<{ campaign_id: string | null }>('SELECT campaign_id FROM ideas WHERE id = $1 AND brand_id = $2', [ideaId, channel.brand_id]);
+      campaignId = idea?.campaign_id ?? undefined;
+    }
+
     const draftId =
       draft?.id ?? (await insertDraft(db, { brandId: channel.brand_id, ideaId, platform: channel.platform, channelId: channel.id, parts, author: 'human' }));
     const postId = newId('post');
     await db.query(
-      `INSERT INTO posts (id, brand_id, channel_id, draft_id, idea_id, status, scheduled_for) VALUES ($1, $2, $3, $4, $5, 'scheduled', $6)`,
-      [postId, channel.brand_id, channel.id, draftId, ideaId ?? null, input.scheduledFor ?? new Date().toISOString()],
+      `INSERT INTO posts (id, brand_id, channel_id, draft_id, idea_id, status, scheduled_for, campaign_id) VALUES ($1, $2, $3, $4, $5, 'scheduled', $6, $7)`,
+      [postId, channel.brand_id, channel.id, draftId, ideaId ?? null, input.scheduledFor ?? new Date().toISOString(), campaignId ?? null],
     );
     if (ideaId) {
       await db.query("UPDATE ideas SET status = 'scheduled', updated_at = now() WHERE id = $1 AND status IN ('idea', 'drafting', 'approved')", [ideaId]);

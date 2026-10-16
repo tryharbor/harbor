@@ -7,6 +7,7 @@ export interface BrandRow {
   workspace_id: string;
   name: string;
   slug: string;
+  logo_url: string | null;
   memory: unknown;
   created_at: Date | string;
   updated_at: Date | string;
@@ -18,6 +19,7 @@ export const toBrand = (r: BrandRow): Brand => ({
   workspaceId: r.workspace_id,
   name: r.name,
   slug: r.slug,
+  logoUrl: r.logo_url ?? undefined,
   memory: brandMemorySchema.parse(r.memory ?? {}),
   createdAt: iso(r.created_at),
   updatedAt: iso(r.updated_at),

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Channel } from '@harbor/core';
 import { getBrands, getChannels, getIdeas, getPosts, loadAll, type BrandView, type IdeaView, type PostView } from './api';
-import { Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, Upcoming, when } from './ui';
+import { BrandMark, Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, Upcoming, when } from './ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,10 +118,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             const live = posts.filter((p) => p.brandId === b.id && p.status === 'published').length;
             return (
               <Link key={b.id} href={`/brands/${b.id}`} className="card stack" style={{ textDecoration: 'none', color: 'inherit' }}>
-                <strong>{b.name}</strong>
+                <span className="row" style={{ gap: 10 }}><BrandMark name={b.name} logoUrl={b.logoUrl} size={28} /><strong style={{ fontWeight: 500 }}>{b.name}</strong></span>
                 <span className="muted small">{b.memory.products[0]?.summary || 'No product described yet'}</span>
                 <span className="row small">
-                  {bc.length ? bc.map((c) => <PlatformTag key={c.id} platform={c.platform} />) : <span className="muted">No accounts connected</span>}
+                  {bc.length ? bc.map((c) => <PlatformTag key={c.id} platform={c.platform} iconOnly />) : <span className="muted">No accounts connected</span>}
                 </span>
                 <span className="muted small">{pipeline} ideas in progress · {live} posts published</span>
               </Link>

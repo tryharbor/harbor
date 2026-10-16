@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@harbor/core": "workspace:*",
+    "@xyflow/react": "12.11.6",
     "next": "16.3.5",
     "react": "19.3.0",
     "react-dom": "19.3.0"

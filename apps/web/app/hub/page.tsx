@@ -88,7 +88,7 @@ function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[];
               ? posts.filter((p) => p.status === 'published' && (p.publishedAt ?? '') >= twoWeeksAgo)
               : [];
         return (
-          <section key={stage.key} className="column" aria-label={stage.label}>
+          <section key={stage.key} className="column" data-stage={stage.key} aria-label={stage.label}>
             <div className="column-head">
               <h2>{stage.label}</h2>
               <span className="muted small">{stageIdeas.length + stagePosts.length}</span>
@@ -108,7 +108,7 @@ function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[];
             {stage.key === 'idea' ? (
               <form action={suggestIdeas} className="item stack staging" style={{ background: 'transparent' }}>
                 <input type="hidden" name="returnTo" value={here} />
-                <span className="spread"><span className="label">Agent · Suggest ideas</span><span className="tag">Simulated</span></span>
+                <span className="spread"><span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Agent · Suggest ideas</span><span className="tag">Simulated</span></span>
                 <span className="dim small">From what worked, audience pain points and products. Each idea cites its reason.</span>
                 {brandFilter ? <input type="hidden" name="brandId" value={brandFilter} /> : (
                   <select name="brandId" aria-label="Brand to suggest for" required>

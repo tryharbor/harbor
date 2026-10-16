@@ -3,7 +3,7 @@ import { SimulatedModel, type SimulatedModelOptions } from './simulated.ts';
 import type { ContentModel } from './types.ts';
 
 export * from './types.ts';
-export { SimulatedModel, SIMULATED_MODEL_NAME, applyStyle, voiceStats, type SimulatedModelOptions, type VoiceStats } from './simulated.ts';
+export { SimulatedModel, SIMULATED_MODEL_NAME, applyStyle, contextParagraphs, voiceStats, type SimulatedModelOptions, type VoiceStats } from './simulated.ts';
 export { AnthropicModel, ANTHROPIC_OFF_MESSAGE } from './anthropic.ts';
 
 export const MODEL_MODES = ['simulated', 'anthropic'] as const;

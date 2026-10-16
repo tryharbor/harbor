@@ -509,6 +509,22 @@ const IMPERATIVES = new Set(
 );
 const isInstruction = (s: string) => IMPERATIVES.has((words(s)[0] ?? '').toLowerCase()) || /^format:/i.test(s);
 
+/**
+ * How the simulated model uses connected context, deterministically: the first note becomes a bracketed writer's
+ * note (like an angle instruction), the top post's opening line is quoted as what worked before, and the first
+ * signal is cited when there is no post. They go right after the hook so they survive fitting to the limit.
+ */
+export function contextParagraphs(context: NonNullable<DraftInput['context']>): string[] {
+  const out: string[] = [];
+  const note = context.find((c) => c.kind === 'note' && c.text.trim());
+  const post = context.find((c) => c.kind === 'post' && c.text.trim());
+  const signal = context.find((c) => c.kind === 'signal' && c.text.trim());
+  if (note) out.push(`[Note: ${stripEnd(preview(note.text, 200))}.]`);
+  if (post) out.push(`What worked last time: "${snippet(post.text, 100)}"`);
+  else if (signal) out.push(`Why now: ${ensureEnd(preview(signal.text, 160))}`);
+  return out;
+}
+
 export function draft(input: DraftInput): PostPart[] {
   const { brand, idea, platform, maxLength } = input;
   const m = brand.memory;
@@ -523,6 +539,7 @@ export function draft(input: DraftInput): PostPart[] {
   const statements = angleSentences.filter((s) => !isInstruction(s));
   const instruction = angleSentences.find(isInstruction);
   const paragraphs: string[] = [hook];
+  paragraphs.push(...contextParagraphs(input.context ?? []));
   paragraphs.push(...statements.slice(0, 3).map(ensureEnd));
   if (instruction) paragraphs.push(`[${stripEnd(instruction)}.]`);
   if (audience?.painPoints[0] && !idea.angle.toLowerCase().includes(audience.painPoints[0].toLowerCase())) {

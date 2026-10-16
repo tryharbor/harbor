@@ -22,7 +22,7 @@ export function VoiceLearner({ brandId, returnTo, savedExampleChars }: { brandId
       <form action={action} className="agent-panel">
         <div className="spread">
           <div className="stack" style={{ gap: 4 }}>
-            <span className="label">Agent · Learn the voice</span>
+            <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Agent · Learn the voice</span>
             <strong style={{ fontWeight: 500 }}>Show Harbor how this brand writes</strong>
           </div>
           <span className="tag">Simulated · no spend</span>

@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { HarborError, platformSchema, postPartSchema, type Platform } from '@harbor/core';
-import { REWRITE_INSTRUCTIONS, type ModelResult } from '@harbor/ai';
+import { HarborError, platformSchema, postPartSchema } from '@harbor/core';
+import { REWRITE_INSTRUCTIONS } from '@harbor/ai';
 import type { App, AppDeps } from '../app.ts';
 import { body } from '../lib/http.ts';
 import { loadBrand } from '../services/brands.ts';
-import { SELECT_DRAFTS, insertDraft, loadDraft, toDraft, type DraftRow } from '../services/drafts.ts';
+import { DEFAULT_MAX, SELECT_DRAFTS, generateDrafts, insertDraft, loadDraft, toDraft, type DraftRow } from '../services/drafts.ts';
 import { withRun } from '../services/runs.ts';
 
 const createSchema = z
@@ -25,9 +25,6 @@ const generateSchema = z
   .strict();
 
 const rewriteSchema = z.object({ instruction: z.enum(REWRITE_INSTRUCTIONS) }).strict();
-
-/** Fallback when a platform has no provider registered (shouldn't happen in practice). */
-const DEFAULT_MAX: Record<Platform, number> = { x: 280, linkedin: 3000, instagram: 2200, threads: 500 };
 
 /**
  * Keep a rewritten part within the platform's limit: drop whole sentences from the end first, and only cut
@@ -90,17 +87,7 @@ export function registerDrafts(app: App, deps: AppDeps) {
     const input = await body(c, generateSchema);
     const idea = await loadIdea(input.ideaId);
     const brand = await loadBrand(db, idea.brand_id);
-    const { value: ids, run } = await withRun(db, brand, 'draft', { ideaId: idea.id, platforms: input.platforms }, model.name, async (runId) => {
-      const calls: ModelResult<unknown>[] = [];
-      const ids: string[] = [];
-      for (const platform of input.platforms) {
-        const maxLength = deps.registry.get(platform)?.maxLength() ?? DEFAULT_MAX[platform];
-        const res = await model.draft({ brand, idea: { title: idea.title, angle: idea.angle }, platform, maxLength });
-        calls.push(res);
-        ids.push(await insertDraft(db, { brandId: brand.id, ideaId: idea.id, platform, parts: res.result, author: 'agent', agentRunId: runId }));
-      }
-      return { value: ids, calls, output: { draftIds: ids } };
-    });
+    const { ids, run } = await generateDrafts(deps, brand, idea, input.platforms);
     const drafts = [];
     for (const id of ids) drafts.push(await loadDraft(db, id));
     return c.json({ data: drafts, run }, 201);

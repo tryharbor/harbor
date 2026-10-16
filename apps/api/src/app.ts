@@ -8,6 +8,7 @@ import { publishModeFromEnv, sandboxSecretKey, type PublishMode } from './lib/mo
 import { SecretStore } from './lib/secrets.ts';
 import { registerAgentRuns } from './routes/agent-runs.ts';
 import { registerBrands } from './routes/brands.ts';
+import { registerCampaigns } from './routes/campaigns.ts';
 import { registerChannels } from './routes/channels.ts';
 import { registerCompetitors } from './routes/competitors.ts';
 import { registerDrafts } from './routes/drafts.ts';
@@ -104,5 +105,6 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerIdeas(app, deps);
   registerDrafts(app, deps);
   registerAgentRuns(app, deps);
+  registerCampaigns(app, deps);
   return app;
 }

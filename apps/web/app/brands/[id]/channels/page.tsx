@@ -3,6 +3,7 @@ import { disconnectChannel } from '../../../actions';
 import { API_PUBLIC_URL, getChannels, getMode, getPlatforms, loadAll, type Mode, type PlatformInfo } from '../../../api';
 import { SandboxConnect } from '../../../components/sandbox-connect';
 import { Flash, LoadError, PLATFORM_NAME, PlatformTag, when } from '../../../ui';
+import { PlatformIcon } from '../../../platform-icon';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export default async function ChannelsPage({ params, searchParams }: { params: P
           return (
             <section key={p.platform} className="stack">
               <div className="spread">
-                <h2 style={{ margin: 0 }}>{PLATFORM_NAME[p.platform]}</h2>
+                <h2 style={{ margin: 0, display: 'flex', gap: 10, alignItems: 'center' }}><PlatformIcon platform={p.platform} size={18} />{PLATFORM_NAME[p.platform]}</h2>
                 {!p.reportsMetrics ? <span className="tag">No metrics</span> : null}
               </div>
               <p className="muted small">{NOTES[p.platform]}</p>

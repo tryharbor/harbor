@@ -8,7 +8,7 @@ import { resolveParts } from './media.ts';
 import { createPost, type PostOut } from './posts.ts';
 import type { RunSource } from './runs.ts';
 import { openSlots, slotLabel } from './slots.ts';
-import { checkDraft, type Check } from './voice-check.ts';
+import { checkDraft, findPlaceholders, placeholderCheck, type Check } from './voice-check.ts';
 
 /**
  * Approvals: agents never publish. Anything an agent wants posted becomes a pending approval with a proposed slot;
@@ -66,13 +66,20 @@ const toApproval = (r: ApprovalRow, draft: DraftOut) => ({
   proposedFor: iso(r.proposed_for),
   slotScore: r.slot_score === null ? undefined : Number(r.slot_score),
   reason: r.reason,
-  checks: r.checks ?? [],
+  // Placeholders are re-checked against the draft as it is now, so approvals made before this check existed show it too.
+  checks: withLivePlaceholders(r.checks ?? [], draft.parts),
   createdAt: iso(r.created_at),
   decidedAt: r.decided_at ? iso(r.decided_at) : undefined,
   decidedNote: r.decided_note ?? undefined,
   postId: r.post_id ?? undefined,
 });
 export type Approval = ReturnType<typeof toApproval>;
+
+/** The placeholder check, re-run on the draft as it is now (in its usual place, or appended for older approvals). */
+function withLivePlaceholders(stored: Check[], parts: { text: string }[]): Check[] {
+  const live = placeholderCheck(parts);
+  return stored.some((c) => c.key === 'placeholders') ? stored.map((c) => (c.key === 'placeholders' ? live : c)) : [...stored, live];
+}
 
 async function withDrafts(db: Db, rows: ApprovalRow[]): Promise<Approval[]> {
   if (!rows.length) return [];
@@ -210,6 +217,8 @@ export async function approve(
       input.scheduledFor ? 'scheduledFor: must be in the future.' : `The proposed time (${current.proposedFor}) has passed. Approve with a new scheduledFor.`,
     );
   }
+  const unfilled = findPlaceholders(parts ?? d.parts);
+  if (unfilled.length) throw new HarborError('INVALID_REQUEST', `Fill in ${unfilled.slice(0, 3).join(', ')} before approving. Edit the post, then approve with changes.`);
   // Claim it first, so two approvals of the same row can't both schedule a post.
   const [claimed] = await db.query(`UPDATE approvals SET status = 'approved', decided_at = now() WHERE id = $1 AND status = 'pending' RETURNING id`, [id]);
   if (!claimed) throw notPending(await loadApproval(db, id));

@@ -171,7 +171,7 @@ describe('/mcp', () => {
     const approval = data(proposed);
     expect(approval).toMatchObject({ status: 'pending', source: 'mcp', draft: { id: drafts[0].id }, channel: { platform: 'x' }, reason: expect.stringMatching(/next free best-time slot/) });
     expect(new Date(approval.proposedFor).getTime()).toBeGreaterThan(Date.now() + 3_600_000);
-    expect(approval.checks.length).toBe(7);
+    expect(approval.checks.length).toBe(8);
     expect((await json('GET', '/v1/approvals?status=pending', undefined, 200)).data.map((a: any) => a.id)).toEqual([approval.id]);
     expect((await json('GET', `/v1/posts?brandId=${brandId}`, undefined, 200)).data).toEqual([]);
 

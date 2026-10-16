@@ -105,7 +105,7 @@ describe('weekly plan', () => {
       expect(at(a.proposedFor)).toBeGreaterThan(now + HOUR);
       expect(at(a.proposedFor)).toBeLessThan(now + 9 * 24 * HOUR);
       expect(a.reason).toMatch(/best (X|LinkedIn) slots\. From last week's digest: /);
-      expect(a.checks.map((c: any) => c.key)).toEqual(['banned_words', 'avoid', 'length', 'hashtags', 'style_rules', 'hook', 'media']);
+      expect(a.checks.map((c: any) => c.key)).toEqual(['banned_words', 'avoid', 'length', 'hashtags', 'style_rules', 'hook', 'placeholders', 'media']);
       expect(a.draft).toMatchObject({ author: 'agent', platform: a.channel.platform, simulated: true });
       expect(a.ideaTitle).toBeTruthy();
     }
@@ -258,7 +258,8 @@ describe('approvals', () => {
     expect((await json('POST', `/v1/approvals/${a.id}/approve`, {}, 400)).error.message).toMatch(/has passed/);
     expect((await json('POST', `/v1/approvals/${a.id}/approve`, { scheduledFor: new Date(Date.now() - HOUR).toISOString() }, 400)).error.message).toMatch(/future/);
     const later = new Date(Date.now() + 48 * HOUR).toISOString();
-    const { approval, post } = await json('POST', `/v1/approvals/${a.id}/approve`, { scheduledFor: later }, 200);
+    const parts = a.draft.parts.map((p: any) => ({ text: p.text.replace(/\[[^\]]*\]/g, 'Filled in.') }));
+    const { approval, post } = await json('POST', `/v1/approvals/${a.id}/approve`, { scheduledFor: later, parts }, 200);
     expect(approval.status).toBe('approved');
     expect(post.scheduledFor).toBe(later);
   });
@@ -272,7 +273,24 @@ describe('approvals', () => {
     await json('POST', '/v1/approvals/apr_missing/reject', {}, 404);
   });
 
+  it('refuses to approve a post with unfilled [placeholders], and approves once they are filled in', async () => {
+    const [a] = await pending();
+    expect(a.checks.find((c: any) => c.key === 'placeholders')).toMatchObject({ ok: false, severity: 'fail' });
+    const err = (await json('POST', `/v1/approvals/${a.id}/approve`, {}, 400)).error.message;
+    expect(err).toMatch(/^Fill in \[/);
+    const filled = a.draft.parts.map((p: any) => ({ text: p.text.replace(/\[[^\]]*\]/g, 'Here is the workaround.') }));
+    const { approval } = await json('POST', `/v1/approvals/${a.id}/approve`, { parts: filled }, 200);
+    expect(approval.status).toBe('approved');
+    expect(approval.checks.find((c: any) => c.key === 'placeholders')).toMatchObject({ ok: true });
+  });
+
   it('approves or rejects in bulk, reporting each one', async () => {
+    // The simulated model leaves [writer's notes] in its drafts; fill them in (as a person would) so these can be approved.
+    const drafts = await db.query<{ id: string; parts: { text: string }[] }>('SELECT id, parts FROM drafts');
+    for (const d of drafts) {
+      const parts = d.parts.map((p) => ({ ...p, text: p.text.replace(/\[[^\]]*\]/g, 'Filled in.') }));
+      await db.query('UPDATE drafts SET parts = $2 WHERE id = $1', [d.id, JSON.stringify(parts)]);
+    }
     const [a, b] = await pending();
     const rejected = (await json('GET', `/v1/approvals?status=rejected`, undefined, 200)).data[0];
     const { results } = await json('POST', '/v1/approvals/bulk', { action: 'approve', ids: [a.id, rejected.id, 'apr_missing'] }, 200);
@@ -283,7 +301,7 @@ describe('approvals', () => {
     ]);
     expect((await json('POST', '/v1/approvals/bulk', { action: 'reject', ids: [b.id] }, 200)).results).toEqual([{ id: b.id, ok: true }]);
     const counts = (await json('GET', `/v1/approvals?brandId=${brandId}`, undefined, 200)).counts;
-    expect(counts.approved).toBe(4);
+    expect(counts.approved).toBe(5);
     expect(counts.rejected).toBe(2);
   });
 });

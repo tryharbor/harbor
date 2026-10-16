@@ -49,6 +49,22 @@ export function avoidPhrases(rule: string): string[] {
 const pass = (key: string, label: string, detail: string): Check => ({ key, ok: true, severity: 'info', label, detail });
 
 /**
+ * Bracketed notes left for a person to fill in, like "[24h views]" or the simulated model's "[Name it in the first
+ * line…]". They must never be published as-is.
+ */
+export function findPlaceholders(parts: Pick<PostPart, 'text'>[]): string[] {
+  const found = parts.flatMap((p) => p.text.match(/\[[^\[\]\n]{2,160}\]/g) ?? []);
+  return [...new Set(found)];
+}
+
+export function placeholderCheck(parts: Pick<PostPart, 'text'>[]): Check {
+  const found = findPlaceholders(parts);
+  return found.length
+    ? { key: 'placeholders', ok: false, severity: 'fail', label: 'Placeholders', detail: `Fill in ${found.slice(0, 3).join(', ')}${found.length > 3 ? ` and ${found.length - 3} more` : ''} before it goes out.` }
+    : pass('placeholders', 'Placeholders', 'Nothing left to fill in.');
+}
+
+/**
  * `assets` are the library assets the draft's media references (see mediaLookup); without them, library media is
  * checked from its URL only.
  */
@@ -123,6 +139,7 @@ export function voiceCheck(
         ? { key: 'hook', ok: false, severity: 'warn', label: 'Hook', detail: `The hook is very short (${[...hook].length} characters).` }
         : pass('hook', 'Hook', 'The first line works as a hook.'),
   );
+  checks.push(placeholderCheck(draft.parts));
   checks.push(mediaCheck(draft, assets));
   return checks;
 }

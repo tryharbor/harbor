@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { cookies } from 'next/headers';
 import { getBrands, getMode, type BrandView, type Mode } from './api';
 import { NavLink } from './nav-link';
+import { ThemeToggle, type Theme } from './theme-toggle';
 import { HarborMark } from './ui';
 import './globals.css';
 
@@ -21,9 +23,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     // Pages show the connection error themselves; the sidebar renders without brands.
   }
   const live = mode?.publish === 'live';
+  // Light by default; dark only when chosen with the toggle.
+  const theme: Theme = (await cookies()).get('harbor-theme')?.value === 'dark' ? 'dark' : 'light';
 
   return (
-    <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-theme={theme === 'dark' ? 'dark' : undefined}>
       <body>
         <div className="shell">
           <aside className="sidebar" aria-label="Main">
@@ -55,7 +59,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   </span>
                 </div>
               ) : null}
-              <NavLink href="/settings">Settings</NavLink>
+              <div className="spread">
+                <NavLink href="/settings">Settings</NavLink>
+                <ThemeToggle initial={theme} />
+              </div>
             </div>
           </aside>
           <main className="content">{children}</main>

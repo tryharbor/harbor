@@ -1,9 +1,14 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { applyVoice, learnVoice, type LearnState } from '../actions';
 import type { BrandVoice } from '../api';
 import { VOICE_PERSONALITIES, voiceStrength } from './voice-samples';
+import { NEUTRAL, VoiceMixer, applyMix, mixFromPicks, type Mix } from './voice-mixer';
+
+/** Learning is quick on the built-in model; a short staged reveal shows what it's doing rather than flashing the result. */
+const MIN_REVEAL_MS = 1600;
+const STAGES = { pick: ['Reading your picks', 'Finding sentence patterns', 'Writing values and rules', 'Applying your mix'], paste: ['Reading your posts', 'Finding sentence patterns', 'Picking verbatim excerpts', 'Writing values and rules'], dials: ['Reading the dials', 'Writing values and rules'] } as const;
 
 /**
  * Voice creation, easiest path first: pick sample posts that sound like the brand (no writing needed), or paste
@@ -16,6 +21,25 @@ export function VoiceLearner({ brandId, returnTo, savedExampleChars, skipHref, i
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [pasted, setPasted] = useState('');
   const toggle = (t: string) => setPicked((s) => { const n = new Set(s); if (n.has(t)) n.delete(t); else n.add(t); return n; });
+  // Dials follow the picks until the owner moves one themselves.
+  const [mix, setMix] = useState<Mix>(NEUTRAL);
+  const [touched, setTouched] = useState(false);
+  useEffect(() => { if (!touched) setMix(mixFromPicks(picked)); }, [picked, touched]);
+  // Staged reveal: `run` marks when generating started and from which path; the proposal shows once the
+  // result is in and the stages have had time to play.
+  const [run, setRun] = useState<{ kind: 'pick' | 'paste' | 'dials'; at: number } | null>(null);
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (!run) return;
+    const t = setInterval(() => setNow(Date.now()), 120);
+    return () => clearInterval(t);
+  }, [run]);
+  const elapsed = run ? Math.max(0, now - run.at) : 0;
+  const resultReady = run?.kind === 'dials' || (!pending && !!state?.voice);
+  const revealed = !!run && resultReady && elapsed >= MIN_REVEAL_MS;
+  const generating = !!run && !revealed && !state?.error;
+  const stages = run ? STAGES[run.kind] : [];
+  const stageIndex = Math.min(stages.length - 1, Math.floor((elapsed / MIN_REVEAL_MS) * stages.length));
 
   const pastedPosts = pasted.split(/^\s*---\s*$/m).map((t) => t.trim()).filter(Boolean);
   const usingSaved = mode === 'paste' && pastedPosts.length === 0;
@@ -26,7 +50,7 @@ export function VoiceLearner({ brandId, returnTo, savedExampleChars, skipHref, i
 
   return (
     <div className="stack-lg">
-      <form action={action} className="agent-panel">
+      <form action={action} className="agent-panel" onSubmit={() => { const t = Date.now(); setRun({ kind: mode === 'pick' ? 'pick' : 'paste', at: t }); setNow(t); }}>
         <div className="spread" style={{ flexWrap: 'wrap', gap: 10 }}>
           <div className="stack" style={{ gap: 4 }}>
             <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Learn the voice</span>
@@ -60,6 +84,7 @@ export function VoiceLearner({ brandId, returnTo, savedExampleChars, skipHref, i
                 </div>
               ))}
             </div>
+            <VoiceMixer mix={mix} onChange={(m) => { setTouched(true); setMix(m); }} picksCount={picked.size} />
           </div>
         ) : mode === 'paste' ? (
           <div className="field">
@@ -81,15 +106,30 @@ export function VoiceLearner({ brandId, returnTo, savedExampleChars, skipHref, i
             </span>
             <span className="row" style={{ gap: 6 }}>
               {skipHref ? <a className="button" href={skipHref}>Skip for now</a> : null}
-              <button className="primary" type="submit" disabled={pending || !strength.ok}>{pending ? 'Learning…' : 'Learn the voice'}</button>
+              {mode === 'pick' && !strength.ok ? (
+                <button type="button" onClick={() => { const t = Date.now(); setRun({ kind: 'dials', at: t }); setNow(t); }} disabled={generating}>Use the dials only</button>
+              ) : null}
+              <button className="primary" type="submit" disabled={generating || pending || !strength.ok}>{generating ? 'Learning…' : 'Learn the voice'}</button>
             </span>
           </div>
         ) : skipHref ? <div><a className="button" href={skipHref}>Skip for now</a></div> : null}
         <span className="dim small" title="Harbor runs on its built-in model while you set things up, so learning a voice costs nothing.">Proposes a voice; nothing is saved until you choose to use it. Free to run.</span>
         {state?.error ? <p className="error" role="alert">{state.error}</p> : null}
+        {generating ? (
+          <ol className="gen-stages" role="status" aria-live="polite">
+            {stages.map((label, i) => (
+              <li key={label} className={i < stageIndex ? 'done' : i === stageIndex ? 'active' : undefined}>
+                <span className="mono" aria-hidden="true">{i < stageIndex ? '✓' : i === stageIndex ? '…' : '·'}</span>{label}
+              </li>
+            ))}
+          </ol>
+        ) : null}
       </form>
 
-      {state?.voice ? <VoiceProposal voice={mode === 'pick' ? fromSamples(state.voice, picked) : state.voice} model={state.run?.model} brandId={brandId} returnTo={returnTo} examples={mode === 'paste' ? state.examples ?? '' : ''} /> : null}
+      {revealed && run?.kind === 'dials' ? <VoiceProposal voice={applyMix(mix)} model="voice mixer" brandId={brandId} returnTo={returnTo} examples="" /> : null}
+      {revealed && run?.kind !== 'dials' && state?.voice ? (
+        <VoiceProposal voice={run?.kind === 'pick' ? applyMix(mix, fromSamples(state.voice, picked)) : state.voice} model={state.run?.model} brandId={brandId} returnTo={returnTo} examples={run?.kind === 'paste' ? state.examples ?? '' : ''} />
+      ) : null}
     </div>
   );
 }
@@ -102,6 +142,7 @@ function fromSamples(voice: BrandVoice, picked: Set<string>): BrandVoice {
   const names = VOICE_PERSONALITIES.filter((p) => p.posts.some((t) => picked.has(t))).map((p) => p.name);
   return {
     ...voice,
+    summary: voice.summary.replace(/\s*Recurring words:[^.]*\./i, '').trim(),
     excerpts: [],
     do: voice.do.filter((d) => !/core topics/i.test(d)),
     sources: names.map((n) => ({ kind: 'example' as const, label: `Sample style: ${n}` })),
@@ -110,14 +151,14 @@ function fromSamples(voice: BrandVoice, picked: Set<string>): BrandVoice {
 
 function VoiceProposal({ voice, model, brandId, returnTo, examples }: { voice: BrandVoice; model?: string; brandId: string; returnTo: string; examples: string }) {
   return (
-    <form action={applyVoice} className="preview-card staging" style={{ position: 'static' }}>
+    <form action={applyVoice} className="preview-card staging reveal" style={{ position: 'static' }}>
       <input type="hidden" name="brandId" value={brandId} />
       <input type="hidden" name="returnTo" value={returnTo} />
       <input type="hidden" name="voice" value={JSON.stringify(voice)} />
       <input type="hidden" name="examples" value={examples} />
       <div className="spread">
         <span className="label">Proposed voice</span>
-        {model?.startsWith('simulated') ? <span className="tag" title="Made by Harbor's built-in model: free to run.">Built-in model</span> : <span className="tag">{model}</span>}
+        {model?.startsWith('simulated') ? <span className="tag" title="Made by Harbor's built-in model: free to run.">Built-in model</span> : model ? <span className="tag">{model}</span> : null}
       </div>
       <div className="kv"><span className="label">Personality</span><p>{voice.summary}</p></div>
       {voice.values.length ? (

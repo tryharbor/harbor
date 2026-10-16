@@ -19,7 +19,7 @@ const STEPS = [
 ] as const;
 type Step = (typeof STEPS)[number]['key'];
 
-export default async function NewBrandWizard({ searchParams }: { searchParams: Promise<{ step?: string; brandId?: string; notice?: string; error?: string }> }) {
+export default async function NewBrandWizard({ searchParams }: { searchParams: Promise<{ step?: string; brandId?: string; redo?: string; notice?: string; error?: string }> }) {
   const s = await searchParams;
   const step: Step = s.brandId ? ((STEPS.find((x) => x.key === s.step)?.key ?? 'audience') as Step) : 'basics';
   const index = STEPS.findIndex((x) => x.key === step);
@@ -68,13 +68,30 @@ export default async function NewBrandWizard({ searchParams }: { searchParams: P
 
           {brand && step === 'audience' ? <AudienceStep brandId={brand.id} returnTo={url('audience')} existing={brand.memory.audiences} /> : null}
 
-          {brand && step === 'voice' ? (
+          {brand && step === 'voice' && brand.memory.voice.summary && !s.redo ? (
+            <section className="stack voice-saved reveal">
+              <span className="label row" style={{ gap: 8 }}><span className="check ok" aria-hidden="true">✓</span>Voice saved</span>
+              <h2 style={{ margin: 0 }}>This is how {brand.name} sounds</h2>
+              <p style={{ margin: 0 }}>{brand.memory.voice.summary}</p>
+              <div className="grid-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <div className="kv"><span className="label">Do</span><ul className="small" style={{ margin: 0, paddingLeft: 18 }}>{brand.memory.voice.do.slice(0, 6).map((d) => <li key={d}>{d}</li>)}</ul></div>
+                <div className="kv"><span className="label">Avoid</span><ul className="small" style={{ margin: 0, paddingLeft: 18 }}>{brand.memory.voice.avoid.slice(0, 6).map((d) => <li key={d}>{d}</li>)}</ul></div>
+              </div>
+              <span className="small dim">Harbor keeps refining this from what actually performs. Edit it any time in Brand Memory.</span>
+              <div className="row" style={{ gap: 6 }}>
+                <Link className="button primary" href={url('accounts')}>Next: Accounts →</Link>
+                <Link className="button" href={`${url('voice')}&redo=1`}>Change it</Link>
+              </div>
+            </section>
+          ) : null}
+
+          {brand && step === 'voice' && (!brand.memory.voice.summary || s.redo) ? (
             <div className="stack-lg">
               <div className="stack" style={{ gap: 6 }}>
                 <h2 style={{ margin: 0 }}>How does {brand.name} sound?</h2>
                 <p className="muted small">Pick a few posts that sound like {brand.name}. Harbor turns them into a voice (personality, values, do and avoid rules) and keeps refining it from what actually performs once you're posting.</p>
               </div>
-              <VoiceLearner brandId={brand.id} returnTo={url('voice')} savedExampleChars={brand.memory.examplePosts.reduce((n, e) => n + e.text.length, 0)} skipHref={url('accounts')} importHref={url('accounts')} />
+              <VoiceLearner brandId={brand.id} returnTo={url('voice')} savedExampleChars={brand.memory.examplePosts.reduce((n, e) => n + e.text.length, 0)} importHref={url('accounts')} />
             </div>
           ) : null}
 
@@ -110,7 +127,7 @@ export default async function NewBrandWizard({ searchParams }: { searchParams: P
             </div>
           ) : null}
 
-          {brand && next && step !== 'done' ? (
+          {brand && next && step !== 'done' && !(step === 'voice' && brand.memory.voice.summary && !s.redo) ? (
             <div className="spread" style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
               <span className="dim small">Everything here can be changed later in Brand Memory.</span>
               <span className="row" style={{ gap: 6 }}>

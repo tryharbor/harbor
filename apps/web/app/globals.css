@@ -622,3 +622,27 @@ mark { background: var(--yellow-soft); color: inherit; padding: 0 1px; }
 .account-list li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
 .account-list li:first-child { border-top: 0; padding-top: 0; }
 @media (max-width: 900px) { .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---- Voice mixer and staged generation ---- */
+.mixer { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 20px; padding: 16px; border: 1px solid var(--line); background: var(--sunken); }
+@media (max-width: 900px) { .mixer { grid-template-columns: 1fr; } }
+.dial { display: grid; grid-template-columns: 76px minmax(0, 1fr) 76px; gap: 10px; align-items: center; }
+.dial input[type='range'] { width: 100%; padding: 0; border: 0; background: none; accent-color: var(--signal); }
+.pole { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+.pole.right { text-align: right; }
+.pole.on { color: var(--signal-ink); }
+.mix-rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; color: var(--muted); }
+.mix-sample { display: grid; gap: 8px; align-content: start; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); }
+.mix-sample p { margin: 0; white-space: pre-wrap; font-size: 14.5px; line-height: 1.55; color: var(--ink); }
+.gen-stages { list-style: none; margin: 0; padding: 12px 14px; display: grid; gap: 6px; border: 1px dashed var(--line-strong); font-size: 13px; color: var(--dim); }
+.gen-stages li { display: grid; grid-template-columns: 18px 1fr; }
+.gen-stages li.done { color: var(--muted); }
+.gen-stages li.done .mono { color: var(--good); }
+.gen-stages li.active { color: var(--ink); }
+.gen-stages li.active .mono { color: var(--signal-ink); animation: pulse 0.9s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+.reveal > * { animation: rise 420ms ease-out both; }
+.reveal > *:nth-child(2) { animation-delay: 60ms; } .reveal > *:nth-child(3) { animation-delay: 120ms; } .reveal > *:nth-child(4) { animation-delay: 180ms; }
+.reveal > *:nth-child(5) { animation-delay: 240ms; } .reveal > *:nth-child(6) { animation-delay: 300ms; } .reveal > *:nth-child(n+7) { animation-delay: 360ms; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.voice-saved { border-color: var(--good); }

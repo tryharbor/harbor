@@ -21,6 +21,18 @@
 .cmp tbody th { font-weight: 400; color: var(--muted); width: 22%; }
 .cmp td.harbor { background: rgba(247, 138, 217, 0.04); }
 .cmp td { color: #d4d4d8; }
+/* On a phone, each row becomes a block: the row label, then Harbor, then the other tool, so both stay on screen. */
+@media (max-width: 640px) {
+  .cmp { min-width: 0; }
+  .cmp thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .cmp tr, .cmp th, .cmp td { display: block; }
+  .cmp tbody tr { border-top: 1px solid var(--line); }
+  .cmp tbody tr:first-child { border-top: 0; }
+  .cmp tbody th { width: auto; border-top: 0; padding: 14px 16px 4px; color: var(--ink); }
+  .cmp td { border-top: 0; padding: 8px 16px; }
+  .cmp td:last-child { padding-bottom: 16px; }
+  .cmp td::before { content: attr(data-label); display: block; margin-bottom: 2px; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); }
+}
 .choose { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); }
 .choose > div { background: var(--panel); padding: clamp(20px, 3vw, 32px); display: grid; gap: 14px; align-content: start; }
 @media (max-width: 760px) { .choose { grid-template-columns: 1fr; } }

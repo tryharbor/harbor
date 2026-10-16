@@ -114,7 +114,7 @@ code { font-family: var(--font-mono); font-size: 0.92em; }
   .burger { display: inline-flex; margin-left: auto; }
   .site-header .container { gap: 12px; }
 }
-.mobile-nav { position: fixed; inset: 60px 0 0; z-index: 49; background: var(--bg); overflow-y: auto; padding: 16px var(--gutter) 40px; display: grid; gap: 6px; align-content: start; }
+.mobile-nav { position: fixed; inset: 60px 0 0; z-index: 49; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; padding: 16px var(--gutter) calc(40px + env(safe-area-inset-bottom)); display: grid; gap: 6px; align-content: start; }
 .mobile-nav a:not(.btn) { text-decoration: none; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 20px; letter-spacing: -0.02em; }
 .mobile-nav .mobile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 24px; }
 .mobile-nav .mobile-actions .btn { padding: 14px 16px; font-size: 16px; }
@@ -236,4 +236,14 @@ a.card:hover { border-color: var(--line-strong); transform: translateY(-2px); }
 .prose th, .prose td { text-align: left; vertical-align: top; padding: 10px 14px; border-top: 1px solid var(--line); min-width: 120px; }
 .prose th { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); font-weight: 400; border-top: 0; padding-bottom: 8px; }
 .prose td:first-child { color: var(--muted); white-space: nowrap; min-width: 0; }
+/* The row label stays put while a wide table scrolls sideways on a phone. */
+.prose th:first-child, .prose td:first-child { position: sticky; left: 0; background: var(--bg); z-index: 1; }
+@media (max-width: 640px) { .prose th, .prose td { min-width: 104px; padding-left: 10px; padding-right: 10px; } .prose th:first-child, .prose td:first-child { min-width: 0; padding-left: 0; } }
 .prose table + p { margin-top: 0; }
+
+/* Touch: small links and buttons get a larger invisible hit area (about 44px tall). */
+@media (pointer: coarse) {
+  .hit, .link-arrow, .blog-back, .cmd button { position: relative; }
+  .hit::after, .link-arrow::after, .blog-back::after, .cmd button::after { content: ''; position: absolute; inset: -12px -8px; }
+  .footer-grid a:not(.brand) { padding: 9px 0; }
+}

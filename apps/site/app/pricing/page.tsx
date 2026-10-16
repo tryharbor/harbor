@@ -135,7 +135,7 @@ export default function PricingPage() {
                 </thead>
                 {ROWS.map((g) => (
                   <tbody key={g.group}>
-                    <tr className="pr-group"><th scope="rowgroup" colSpan={5}>{g.group}</th></tr>
+                    <tr className="pr-group"><th scope="rowgroup">{g.group}</th>{COLUMNS.map((c) => <td key={c} className={`pr-group-col${c === 'Builder' ? ' featured' : ''}`} aria-hidden="true">{c}</td>)}</tr>
                     {g.rows.map((r) => (
                       <tr key={r.label}>
                         <th scope="row">{r.label}{r.note ? <span className="pr-row-note">{r.note}</span> : null}</th>

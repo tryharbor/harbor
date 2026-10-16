@@ -28,7 +28,10 @@ export function Header() {
   useEffect(() => { document.body.style.overflow = mobile ? 'hidden' : ''; }, [mobile]);
   const current = (href: string) => (path === href || path.startsWith(`${href}/`) ? 'page' : undefined);
 
+  // The mobile nav sits outside <header>: the header's backdrop-filter makes it the containing block for
+  // position: fixed children, which on iOS Safari collapsed the menu to the header's 60px.
   return (
+    <>
     <header className="site-header">
       <div className="container">
         <Link href="/" className="brand" aria-label="Harbor home"><Mark size={20} />Harbor<span className="pixels" aria-hidden="true" style={{ width: 20, height: 4 }} /></Link>
@@ -65,6 +68,7 @@ export function Header() {
           <button type="button" className="btn sm burger" aria-expanded={mobile} aria-label={mobile ? 'Close menu' : 'Open menu'} onClick={() => setMobile((m) => !m)}>{mobile ? 'Close' : 'Menu'}</button>
         </div>
       </div>
+    </header>
       {mobile ? (
         <nav className="mobile-nav" aria-label="Mobile">
           <span className="label" style={{ marginTop: 8 }}>Product</span>
@@ -78,6 +82,6 @@ export function Header() {
           </div>
         </nav>
       ) : null}
-    </header>
+    </>
   );
 }

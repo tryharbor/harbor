@@ -25,7 +25,19 @@
 .pr-table td.featured, .pr-table thead th.featured { background: var(--panel); }
 .pr-table tbody th { font-weight: 400; color: var(--ink); width: 32%; }
 .pr-table tbody th[scope='row'] { position: sticky; left: 0; background: var(--bg-2); z-index: 1; }
-.pr-group th { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim) !important; padding-top: 28px !important; background: var(--bg-2); }
+/* On a phone, a narrow pinned label column leaves room for two plans side by side. */
+@media (max-width: 640px) {
+  .pr-table { min-width: 540px; font-size: 14px; }
+  .pr-table th, .pr-table td { padding: 12px 10px; }
+  .pr-table td { width: auto; }
+  .pr-table tbody th { width: 124px; min-width: 124px; max-width: 124px; }
+  .pr-table tbody th[scope='row'] { box-shadow: 1px 0 0 var(--line); }
+}
+.pr-group th, .pr-group td { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim) !important; padding-top: 28px !important; background: var(--bg-2); }
+/* Plan names repeat on each group row, shown only on phones, where the header row has scrolled away. */
+.pr-group td.pr-group-col { color: transparent !important; vertical-align: bottom; }
+.pr-group td.pr-group-col.featured { background: var(--panel); }
+@media (max-width: 640px) { .pr-group td.pr-group-col { color: var(--dim) !important; } }
 .pr-row-note { display: block; color: var(--dim); font-size: 13px; line-height: 1.45; margin-top: 4px; max-width: 42ch; }
 .pr-yes { color: var(--good); font-family: var(--font-mono); }
 .pr-no { color: var(--dim); font-family: var(--font-mono); }

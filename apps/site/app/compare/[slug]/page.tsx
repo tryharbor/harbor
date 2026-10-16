@@ -51,7 +51,7 @@ export default async function ComparePage({ params }: { params: Promise<{ slug: 
                 <thead><tr><th scope="col"><span className="sr-only">Feature</span></th><th scope="col">Harbor</th><th scope="col">{c.name}</th></tr></thead>
                 <tbody>
                   {c.rows.map((r) => (
-                    <tr key={r.label}><th scope="row">{r.label}</th><td className="harbor">{r.harbor}</td><td>{r.them}</td></tr>
+                    <tr key={r.label}><th scope="row">{r.label}</th><td className="harbor" data-label="Harbor">{r.harbor}</td><td data-label={c.name}>{r.them}</td></tr>
                   ))}
                 </tbody>
               </table>

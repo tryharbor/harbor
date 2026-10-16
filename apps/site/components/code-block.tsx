@@ -15,7 +15,8 @@ export function CodeBlock({ title, code, copy = true }: { title: string; code: s
             type="button"
             onClick={() => { void navigator.clipboard.writeText(code).then(() => { setDone(true); setTimeout(() => setDone(false), 1400); }); }}
             aria-label={`Copy ${title}`}
-            style={{ all: 'unset', cursor: 'pointer', color: done ? 'var(--good)' : 'var(--muted)', minWidth: 39, textAlign: 'right' }}
+            className="hit"
+            style={{ all: 'unset', position: 'relative', cursor: 'pointer', color: done ? 'var(--good)' : 'var(--muted)', minWidth: 39, textAlign: 'right' }}
           >
             {done ? 'Copied' : 'Copy'}
           </button>

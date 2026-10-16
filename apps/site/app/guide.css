@@ -1,0 +1,29 @@
+/* Use-case and comparison pages. */
+.answer { border: 1px solid var(--line-strong); background: var(--panel); padding: clamp(20px, 3vw, 32px); display: grid; gap: 12px; }
+.answer p { margin: 0; font-size: clamp(17px, 1.6vw, 20px); line-height: 1.55; color: var(--ink); max-width: 72ch; }
+.split.flip > :first-child { order: 2; }
+@media (max-width: 900px) { .split.flip > :first-child { order: 0; } }
+.guide-steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 14px; }
+.guide-steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; color: var(--muted); font-size: 17px; }
+.guide-steps li::before { content: counter(s, decimal-leading-zero); font-family: var(--font-mono); font-size: 13px; color: var(--pink); padding-top: 3px; }
+.guide-faq { display: grid; border-top: 1px solid var(--line); }
+.guide-faq details { border-bottom: 1px solid var(--line); }
+.guide-faq summary { cursor: pointer; list-style: none; padding: 18px 28px 18px 0; position: relative; font-size: 18px; letter-spacing: -0.01em; }
+.guide-faq summary::-webkit-details-marker { display: none; }
+.guide-faq summary::after { content: '+'; position: absolute; right: 0; top: 16px; font-family: var(--font-mono); color: var(--dim); }
+.guide-faq details[open] summary::after { content: '−'; }
+.guide-faq p { margin: 0 0 18px; color: var(--muted); max-width: 64ch; }
+/* Comparison table: rows of facts, Harbor first, scrolls on its own on phones. */
+.cmp-wrap { overflow-x: auto; border: 1px solid var(--line); }
+.cmp { width: 100%; border-collapse: collapse; min-width: 640px; font-size: 15px; }
+.cmp th, .cmp td { text-align: left; vertical-align: top; padding: 14px 16px; border-top: 1px solid var(--line); }
+.cmp thead th { border-top: 0; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); font-weight: 400; background: var(--panel); }
+.cmp tbody th { font-weight: 400; color: var(--muted); width: 22%; }
+.cmp td.harbor { background: rgba(247, 138, 217, 0.04); }
+.cmp td { color: #d4d4d8; }
+.choose { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.choose > div { background: var(--panel); padding: clamp(20px, 3vw, 32px); display: grid; gap: 14px; align-content: start; }
+@media (max-width: 760px) { .choose { grid-template-columns: 1fr; } }
+.sources { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+.sources a { color: var(--muted); }
+.sources a:hover { color: var(--ink); }

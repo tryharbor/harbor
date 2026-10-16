@@ -1,6 +1,8 @@
 import { getPosts } from './blog';
 import { PRICING } from './pricing';
+import { COMPARISONS } from './compare';
 import { FEATURES, SITE } from './site';
+import { USE_CASES } from './use-cases';
 
 /**
  * llms.txt (llmstxt.org): a plain-markdown summary of the site for AI assistants and answer engines. The same facts as
@@ -34,6 +36,14 @@ ${FEATURES.map((f) => `- [${f.name}](${SITE.url}${f.href}): ${f.short}`).join('\
 - [Open source and self-hosting](${SITE.url}/open-source): the license in plain words, setup steps, architecture
 - [Developers](${SITE.url}/developers): MCP server, tools and scopes, REST API, API keys
 - [Platform setup guide](${SITE.github}/blob/main/docs/setup/platform-apps.md): registering X, LinkedIn, Instagram and Threads developer apps
+
+## Use cases
+
+${USE_CASES.map((u) => `- [${u.metaTitle}](${SITE.url}/use-cases/${u.slug}): ${u.answer}`).join('\n')}
+
+## Comparisons
+
+${COMPARISONS.map((c) => `- [Harbor vs ${c.name}](${SITE.url}/compare/${c.slug}) (checked ${c.checkedOn}): ${c.answer}`).join('\n') || '- Coming soon'}
 
 ## Blog
 

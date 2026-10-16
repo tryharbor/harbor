@@ -41,6 +41,7 @@ export const NAV = {
   more: [
     { href: '/developers', name: 'Developers', short: 'MCP server, API keys and the API' },
     { href: '/open-source', name: 'Open source', short: 'AGPL. Self-host in minutes, own your data' },
+    { href: '/use-cases', name: 'Use cases', short: 'Several brands, Claude over MCP, self-hosting, and comparisons' },
   ],
   top: [
     { href: '/pricing', name: 'Pricing' },

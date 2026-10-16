@@ -109,3 +109,13 @@ export function blogPosting(post: { slug: string; title: string; description: st
     about: { '@id': APP_ID },
   };
 }
+
+/** Breadcrumbs from the home page down: [['Use cases', '/use-cases'], ['Harbor vs Buffer', '/compare/buffer']]. */
+export function breadcrumbs(trail: [string, string][]) {
+  const items: [string, string][] = [['Home', '/'], ...trail];
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map(([name, path], i) => ({ '@type': 'ListItem', position: i + 1, name, item: `${SITE.url}${path === '/' ? '' : path}` })),
+  };
+}

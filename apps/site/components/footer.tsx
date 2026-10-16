@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { COMPARISONS } from '../lib/compare';
 import { FEATURES, SITE } from '../lib/site';
 import { Mark } from './ui';
 
@@ -26,6 +27,8 @@ export function Footer() {
           </div>
           <div>
             <span className="label">Resources</span>
+            <Link href="/use-cases">Use cases</Link>
+            {COMPARISONS.map((c) => <Link key={c.slug} href={`/compare/${c.slug}`}>Harbor vs {c.name}</Link>)}
             <Link href="/blog">Blog</Link>
             <Link href="/changelog">Changelog</Link>
             <Link href="/pricing">Pricing</Link>

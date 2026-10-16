@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { getPosts } from '../lib/blog';
+import { COMPARISONS } from '../lib/compare';
 import { FEATURES, SITE } from '../lib/site';
+import { USE_CASES } from '../lib/use-cases';
 
 export const dynamic = 'force-static';
 
@@ -23,6 +25,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     page('/pricing', 0.8, 'monthly'),
     page('/open-source', 0.8, 'monthly'),
     page('/developers', 0.8, 'monthly'),
+    page('/use-cases', 0.7, 'monthly'),
+    ...USE_CASES.map((u) => page(`/use-cases/${u.slug}`, 0.7, 'monthly')),
+    ...COMPARISONS.map((c) => page(`/compare/${c.slug}`, 0.7, 'monthly', c.checkedOn)),
     page('/blog', 0.7, 'weekly', latest),
     ...posts.map((p) => page(`/blog/${p.slug}`, 0.6, 'yearly', p.date)),
     page('/changelog', 0.6, 'weekly'),

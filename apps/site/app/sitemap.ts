@@ -1,0 +1,30 @@
+import type { MetadataRoute } from 'next';
+import { getPosts } from '../lib/blog';
+import { FEATURES, SITE } from '../lib/site';
+
+export const dynamic = 'force-static';
+
+/** Every public page. Product pages come from FEATURES; blog posts from content/blog. */
+export default function sitemap(): MetadataRoute.Sitemap {
+  const posts = getPosts();
+  const latest = posts[0]?.date;
+  const page = (path: string, priority: number, changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency'], lastModified?: string) => ({
+    url: `${SITE.url}${path}`,
+    priority,
+    changeFrequency,
+    ...(lastModified ? { lastModified } : {}),
+  });
+  return [
+    page('', 1, 'weekly'),
+    page('/product', 0.9, 'weekly'),
+    ...FEATURES.map((f) => page(f.href, 0.8, 'monthly')),
+    page('/pricing', 0.8, 'monthly'),
+    page('/open-source', 0.8, 'monthly'),
+    page('/developers', 0.8, 'monthly'),
+    page('/blog', 0.7, 'weekly', latest),
+    ...posts.map((p) => page(`/blog/${p.slug}`, 0.6, 'yearly', p.date)),
+    page('/changelog', 0.6, 'weekly'),
+    page('/privacy', 0.2, 'yearly'),
+    page('/terms', 0.2, 'yearly'),
+  ];
+}

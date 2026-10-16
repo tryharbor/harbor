@@ -1,0 +1,55 @@
+/* /pricing: plan cards, comparison table, FAQ. Square everything; no colored edge accents. */
+
+.pr-plans { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+@media (max-width: 1080px) { .pr-plans { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .pr-plans { grid-template-columns: 1fr; } }
+
+.pr-plan { background: var(--panel); padding: 28px 24px; display: grid; gap: 18px; align-content: start; grid-template-rows: auto auto auto auto 1fr; }
+.pr-plan.featured { background: var(--raised); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.pr-plan .btn { width: 100%; }
+.pr-tag { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); border-color: var(--line-strong); }
+.pr-price { font-size: clamp(44px, 5vw, 60px); font-weight: 400; letter-spacing: -0.05em; line-height: 1; }
+.pr-price span { font-size: 14px; letter-spacing: 0; color: var(--dim); margin-left: 4px; }
+.pr-plan .check-list { font-size: 15px; padding-top: 18px; border-top: 1px solid var(--line); }
+.pr-note { margin: 20px 0 0; max-width: 72ch; }
+.pr-card-title { font-weight: 500; font-size: 22px; letter-spacing: -0.02em; line-height: 1.2; }
+
+/* Comparison table: scrolls inside its own frame on narrow screens, never the page. */
+.pr-table-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--bg-2); -webkit-overflow-scrolling: touch; }
+.pr-table-wrap:focus-visible { outline-offset: -2px; }
+.pr-table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 15px; }
+.pr-table th, .pr-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+.pr-table thead th { font-family: var(--font-mono); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 400; position: sticky; top: 0; background: var(--bg-2); }
+.pr-table thead th.featured { color: var(--ink); }
+.pr-table td { color: var(--muted); width: 17%; }
+.pr-table td.featured, .pr-table thead th.featured { background: var(--panel); }
+.pr-table tbody th { font-weight: 400; color: var(--ink); width: 32%; }
+.pr-table tbody th[scope='row'] { position: sticky; left: 0; background: var(--bg-2); z-index: 1; }
+.pr-group th { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim) !important; padding-top: 28px !important; background: var(--bg-2); }
+.pr-row-note { display: block; color: var(--dim); font-size: 13px; line-height: 1.45; margin-top: 4px; max-width: 42ch; }
+.pr-yes { color: var(--good); font-family: var(--font-mono); }
+.pr-no { color: var(--dim); font-family: var(--font-mono); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* FAQ: square <details>. */
+.pr-faq-split { align-items: start; }
+.pr-faq { border-top: 1px solid var(--line-strong); }
+.pr-faq details { border-bottom: 1px solid var(--line-strong); }
+.pr-faq summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 1fr 28px; gap: 16px; align-items: center; padding: 22px 0; font-size: clamp(18px, 2vw, 22px); letter-spacing: -0.02em; line-height: 1.25; }
+.pr-faq summary::-webkit-details-marker { display: none; }
+.pr-faq summary::after { content: '+'; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line-strong); font-family: var(--font-mono); font-size: 14px; color: var(--muted); transition: background 160ms, color 160ms, transform 200ms; }
+.pr-faq summary:hover::after { color: var(--ink); border-color: var(--ink); }
+.pr-faq details[open] summary::after { content: '−'; background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.pr-faq details > div { padding: 0 44px 24px 0; color: var(--muted); display: grid; gap: 14px; }
+.pr-faq details[open] > div { animation: pv-in 360ms cubic-bezier(.2, .7, .2, 1); }
+.pr-faq details p { margin: 0; }
+.pr-faq details strong { color: var(--ink); font-weight: 500; }
+.pr-faq details a, .pr-faq-split .lede a { color: var(--pink); }
+.pr-faq code { background: var(--raised); padding: 1px 5px; color: var(--ink); }
+@media (max-width: 620px) { .pr-faq details > div { padding-right: 0; } }
+
+.pr-costs { margin: 0; display: grid; border: 1px solid var(--line); }
+.pr-costs > div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.pr-costs > div:first-child { border-top: 0; }
+.pr-costs dt { color: var(--muted); }
+.pr-costs dd { margin: 0; color: var(--ink); white-space: nowrap; }

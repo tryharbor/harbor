@@ -93,7 +93,7 @@ const harbor = await call('POST', '/v1/brands', {
       sources: [
         { kind: 'post', label: 'X thread: four businesses, one Monday' },
         { kind: 'post', label: 'X post: what I run' },
-        { kind: 'url', label: 'Build log: snapshot poller', ref: 'https://github.com/harbor-content/harbor' },
+        { kind: 'url', label: 'Build log: snapshot poller', ref: 'https://github.com/tryharbor/harbor' },
       ],
     },
     audiences: [
@@ -114,7 +114,7 @@ const harbor = await call('POST', '/v1/brands', {
       {
         name: 'Harbor',
         summary: 'The open-source content strategist for builders who run several brands.',
-        url: 'https://github.com/harbor-content/harbor',
+        url: 'https://github.com/tryharbor/harbor',
         cta: 'Star the repo',
         proofPoints: ['Tracks every post at 1h, 6h, 24h, 72h and 7d', 'Publishes to X, LinkedIn, Instagram and Threads with your own API keys'],
       },
@@ -131,7 +131,7 @@ const harbor = await call('POST', '/v1/brands', {
         kind: 'note',
         body: 'Self-hosting stays free forever. Cloud pays for development. AGPL keeps hosted forks open.',
       },
-      { title: 'Platform API costs (2026)', kind: 'link', url: 'https://github.com/harbor-content/harbor/tree/main/docs/research' },
+      { title: 'Platform API costs (2026)', kind: 'link', url: 'https://github.com/tryharbor/harbor/tree/main/docs/research' },
     ],
     styleRules: {
       terms: [
@@ -262,11 +262,11 @@ const HARBOR_OTHER_HOOKS = [
   'A slow burner is not a flop. Give it the full week.',
 ];
 const HARBOR_LINK_HOOKS = [
-  'Shipping log: the snapshot poller now retries failed reads. https://github.com/harbor-content/harbor',
-  'New in Harbor: it learns a brand voice from ten old posts. https://github.com/harbor-content/harbor/releases',
-  "This week's build log is up: https://github.com/harbor-content/harbor/discussions",
-  'Self-hosting docs are live: https://github.com/harbor-content/harbor#self-hosting',
-  'Why Harbor is AGPL, in full: https://github.com/harbor-content/harbor/blob/main/LICENSE',
+  'Shipping log: the snapshot poller now retries failed reads. https://github.com/tryharbor/harbor',
+  'New in Harbor: it learns a brand voice from ten old posts. https://github.com/tryharbor/harbor/releases',
+  "This week's build log is up: https://github.com/tryharbor/harbor/discussions",
+  'Self-hosting docs are live: https://github.com/tryharbor/harbor#self-hosting',
+  'Why Harbor is AGPL, in full: https://github.com/tryharbor/harbor/blob/main/LICENSE',
 ];
 const HARBOR_REPLIES = [
   'The short version: one place that knows each brand, what worked last time, and what is due this week.',

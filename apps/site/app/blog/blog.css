@@ -1,0 +1,35 @@
+/* /blog and /blog/[slug]. Long text uses the global .prose. */
+
+.blog-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-strong); }
+.blog-list > li { border-bottom: 1px solid var(--line); }
+.blog-item { display: grid; grid-template-columns: 200px minmax(0, 1fr) 32px; gap: clamp(16px, 4vw, 48px); padding: clamp(24px, 4vw, 40px) 0; text-decoration: none; align-items: start; transition: background 160ms; }
+.blog-item:hover .blog-title { color: var(--pink); }
+.blog-item:hover .blog-arrow { transform: translateX(4px); color: var(--ink); }
+.blog-meta { display: grid; gap: 6px; padding-top: 6px; }
+.blog-main { display: grid; gap: 12px; }
+.blog-title { font-weight: 400; font-size: clamp(26px, 3.2vw, 40px); letter-spacing: -0.035em; line-height: 1.08; transition: color 160ms; }
+.blog-arrow { font-family: var(--font-mono); color: var(--dim); padding-top: 10px; transition: transform 160ms, color 160ms; }
+@media (max-width: 760px) {
+  .blog-item { grid-template-columns: 1fr; gap: 12px; }
+  .blog-meta { display: flex; gap: 16px; padding: 0; }
+  .blog-arrow { display: none; }
+}
+
+.blog-article { padding-bottom: clamp(48px, 7vw, 96px); }
+.blog-back { text-decoration: none; display: inline-block; margin-bottom: 40px; }
+.blog-back:hover { color: var(--ink); }
+.blog-head { display: grid; gap: 24px; max-width: 900px; margin-bottom: clamp(40px, 6vw, 72px); padding-bottom: 32px; border-bottom: 1px solid var(--line); }
+.blog-h1 { max-width: 20ch; }
+.blog-byline { gap: 12px; }
+.blog-byline strong { font-weight: 500; }
+.blog-avatar { width: 32px; height: 32px; display: grid; place-items: center; background: var(--raised); border: 1px solid var(--line-strong); font-family: var(--font-mono); font-size: 13px; }
+@media (max-width: 620px) { .blog-byline > .row { margin-left: 0 !important; width: 100%; } }
+
+.blog-prose { margin: 0 auto 0 0; overflow-wrap: break-word; }
+.blog-prose h2 { letter-spacing: -0.03em; line-height: 1.15; }
+.blog-prose strong { color: var(--ink); font-weight: 500; }
+.blog-prose ul, .blog-prose ol { padding-left: 1.2em; }
+.blog-prose li { margin-bottom: 6px; }
+.blog-prose li::marker { color: var(--dim); }
+.blog-prose pre { white-space: pre; }
+@media (max-width: 520px) { .blog-prose { font-size: 17px; } .blog-prose pre { font-size: 12.5px; } }

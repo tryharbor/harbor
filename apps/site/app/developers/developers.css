@@ -1,0 +1,83 @@
+/* /developers: MCP facts, the agent session, tools, REST resources, key scopes. */
+
+.dev-facts { margin: 0; display: grid; border-top: 1px solid var(--line); }
+.dev-facts > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.dev-facts dt { padding-top: 3px; }
+.dev-facts dd { margin: 0; color: var(--muted); }
+@media (max-width: 520px) { .dev-facts > div { grid-template-columns: 1fr; gap: 4px; } }
+#mcp code, #api code, #keys code, .dev-rule code { color: var(--ink); background: var(--raised); padding: 1px 5px; word-break: break-word; }
+#mcp .terminal code, #api .terminal code, #keys .terminal code { background: none; padding: 0; color: inherit; word-break: normal; }
+
+/* Agent session terminal */
+.dev-session { min-width: 0; }
+.dev-session .window-bar .grow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev-replay { all: unset; cursor: pointer; min-width: 39px; text-align: right; color: var(--muted); }
+.dev-replay:hover { color: var(--ink); }
+.dev-replay:disabled { cursor: default; }
+.dev-session-body { padding: 18px 20px 22px; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; color: #d4d4d8; display: grid; gap: 10px; min-height: 420px; align-content: start; }
+.dev-line { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; opacity: 0; transform: translateY(4px); transition: opacity 320ms ease, transform 320ms ease; }
+.dev-line.in { opacity: 1; transform: none; }
+.dev-line > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.dev-line.shell, .dev-line.shell .dev-sym { color: var(--muted); }
+.dev-sym { color: var(--pink); }
+.dev-line.prompt { color: var(--ink); padding: 8px 0; }
+.dev-line.say { color: var(--muted); }
+.dev-line.done { color: var(--ink); padding-top: 6px; }
+.dev-line.done .dev-sym { color: var(--good); }
+.dev-sym.read { color: var(--violet); }
+.dev-sym.write { color: var(--coral); }
+.dev-tool { display: grid; gap: 2px; }
+.dev-tool strong { font-weight: 500; color: var(--ink); }
+.dev-result { color: var(--dim); padding-left: 2px; }
+.dev-scope { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; padding: 1px 6px; margin-left: 8px; border: 1px solid var(--line-strong); color: var(--muted); vertical-align: 1px; }
+.dev-scope.read { color: var(--violet); border-color: currentColor; }
+.dev-scope.write { color: var(--coral); border-color: currentColor; }
+.dev-scope.none { color: var(--dim); }
+.dev-cursor { width: 8px; height: 15px; background: var(--muted); animation: dev-blink 1.1s steps(1) infinite; }
+.dev-cursor.idle { opacity: 0.6; }
+@keyframes dev-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .dev-line { opacity: 1; transform: none; } .dev-cursor { animation: none; } }
+@media (max-width: 520px) { .dev-session-body { font-size: 12px; padding: 14px; min-height: 0; } }
+
+.dev-snippets { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.dev-snippets > .stack { gap: 12px; min-width: 0; }
+@media (max-width: 900px) { .dev-snippets { grid-template-columns: 1fr; } }
+
+/* The rule band */
+.dev-rule { border: 1px solid var(--line-strong); background-color: var(--panel); padding: clamp(28px, 6vw, 72px); display: grid; gap: 28px; }
+.dev-rule-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.dev-rule-grid p { margin: 0; padding: 20px; background: var(--panel); color: var(--muted); }
+@media (max-width: 800px) { .dev-rule-grid { grid-template-columns: 1fr; } }
+
+/* Tools */
+.dev-tool-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
+@media (max-width: 900px) { .dev-tool-grid { grid-template-columns: 1fr; } }
+.dev-tools-head { display: flex; align-items: center; gap: 4px; padding-bottom: 14px; border-bottom: 1px solid var(--line-strong); }
+.dev-tools-head .dev-scope { margin-left: 0; margin-right: 8px; }
+.dev-tools ul { list-style: none; margin: 0; padding: 0; }
+.dev-tools li { padding: 16px 0; border-bottom: 1px solid var(--line); display: grid; gap: 6px; }
+.dev-tools li p { margin: 0; color: var(--muted); font-size: 15px; }
+#tools .dev-tool-name { font-size: 14px; color: var(--ink); overflow-wrap: anywhere; background: none; padding: 0; }
+#tools .dev-tool-name span { color: var(--dim); }
+#tools .dev-agent-id { font-size: 13px; color: var(--violet); }
+
+/* REST */
+.dev-note { border: 1px solid var(--line-strong); background: var(--panel); padding: 24px; display: grid; gap: 12px; }
+.dev-note strong { font-weight: 500; font-size: 18px; letter-spacing: -0.01em; }
+.dev-note p { margin: 0; color: var(--muted); }
+.dev-resources { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+@media (max-width: 1000px) { .dev-resources { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .dev-resources { grid-template-columns: 1fr; } }
+.dev-resource { background: var(--panel); padding: 22px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.dev-resource .eyebrow code { background: none; padding: 0; font-size: 13px; text-transform: none; letter-spacing: 0; }
+.dev-resource p { margin: 0; color: var(--muted); font-size: 15px; }
+.dev-resource ul { list-style: none; margin: 0; padding: 12px 0 0; border-top: 1px solid var(--line); display: grid; gap: 6px; }
+#api .dev-resource li code { background: none; padding: 0; font-size: 12.5px; color: var(--muted); }
+
+/* Scopes */
+.dev-scopes { display: grid; gap: 0; border-top: 1px solid var(--line-strong); }
+.dev-scopes > div { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.dev-scopes > div .dev-scope { margin-left: 0; justify-self: start; }
+.dev-scopes p { margin: 0; color: var(--muted); }
+.dev-scopes > .terminal { margin-top: 24px; }
+@media (max-width: 520px) { .dev-scopes > div { grid-template-columns: 1fr; gap: 8px; } }

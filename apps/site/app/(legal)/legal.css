@@ -1,0 +1,27 @@
+/* /privacy and /terms: plain-language drafts in the global .prose, with a visible draft note and an on-page index. */
+
+.legal { padding-top: clamp(56px, 8vw, 112px); }
+.legal-head { display: grid; gap: 24px; max-width: 900px; padding-bottom: 32px; margin-bottom: clamp(32px, 5vw, 56px); border-bottom: 1px solid var(--line); }
+.legal-draft { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start; padding: 16px 18px; border: 1px solid var(--line-strong); background: var(--panel); max-width: 760px; }
+.legal-draft .swatch { margin-top: 6px; }
+.legal-draft p { margin: 0; color: var(--muted); }
+.legal-draft strong { color: var(--ink); font-weight: 500; }
+.legal-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: clamp(24px, 5vw, 72px); align-items: start; }
+.legal-toc { position: sticky; top: 96px; display: grid; gap: 2px; }
+.legal-toc .label { padding-bottom: 8px; }
+.legal-toc a { color: var(--muted); text-decoration: none; font-size: 14px; padding: 5px 0; }
+.legal-toc a:hover { color: var(--ink); }
+@media (max-width: 900px) { .legal-layout { grid-template-columns: 1fr; } .legal-toc { position: static; padding-bottom: 16px; border-bottom: 1px solid var(--line); } }
+.legal .prose { font-size: 17px; overflow-wrap: break-word; }
+.legal .prose h2 { font-size: 26px; scroll-margin-top: 84px; letter-spacing: -0.025em; }
+.legal .prose h2:first-child { margin-top: 0; }
+.legal .prose h3 { font-size: 19px; letter-spacing: -0.015em; }
+.legal .prose strong { color: var(--ink); font-weight: 500; }
+.legal .prose ul { padding-left: 1.2em; }
+.legal .prose li { margin-bottom: 6px; }
+.legal .prose li::marker { color: var(--dim); }
+.legal-table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 0 0 24px; }
+.legal-table th, .legal-table td { text-align: left; vertical-align: top; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); }
+.legal-table th { font-family: var(--font-mono); font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); }
+.legal-table td:first-child { color: var(--ink); width: 34%; }
+@media (max-width: 520px) { .legal-table, .legal-table tbody, .legal-table tr, .legal-table td { display: block; width: 100% !important; } .legal-table thead { display: none; } .legal-table td { border: 0; padding: 0 0 4px; } .legal-table tr { padding: 10px 0; border-bottom: 1px solid var(--line); } }

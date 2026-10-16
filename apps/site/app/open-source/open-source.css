@@ -1,0 +1,74 @@
+/* /open-source: license, self-host steps, architecture diagram, Cloud, contributing. */
+
+.os-link { color: var(--pink); }
+.os-license { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.os-license > .card { border: 0; padding: clamp(24px, 3vw, 36px); gap: 18px; }
+@media (max-width: 760px) { .os-license { grid-template-columns: 1fr; } }
+
+/* Steps */
+.os-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--line); }
+.os-steps > li { border-bottom: 1px solid var(--line); }
+.os-step { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(24px, 5vw, 72px); padding: clamp(32px, 5vw, 56px) 0; align-items: start; }
+.os-step-wide { grid-template-columns: 1fr; gap: 28px; }
+.os-step-wide .os-step-text { max-width: 760px; }
+@media (max-width: 900px) { .os-step { grid-template-columns: 1fr; gap: 24px; } }
+.os-step-text { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.os-step-n { color: var(--pink); }
+.os-step-body { display: grid; gap: 12px; color: var(--muted); }
+.os-step-body p { margin: 0; }
+.os-step-body code, .os-cloud code { background: var(--raised); padding: 1px 5px; color: var(--ink); word-break: break-word; }
+.os-step-body .check-list li > span { min-width: 0; }
+.os-step .terminal pre { white-space: pre; }
+
+.os-platforms { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.os-platforms > .card { border: 0; gap: 16px; }
+.os-platforms .check-list { font-size: 14.5px; }
+@media (max-width: 1080px) { .os-platforms { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .os-platforms { grid-template-columns: 1fr; } }
+
+.os-pkg { color: var(--ink); font-size: 15px; }
+.os-card-title { font-weight: 500; font-size: 20px; letter-spacing: -0.02em; line-height: 1.2; }
+
+/* Cloud list */
+.os-cloud { display: grid; border-top: 1px solid var(--line-strong); }
+.os-cloud > div { display: grid; grid-template-columns: minmax(120px, 0.6fr) 1fr; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.os-cloud > div.row { display: flex; border-bottom: 0; }
+.os-cloud strong { font-weight: 500; }
+@media (max-width: 520px) { .os-cloud > div { grid-template-columns: 1fr; gap: 4px; } }
+
+/* Architecture diagram */
+.os-arch-frame { border: 1px solid var(--line); background: var(--bg-2); padding: clamp(8px, 2vw, 24px); }
+.os-arch { display: block; width: 100%; height: auto; overflow: visible; }
+.os-arch.narrow { display: none; max-width: 420px; margin: 0 auto; }
+@media (max-width: 680px) { .os-arch.wide { display: none; } .os-arch.narrow { display: block; } }
+.os-dot { fill: var(--dot); }
+
+.os-box rect { fill: var(--panel); stroke: var(--line-strong); stroke-width: 1; }
+.os-box.group rect { fill: var(--bg); stroke: var(--line-strong); stroke-dasharray: 4 4; }
+.os-box.inner rect { fill: var(--raised); stroke: var(--line); }
+.os-box-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--dim); }
+.os-box-title { font-family: var(--font-sans); font-size: 16px; letter-spacing: -0.01em; fill: var(--ink); }
+.os-box-line { font-family: var(--font-sans); font-size: 12.5px; fill: var(--muted); }
+.os-edge-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; fill: var(--dim); }
+
+.os-edge path { fill: none; }
+.os-edge-base { stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.os-edge-flow { stroke: var(--c); stroke-width: 2; stroke-dasharray: 3 17; stroke-linecap: square; opacity: 0; }
+
+.os-box { opacity: 0; transform: translateY(6px); transform-box: fill-box; }
+.os-arch.on .os-box { animation: os-box-in 600ms cubic-bezier(.2, .7, .2, 1) forwards; animation-delay: calc(var(--i) * 70ms); }
+.os-arch.on .os-edge-base { animation: os-draw 700ms cubic-bezier(.4, 0, .2, 1) forwards; animation-delay: calc(500ms + var(--i) * 120ms); }
+.os-arch.on .os-edge-flow { animation: os-flow-in 400ms 1500ms forwards, os-flow 2.4s linear 1500ms infinite; }
+.os-arch.on .os-edge-flow.rev { animation-name: os-flow-in, os-flow-rev; }
+.os-arch.paused .os-edge-flow { animation-play-state: paused; }
+@keyframes os-box-in { to { opacity: 1; transform: none; } }
+@keyframes os-draw { to { stroke-dashoffset: 0; } }
+@keyframes os-flow-in { to { opacity: 0.9; } }
+@keyframes os-flow { from { stroke-dashoffset: 40; } to { stroke-dashoffset: 0; } }
+@keyframes os-flow-rev { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 40; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .os-box { opacity: 1; transform: none; }
+  .os-edge-base { stroke-dashoffset: 0; }
+  .os-edge-flow { opacity: 0.9; animation: none !important; }
+}

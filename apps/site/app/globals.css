@@ -92,7 +92,10 @@ code { font-family: var(--font-mono); font-size: 0.92em; }
 /* ---- Header ---- */
 .site-header { position: sticky; top: 0; z-index: 50; background: rgba(10, 10, 10, 0.78); backdrop-filter: saturate(140%) blur(12px); -webkit-backdrop-filter: saturate(140%) blur(12px); border-bottom: 1px solid var(--line); }
 .site-header .container { display: flex; align-items: center; gap: 28px; height: 60px; }
-.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 500; letter-spacing: -0.02em; font-size: 18px; }
+.brand { display: inline-flex; align-items: center; gap: 0.6em; text-decoration: none; font-weight: 500; letter-spacing: -0.02em; font-size: 18px; line-height: 1; }
+/* The mark sits a touch smaller than the cap height of the word, with a clear gap, at every size. */
+.brand svg { width: 0.95em; height: 0.95em; flex: none; }
+.footer-grid a.brand { display: inline-flex; padding: 0; }
 .nav { display: flex; align-items: center; gap: 4px; flex: 1; }
 .nav > a, .nav > .menu > button { all: unset; cursor: pointer; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; }
 .nav > a:hover, .nav > .menu > button:hover, .nav > a[aria-current='page'] { color: var(--ink); }

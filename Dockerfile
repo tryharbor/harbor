@@ -32,4 +32,7 @@ USER node
 EXPOSE 4800
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:' + (process.env.HARBOR_API_PORT || process.env.PORT || 4800) + '/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
-CMD ["pnpm", "--filter", "@harbor/api", "start"]
+# Node runs the server directly (no pnpm wrapper), so a redeploy's SIGTERM reaches its shutdown handler and the old
+# container exits 0. Under pnpm the stop was reported as a failure, which hosts flag as a crash.
+WORKDIR /app/apps/api
+CMD ["node", "--import", "tsx", "src/server.ts"]

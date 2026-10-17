@@ -140,3 +140,20 @@ describe('sandbox time travel', () => {
     expect(again).toHaveLength(perf.length);
   });
 });
+
+describe('placeholders never go out', () => {
+  it('refuses to post or schedule text with an unfilled [placeholder], from any path', async () => {
+    const ch = await channel('threads', 'placeholdercheck');
+    const now = await send('POST', '/v1/posts', { channelId: ch.id, parts: [{ text: 'Week 1: [24h views] views at 24h.', media: [] }] });
+    expect(now.status).toBe(400);
+    expect((await now.json()).error.message).toMatch(/Fill in \[24h views\]/);
+    const later = await send('POST', '/v1/posts', {
+      channelId: ch.id,
+      parts: [{ text: 'Stars so far: [stars].', media: [] }],
+      scheduledFor: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    expect(later.status).toBe(400);
+    const filled = await send('POST', '/v1/posts', { channelId: ch.id, parts: [{ text: 'Week 1: 412 views at 24h.', media: [] }], scheduledFor: new Date(Date.now() + 86_400_000).toISOString() });
+    expect(filled.status).toBe(201);
+  });
+});

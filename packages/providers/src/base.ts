@@ -8,6 +8,7 @@ import {
   RefreshNeeded,
   checkMedia,
   mimeFromUrl,
+  platformTextLength,
   type AuthCallback,
   type AuthUrl,
   type JsonObject,
@@ -207,7 +208,8 @@ export abstract class BaseProvider implements PlatformProvider {
     if (parts.length === 0) issues.push('A post needs at least one part.');
     parts.forEach((p, i) => {
       const where = parts.length > 1 ? `Part ${i + 1}: ` : '';
-      if ([...p.text].length > max) issues.push(`${where}${this.name} allows ${max} characters, got ${[...p.text].length}.`);
+      const length = platformTextLength(this.identifier, p.text);
+      if (length > max) issues.push(`${where}${this.name} allows ${max} characters, got ${length}.`);
       if (!p.text.trim() && p.media.length === 0) issues.push(`${where}empty.`);
       // The platform's media rules (core MEDIA_RULES). A bare URL only tells us the kind and, from its extension,
       // the type; the API checks library assets' sizes and dimensions before it gets here.

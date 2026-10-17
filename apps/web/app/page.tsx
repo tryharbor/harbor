@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Channel } from '@harbor/core';
 import { getApprovals, getBrands, getChannels, getIdeas, getOverview, getPosts, loadAll, type Approval, type BrandView, type IdeaView, type OverviewBrand, type PostView } from './api';
-import { BrandMark, Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, Upcoming, when } from './ui';
+import { BrandMark, Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, Upcoming, when, TZ } from './ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     getBrands(), getChannels(), getPosts({ limit: '200' }), getIdeas(), getOverview().catch(() => []),
     getApprovals({ status: 'pending' }).then((r) => r.data).catch(() => []),
   ]);
-  const today = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const today = now.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric' });
   if (!res.ok) return (<><PageHeader title="Home" sub={today} /><LoadError message={res.error} /></>);
   const [brands, channels, posts, ideas, overview, approvals] = res.data;
 

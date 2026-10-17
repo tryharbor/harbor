@@ -3,7 +3,7 @@ import { generateDigest } from '../actions';
 import { getBestTimes, getBrands, getConversation, getDigest, getOverview, getPosts, loadAll, type BestTimes, type BrandView, type Conversation, type Digest, type Finding, type OverviewBrand, type PostView, type ReplyKind } from '../api';
 import { KindMark, REPLY_KIND } from '../components/replies';
 import { SaveToMemory } from '../components/save-to-memory';
-import { BrandMark, Flash, LoadError, PageHeader, PlatformTag, VerdictTag, compact } from '../ui';
+import { BrandMark, Flash, LoadError, PageHeader, PlatformTag, VerdictTag, compact, TZ } from '../ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +76,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
                   <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Weekly digest · {brand.name}</span>
                   {detail.digest ? (
                     <span className="dim small">
-                      {new Date(detail.digest.period.from).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {new Date(detail.digest.period.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {detail.digest.model}
+                      {new Date(detail.digest.period.from).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' })} – {new Date(detail.digest.period.to).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' })} · {detail.digest.model}
                     </span>
                   ) : null}
                 </div>

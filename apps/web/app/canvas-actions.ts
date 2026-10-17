@@ -18,7 +18,8 @@ const attempt = async <T,>(fn: () => Promise<T>, fallback: string): Promise<Resu
     return { ok: false, error: err instanceof ApiError ? err.message : fallback };
   }
 };
-const text = (form: FormData, key: string) => String(form.get(key) ?? '').trim();
+// Form submissions send line breaks as \r\n; store plain \n so lengths match what the platform counts.
+const text = (form: FormData, key: string) => String(form.get(key) ?? '').replace(/\r\n?/g, '\n').trim();
 
 export async function createCampaign(form: FormData) {
   let id = '';

@@ -233,3 +233,22 @@ export function canAutoRetryPublish(err: unknown): boolean {
   const { action } = classifyPublishFailure(err);
   return action === 'retry' || action === 'refresh_then_retry';
 }
+
+/**
+ * A link as X sees it: anything with a scheme, or a bare domain on a common top-level domain (so "Node.js" or
+ * "e.g." isn't counted as a link).
+ */
+const X_LINK = /(?:\bhttps?:\/\/[^\s]+)|(?:\b(?:[a-z0-9-]+\.)+(?:com|io|dev|app|ai|co|org|net|so|sh|xyz|me|gg|tv|ly|fm|tech|site|page|link|to|us|uk|de|ca)\b(?:\/[^\s]*)?)/gi;
+/** X shortens every link to 23 characters (t.co), whatever its real length. */
+const X_LINK_LENGTH = 23;
+
+/**
+ * How long a post's text is by the platform's own count. X counts each link as 23 characters; everyone else counts
+ * characters (code points, so an emoji is one).
+ */
+export function platformTextLength(platform: Platform, text: string): number {
+  if (platform !== 'x') return [...text].length;
+  let links = 0;
+  const rest = text.replace(X_LINK, () => { links += 1; return ''; });
+  return [...rest].length + links * X_LINK_LENGTH;
+}

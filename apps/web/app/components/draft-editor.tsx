@@ -1,12 +1,13 @@
 'use client';
 
 import { useActionState, useEffect, useMemo, useState } from 'react';
-import type { Platform } from '@harbor/core';
+import { platformTextLength, type Platform } from '@harbor/core';
 import { publishDraft, rewriteDraft, saveDraft, type PublishState, type RewriteState } from '../actions';
 import type { DraftView } from '../api';
 import { PlatformIcon } from '../platform-icon';
 import { CheckIssues, MediaPicker, type PickedMedia } from './media-picker';
 import { Select } from './select';
+import { TZ } from '../ui';
 
 const NAME: Record<Platform, string> = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', threads: 'Threads' };
 const LIMIT: Record<Platform, number> = { x: 280, linkedin: 3000, instagram: 2200, threads: 500 };
@@ -34,7 +35,8 @@ export function DraftEditor({
   const [rewrite, rewriteAction, rewriting] = useActionState<RewriteState, FormData>(rewriteDraft, undefined);
   const parts = useMemo(() => body.split(SPLIT).map((t) => t.trim()).filter(Boolean), [body]);
   const limit = LIMIT[platform];
-  const over = parts.some((p) => [...p].length > limit);
+  // The platform's own count: X counts each link as 23 characters.
+  const over = parts.some((p) => platformTextLength(platform, p) > limit);
   const dirty = body !== initial || media !== (draft?.parts[0]?.media[0]?.url ?? '');
   const handle = channels[0]?.handle ?? brandName.toLowerCase().replace(/\W+/g, '');
   const returnTo = `/studio/${ideaId}`;
@@ -58,7 +60,7 @@ export function DraftEditor({
           <label htmlFor={`body-${platform}`}>{THREADS[platform] ? <>Text. <code>---</code> on its own line starts the next post in the thread.</> : 'Text'}</label>
           <textarea id={`body-${platform}`} name="body" value={body} onChange={(e) => setBody(e.target.value)} style={{ minHeight: 170 }} />
           <span className={`char-count${over ? ' over' : ''}`}>
-            {parts.length > 1 ? parts.map((p, i) => `${i + 1}: ${[...p].length}`).join(' · ') : [...(parts[0] ?? '')].length} / {limit.toLocaleString('en-US')}
+            {parts.length > 1 ? parts.map((p, i) => `${i + 1}: ${platformTextLength(platform, p)}`).join(' · ') : platformTextLength(platform, parts[0] ?? '')} / {limit.toLocaleString('en-US')}
           </span>
         </div>
         <div className="field">
@@ -136,7 +138,7 @@ export function DraftEditor({
   );
 }
 
-const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
+const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '');
 
 /**
  * Post now or schedule, with the result shown right here. "Post now" asks once more before sending, since it's

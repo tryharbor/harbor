@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { createCompetitor, deleteCompetitor, deleteListItem, saveListItem, saveStyleRules, saveVoice } from '../actions';
 import type { Audience, BrandView, Competitor, ExamplePost, KnowledgeItem, MemoryListKey, Product } from '../api';
-import { PLATFORM_NAME, SimTag } from '../ui';
+import { PLATFORM_NAME, SimTag, TZ } from '../ui';
 import { VoiceLearner } from './voice-learner';
 import { Select } from './select';
 
@@ -41,7 +41,7 @@ export function VoiceSection({ brand, returnTo }: { brand: BrandView; returnTo: 
         <Hidden brandId={brand.id} returnTo={returnTo} />
         <div className="spread">
           <span className="label">Current voice</span>
-          {v.learnedBy ? <span className="row small dim">Learned {v.learnedAt ? new Date(v.learnedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} <SimTag model={v.learnedBy} /></span> : null}
+          {v.learnedBy ? <span className="row small dim">Learned {v.learnedAt ? new Date(v.learnedAt).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }) : ''} <SimTag model={v.learnedBy} /></span> : null}
         </div>
         <div className="field">
           <label htmlFor="summary">Personality and style</label>

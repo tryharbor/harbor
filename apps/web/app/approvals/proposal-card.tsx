@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { applyProposal } from '../learn-actions';
 import type { MemoryChange, MemoryProposal } from '../api';
-import { PlatformTag } from '../ui';
+import { PlatformTag, TZ } from '../ui';
 
 export const TARGET_LABEL: Record<MemoryChange['target'], string> = {
   'voice.do': 'Voice · Do',
@@ -31,7 +31,7 @@ export function ProposalCard({ p, returnTo }: { p: MemoryProposal; returnTo: str
           <strong style={{ fontWeight: 500 }}>{p.changes.length} proposed change{p.changes.length === 1 ? '' : 's'} to Brand Memory</strong>
         </div>
         <span className="small dim">
-          {new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          {new Date(p.createdAt).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' })}
           {p.runId ? <> · <Link href={`/agents/runs/${p.runId}`}>run log</Link></> : null}
           {' · '}<Link href={`/brands/${p.brandId}/memory`}>open Brand Memory</Link>
         </span>
@@ -81,7 +81,7 @@ export function ProposalCard({ p, returnTo }: { p: MemoryProposal; returnTo: str
           </span>
         </footer>
       ) : (
-        <footer className="approval-foot"><span className="small">{p.status === 'applied' ? `Applied ${p.changes.filter((c) => c.status === 'accepted').length} of ${p.changes.length}` : 'Rejected'}{p.decidedAt ? ` · ${new Date(p.decidedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</span></footer>
+        <footer className="approval-foot"><span className="small">{p.status === 'applied' ? `Applied ${p.changes.filter((c) => c.status === 'accepted').length} of ${p.changes.length}` : 'Rejected'}{p.decidedAt ? ` · ${new Date(p.decidedAt).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' })}` : ''}</span></footer>
       )}
     </form>
   );

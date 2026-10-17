@@ -11,7 +11,8 @@ const go = (path: string, params: Record<string, string> = {}): never => {
   const q = new URLSearchParams(params);
   return redirect(q.size ? `${path}${path.includes('?') ? '&' : '?'}${q}` : path);
 };
-const text = (form: FormData, key: string) => String(form.get(key) ?? '').trim();
+// Form submissions send line breaks as \r\n; store plain \n so lengths match what the platform counts.
+const text = (form: FormData, key: string) => String(form.get(key) ?? '').replace(/\r\n?/g, '\n').trim();
 const lines = (form: FormData, key: string) => text(form, key).split('\n').map((l) => l.trim()).filter(Boolean);
 /** Blocks separated by a line containing only `---`. */
 const blocks = (value: string) => value.split(/^\s*---\s*$/m).map((t) => t.trim()).filter(Boolean);
@@ -34,6 +35,16 @@ const mediaFrom = (form: FormData): MediaField | undefined => {
   return { kind, url };
 };
 const shortId = () => Math.random().toString(36).slice(2, 10);
+/**
+ * A datetime-local value ("2026-10-20T09:00") is the viewer's wall clock. `tz` is their getTimezoneOffset() in
+ * minutes, sent by the form; the server's own timezone (UTC on hosts) never matters.
+ */
+const localToIso = (when: string, tz: number) => {
+  const [d, t] = when.split('T');
+  const [y, m, day] = d!.split('-').map(Number);
+  const [h, min] = (t ?? '00:00').split(':').map(Number);
+  return new Date(Date.UTC(y!, m! - 1, day!, h!, min!) + tz * 60_000).toISOString();
+};
 const patchMemory = (brandId: string, memory: Record<string, unknown>) =>
   api(`/v1/brands/${brandId}`, { method: 'PATCH', body: JSON.stringify({ memory }) });
 
@@ -369,23 +380,6 @@ export async function rewriteDraft(_prev: RewriteState, form: FormData): Promise
   }
 }
 
-export async function scheduleDraft(form: FormData) {
-  const ideaId = text(form, 'ideaId');
-  const back = returnTo(form, ideaId ? `/studio/${ideaId}` : '/studio');
-  const when = text(form, 'scheduledFor');
-  try {
-    const post = await api<{ status: string; error?: { message: string } }>('/v1/posts', {
-      method: 'POST',
-      body: JSON.stringify({ channelId: text(form, 'channelId'), draftId: text(form, 'draftId'), ideaId: ideaId || undefined, scheduledFor: when ? new Date(when).toISOString() : undefined }),
-    });
-    refresh();
-    go(back, post.error ? { error: post.error.message } : { notice: when ? 'Scheduled.' : `Published (${post.status}).` });
-  } catch (err) {
-    if (err instanceof ApiError) go(back, { error: err.message });
-    throw err;
-  }
-}
-
 export type PublishState = { ok?: boolean; status?: string; url?: string; when?: string; error?: string; postId?: string } | undefined;
 
 /**
@@ -397,13 +391,7 @@ export async function publishDraft(_prev: PublishState, form: FormData): Promise
   const when = text(form, 'scheduledFor');
   const tz = Number(text(form, 'tz')) || 0;
   if (intent === 'schedule' && !when) return { error: 'Pick a date and time, or use Post now.' };
-  // datetime-local is the viewer's wall clock; `tz` is their getTimezoneOffset().
-  const scheduledFor = intent === 'schedule' ? (() => {
-    const [d, t] = when.split('T');
-    const [y, m, day] = d!.split('-').map(Number);
-    const [h, min] = (t ?? '00:00').split(':').map(Number);
-    return new Date(Date.UTC(y!, m! - 1, day!, h!, min!) + tz * 60_000).toISOString();
-  })() : undefined;
+  const scheduledFor = intent === 'schedule' ? localToIso(when, tz) : undefined;
   if (scheduledFor && Date.parse(scheduledFor) < Date.now()) return { error: 'That time has passed. Pick a time ahead, or use Post now.' };
   try {
     const post = await api<{ id: string; status: string; url?: string; scheduledFor?: string; error?: { message: string } }>('/v1/posts', {
@@ -442,7 +430,7 @@ export async function createPost(form: FormData) {
     try {
       const post = await api<{ status: string; channel: { platform: string; handle: string }; error?: { message: string } }>('/v1/posts', {
         method: 'POST',
-        body: JSON.stringify({ channelId, parts, ideaId, scheduledFor: when ? new Date(when).toISOString() : undefined }),
+        body: JSON.stringify({ channelId, parts, ideaId, scheduledFor: when ? localToIso(when, Number(text(form, 'tz')) || 0) : undefined }),
       });
       failed ||= post.status === 'failed' || post.status === 'unknown';
       results.push(`${post.channel.platform} @${post.channel.handle}: ${post.status}${post.error ? ` (${post.error.message})` : ''}`);

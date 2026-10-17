@@ -162,3 +162,15 @@ describe('publish failure policy', () => {
     expect(canAutoRetryPublish(new TypeError('fetch failed'))).toBe(false);
   });
 });
+
+describe('platformTextLength', () => {
+  it('counts each X link as 23 characters, with or without a scheme', async () => {
+    const { platformTextLength } = await import('../src/index.ts');
+    expect(platformTextLength('x', 'Star it: github.com/tryharbor/harbor')).toBe('Star it: '.length + 23);
+    expect(platformTextLength('x', 'a https://example.com/a/very/long/path?with=query b')).toBe(4 + 23);
+    expect(platformTextLength('x', 'no links here')).toBe(13);
+    expect(platformTextLength('threads', 'github.com/tryharbor/harbor')).toBe(27);
+    expect(platformTextLength('x', '🚀🚀')).toBe(2);
+    expect(platformTextLength('x', 'Built with Node.js, e.g. this')).toBe(29);
+  });
+});

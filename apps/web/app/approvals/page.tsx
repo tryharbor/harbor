@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { bulkApprovals } from '../agent-actions';
 import { API_BROWSER_URL, getAgents, getApprovals, getBrands, getMemoryProposals, loadAll, type AgentDef, type Approval, type ApprovalCounts, type BrandView, type MemoryProposal, type ProposalCounts } from '../api';
 import { checksPass } from '../agents/agent-ui';
-import { Flash, LoadError, PageHeader } from '../ui';
+import { Flash, LoadError, PageHeader, TZ } from '../ui';
 import { ApprovalCard } from './approval-card';
 import { ProposalCard } from './proposal-card';
 
@@ -35,7 +35,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   // Pending posts grouped by the day they'd go out.
   const groups = new Map<string, Approval[]>();
   for (const a of approvals) {
-    const key = status === 'pending' ? new Date(a.proposedFor).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'all';
+    const key = status === 'pending' ? new Date(a.proposedFor).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric' }) : 'all';
     groups.set(key, [...(groups.get(key) ?? []), a]);
   }
 

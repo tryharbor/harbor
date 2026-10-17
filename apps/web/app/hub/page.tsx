@@ -3,7 +3,7 @@ import type { IdeaStatus } from '@harbor/core';
 import { createIdea, deleteIdea, moveIdea, suggestIdeas } from '../actions';
 import { getBestTimes, getBrands, getIdeas, getPosts, loadAll, type BestTimes, type BrandView, type IdeaView, type PostView } from '../api';
 import { WeekCalendar } from '../components/week-calendar';
-import { Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, when } from '../ui';
+import { Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, when, TZ } from '../ui';
 import { Select } from '../components/select';
 
 export const dynamic = 'force-dynamic';
@@ -227,7 +227,7 @@ function Calendar({ posts, month, s }: { posts: PostView[]; month?: string; s: S
     <section className="stack">
       <div className="row">
         <Link className="button" href={href(s, { month: prev })} aria-label="Previous month">←</Link>
-        <h2 style={{ margin: 0 }}>{first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h2>
+        <h2 style={{ margin: 0 }}>{first.toLocaleDateString('en-US', { timeZone: TZ, month: 'long', year: 'numeric' })}</h2>
         <Link className="button" href={href(s, { month: next })} aria-label="Next month">→</Link>
         <Link className="small" href={href(s, { month: undefined })}>Today</Link>
         <nav className="segmented" aria-label="Calendar range" style={{ marginLeft: 'auto' }}>
@@ -276,7 +276,7 @@ async function Week({ posts, s, brandName }: { posts: PostView[]; s: Search; bra
   });
   let best: BestTimes | undefined;
   if (s.brand) best = await getBestTimes(s.brand).catch(() => undefined);
-  const label = `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(end.getTime() - 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  const label = `${start.toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' })} – ${new Date(end.getTime() - 1).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric', year: 'numeric' })}`;
   return (
     <section className="stack">
       <div className="spread">

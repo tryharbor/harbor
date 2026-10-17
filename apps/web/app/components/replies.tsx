@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { refreshReplies } from '../learn-actions';
 import type { ReplyKind, ReplyView, Theme } from '../api';
 import { SaveToMemory } from './save-to-memory';
+import { TZ } from '../ui';
 
 export const REPLY_KIND: Record<ReplyKind, string> = { question: 'Questions', objection: 'Objections', praise: 'Praise', request: 'Requests', other: 'Other' };
 const MARK: Record<ReplyKind, string> = { question: '?', objection: '!', praise: '+', request: '→', other: '·' };
@@ -46,7 +47,7 @@ export function Replies({ brandId, postId, replies, themes, supported, platformN
               <li key={r.id}>
                 <KindMark kind={r.kind} />
                 <div className="stack" style={{ gap: 4, minWidth: 0 }}>
-                  <span className="small"><strong style={{ fontWeight: 500 }}>{r.author.displayName ?? r.author.handle}</strong> <span className="dim">@{r.author.handle} · {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{r.likes ? ` · ${r.likes} likes` : ''}</span></span>
+                  <span className="small"><strong style={{ fontWeight: 500 }}>{r.author.displayName ?? r.author.handle}</strong> <span className="dim">@{r.author.handle} · {new Date(r.createdAt).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' })}{r.likes ? ` · ${r.likes} likes` : ''}</span></span>
                   <p style={{ margin: 0 }}>{r.text}</p>
                 </div>
                 <SaveToMemory brandId={brandId} kind="reply" id={r.id} options={['knowledge', 'avoid', 'do']} defaultText={r.text} compact />

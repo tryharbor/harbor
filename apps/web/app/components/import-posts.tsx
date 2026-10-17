@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { importPosts, refreshVoice, scanChannel, type ScanState } from '../learn-actions';
+import { TZ } from '../ui';
 
 const compact = (n?: number) => (n === undefined ? '–' : Intl.NumberFormat('en-US', { notation: 'compact' }).format(n));
 
@@ -63,7 +64,7 @@ export function ImportPosts({ channelId, brandId, supported }: { channelId: stri
                 <span className="stack" style={{ gap: 2, minWidth: 0 }}>
                 <span className="scan-text">{f.text}</span>
                 <span className="mono dim small">
-                  {new Date(f.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {new Date(f.publishedAt).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' })}
                   {f.metrics?.views !== undefined ? ` · ${compact(f.metrics.views)} views` : f.metrics?.likes !== undefined ? ` · ${compact(f.metrics.likes)} likes` : ''}
                   {f.alreadyImported ? ' · in Harbor' : ''}
                 </span>

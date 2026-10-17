@@ -57,8 +57,14 @@ export function BrandMark({ name, logoUrl, size = 20 }: { name: string; logoUrl?
   );
 }
 
+/**
+ * The workspace's timezone (NEXT_PUBLIC_HARBOR_TIMEZONE, e.g. "America/Chicago"), the same on the server and in the
+ * browser so times render identically on both. Unset: the machine's own zone (fine locally; UTC on hosts).
+ */
+export const TZ = process.env.NEXT_PUBLIC_HARBOR_TIMEZONE || undefined;
+
 export const when = (iso?: string, opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }) =>
-  iso ? new Date(iso).toLocaleString('en-US', opts) : '';
+  iso ? new Date(iso).toLocaleString('en-US', { ...opts, timeZone: TZ }) : '';
 
 export const compact = (n?: number) => (n === undefined ? '–' : Intl.NumberFormat('en-US', { notation: 'compact' }).format(n));
 

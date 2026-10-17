@@ -9,7 +9,8 @@ const go = (path: string, params: Record<string, string> = {}): never => {
   const q = new URLSearchParams(params);
   return redirect(q.size ? `${path}${path.includes('?') ? '&' : '?'}${q}` : path);
 };
-const text = (form: FormData, key: string) => String(form.get(key) ?? '').trim();
+// Form submissions send line breaks as \r\n; store plain \n so lengths match what the platform counts.
+const text = (form: FormData, key: string) => String(form.get(key) ?? '').replace(/\r\n?/g, '\n').trim();
 const message = (err: unknown, fallback: string) => (err instanceof ApiError ? err.message : fallback);
 const returnTo = (form: FormData, fallback: string) => {
   const r = text(form, 'returnTo');

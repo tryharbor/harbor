@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { approve, reject } from '../agent-actions';
 import type { Approval } from '../api';
 import { Checks } from '../agents/agent-ui';
-import { BrandMark, PlatformTag } from '../ui';
+import { BrandMark, PlatformTag, TZ } from '../ui';
 import { CheckIssues, MediaPicker, type PickedMedia } from '../components/media-picker';
 
 const LIMIT = { x: 280, linkedin: 3000, instagram: 2200, threads: 500 } as const;
@@ -42,7 +42,7 @@ export function ApprovalCard({ a, agentName, returnTo, selectable, apiUrl }: { a
         <PlatformTag platform={a.channel.platform} handle={a.channel.handle} />
         <span className="row small muted" style={{ gap: 6 }}><BrandMark name={a.brandName} size={16} />{a.brandName}</span>
         <span className="approval-when mono">
-          {new Date(a.proposedFor).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+          {new Date(a.proposedFor).toLocaleString('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
         </span>
       </header>
 
@@ -96,7 +96,7 @@ export function ApprovalCard({ a, agentName, returnTo, selectable, apiUrl }: { a
         </span>
         {decided ? (
           <span className="small">
-            {a.status === 'approved' ? <>Approved {a.decidedAt ? new Date(a.decidedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}{a.postId ? <> · <Link href={`/performance/${a.postId}`}>see the post</Link></> : null}</> : <>Rejected{a.decidedNote ? <span className="muted">: “{a.decidedNote}”</span> : null}</>}
+            {a.status === 'approved' ? <>Approved {a.decidedAt ? new Date(a.decidedAt).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' }) : ''}{a.postId ? <> · <Link href={`/performance/${a.postId}`}>see the post</Link></> : null}</> : <>Rejected{a.decidedNote ? <span className="muted">: “{a.decidedNote}”</span> : null}</>}
           </span>
         ) : mode === 'reject' ? (
           <form action={reject} className="row" style={{ gap: 6 }}>

@@ -8,6 +8,7 @@ import { insertDraft, loadDraft } from './drafts.ts';
 import { checkPartsMedia, mediaLookup, resolveParts } from './media.ts';
 import { OUTCOME_SELECT, postBaselineCurve, toOutcomeView, type OutcomeColumns } from './outcomes.ts';
 import { publishPost, type PostRow } from './publisher.ts';
+import { findPlaceholders } from './voice-check.ts';
 
 export interface PostListRow extends PostRow, OutcomeColumns {
   campaign_id: string | null;
@@ -118,6 +119,9 @@ export async function createPost(deps: Pick<AppDeps, 'db' | 'registry' | 'publis
   const ideaId = input.ideaId ?? draft?.ideaId;
   const check = provider.validate(parts);
   if (!check.ok) throw new HarborError('INVALID_REQUEST', check.issues.join(' '));
+  // Same rule as approving: "[24h views]" and the like never go out as written, from any path.
+  const unfilled = findPlaceholders(parts);
+  if (unfilled.length) throw new HarborError('INVALID_REQUEST', `Fill in ${unfilled.slice(0, 3).join(', ')}${unfilled.length > 3 ? ` and ${unfilled.length - 3} more` : ''} before it goes out.`);
   // Library assets: sizes and dimensions of the chosen crops, which a bare URL can't tell the provider.
   const media = checkPartsMedia(channel.platform, parts, await mediaLookup(db, [{ parts }]));
   if (!media.ok) throw new HarborError('INVALID_REQUEST', media.issues.filter((i) => i.level === 'fail').map((i) => i.message).join(' '));

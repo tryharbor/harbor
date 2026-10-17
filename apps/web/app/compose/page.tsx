@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Channel } from '@harbor/core';
 import { createPost } from '../actions';
+import { TzInput } from '../components/tz-input';
 import { getBrands, getChannels, getIdeas, loadAll, type BrandView, type IdeaView } from '../api';
 import { Flash, LoadError, PageHeader, PlatformTag, Upcoming } from '../ui';
 
@@ -44,6 +45,7 @@ export default async function ComposePage({ searchParams }: { searchParams: Prom
               </div>
             ) : (
               <form action={createPost} className="stack">
+                <TzInput />
                 <input type="hidden" name="returnTo" value={here} />
                 {idea ? <input type="hidden" name="ideaId" value={idea.id} /> : null}
                 <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>

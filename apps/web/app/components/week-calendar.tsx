@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { reschedulePost } from '../actions';
 import type { BestTimes, PostView } from '../api';
 import { PlatformIcon } from '../platform-icon';
+import { TZ } from '../ui';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6:00–23:00
@@ -117,7 +118,7 @@ export function WeekCalendar({ weekStart, posts: initial, best, brandName }: { w
                         title={`${p.brandName} · ${p.status}: ${p.parts[0]?.text ?? ''}`}
                       >
                         <PlatformIcon platform={p.channel.platform} size={11} />
-                        <span className="mono">{when(p).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                        <span className="mono">{when(p).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })}</span>
                         <span className="week-post-text">{p.parts[0]?.text}</span>
                       </Link>
                     ))}

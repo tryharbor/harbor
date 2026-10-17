@@ -119,7 +119,7 @@ export const USE_CASES: UseCase[] = [
     related: [
       { href: '/developers', label: 'MCP tools and API' },
       { href: '/product/agents', label: 'Agents & Approvals' },
-      { href: '/blog/why-harbor-never-posts-without-you', label: 'Why Harbor never posts without you' },
+      { href: '/blog/how-harbors-approvals-inbox-works', label: "How Harbor's approvals inbox works" },
     ],
   },
   {

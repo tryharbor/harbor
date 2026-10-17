@@ -112,7 +112,7 @@ export default function DevelopersPage() {
                 <p>The <code>write</code> scope stops at proposing: an approval with the draft, the account, a slot, the reason and the voice-check results.</p>
                 <p>A person approves, edits or rejects it in Harbor. Every MCP run is recorded with its source and the key that made it.</p>
               </div>
-              <Link className="link-arrow" href="/blog/why-harbor-never-posts-without-you">Why Harbor never posts without you →</Link>
+              <Link className="link-arrow" href="/blog/how-harbors-approvals-inbox-works">How the approvals inbox works →</Link>
             </div>
           </Reveal>
         </div>

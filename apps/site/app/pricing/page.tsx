@@ -212,7 +212,7 @@ export default function PricingPage() {
               <details name="pricing-faq">
                 <summary>Will Harbor ever post without asking?</summary>
                 <div>
-                  <p>No. Agents, automations and MCP clients can draft and propose, and every proposal waits in Approvals until a person approves it. That’s the same on every plan. <Link href="/blog/why-harbor-never-posts-without-you">Why we built it that way</Link>.</p>
+                  <p>No. Agents, automations and MCP clients can draft and propose, and every proposal waits in Approvals until a person approves it. That’s the same on every plan. <Link href="/blog/how-harbors-approvals-inbox-works">How the approvals inbox works</Link>.</p>
                 </div>
               </details>
               <details name="pricing-faq">

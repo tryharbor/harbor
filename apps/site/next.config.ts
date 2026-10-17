@@ -9,6 +9,7 @@ const config: NextConfig = {
       { source: '/:path*', has: [{ type: 'host', value: 'www.useharbor.io' }], destination: 'https://useharbor.io/:path*', permanent: true },
       // Comparisons are listed with the use cases.
       { source: '/compare', destination: '/use-cases', permanent: true },
+      { source: '/blog/why-harbor-never-posts-without-you', destination: '/blog/how-harbors-approvals-inbox-works', permanent: true },
     ];
   },
 };

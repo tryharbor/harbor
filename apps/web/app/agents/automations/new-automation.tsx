@@ -5,6 +5,7 @@ import { createAutomation } from '../../agent-actions';
 import type { AgentDef, BrandView } from '../../api';
 import { DAYS, TRIGGER, hourLabel } from '../agent-ui';
 import { Select } from '../../components/select';
+import { brandOptions } from '../../ui';
 
 /** Pick an agent, then only the triggers it supports (Sanity Functions style: a schedule or a document event). */
 export function NewAutomation({ agents, brands, initialAgent }: { agents: AgentDef[]; brands: BrandView[]; initialAgent?: string }) {
@@ -26,7 +27,7 @@ export function NewAutomation({ agents, brands, initialAgent }: { agents: AgentD
         </label>
         <label className="field">
           <span className="label">Brand</span>
-          <Select name="brandId" ariaLabel="Brand" options={brands.map((b) => ({ value: b.id, label: b.name }))} />
+          <Select name="brandId" ariaLabel="Brand" options={brandOptions(brands)} />
         </label>
         <label className="field">
           <span className="label">Name · optional</span>

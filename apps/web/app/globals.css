@@ -700,3 +700,6 @@ img.avatar { object-fit: cover; padding: 0; }
 .shell.collapsed .profile-menu { right: auto; left: 0; }
 .profile-item.theme-item > .row { flex-wrap: nowrap; white-space: nowrap; }
 .profile-menu .segmented button { padding: 3px 9px; font-size: 12px; }
+
+/* A brand in a dropdown: its logo, then its name. */
+.brand-option { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }

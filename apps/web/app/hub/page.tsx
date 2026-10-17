@@ -4,9 +4,10 @@ import { createIdea, deleteIdea, dismissIdeas, moveIdea, suggestIdeas } from '..
 import { getBestTimes, getBrands, getIdeas, getPosts, loadAll, type BestTimes, type BrandView, type IdeaView, type PostView } from '../api';
 import { BulkDismiss } from '../components/bulk-dismiss';
 import { WeekCalendar } from '../components/week-calendar';
-import { Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, when, TZ } from '../ui';
+import { Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, when, TZ, brandOptions } from '../ui';
 import { Select } from '../components/select';
 import { addDays, dateOf, dayKey, sundayOf, weekdayOf, zonedToDate } from '../tz';
+import { BrandFilter } from '../components/brand-filter';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,13 +58,17 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
           </>
         }
       />
-      <nav className="row small" aria-label="Brand filter">
-        <span className="muted">Brand:</span>
-        <Link href={href(s, { brand: undefined })} aria-current={!s.brand ? 'page' : undefined} className={!s.brand ? 'pill' : undefined}>All brands</Link>
-        {brands.map((b) => (
-          <Link key={b.id} href={href(s, { brand: b.id })} aria-current={s.brand === b.id ? 'page' : undefined} className={s.brand === b.id ? 'pill' : undefined}>{b.name}</Link>
-        ))}
-      </nav>
+      {brands.length ? (
+        <div className="row small" style={{ gap: 8 }}>
+          <span className="muted">Brand</span>
+          <BrandFilter
+            brands={brands.map((b) => ({ id: b.id, name: b.name, logoUrl: b.logoUrl, kind: b.kind }))}
+            current={s.brand}
+            hrefs={Object.fromEntries(brands.map((b) => [b.id, href(s, { brand: b.id })]))}
+            allHref={href(s, { brand: undefined })}
+          />
+        </div>
+      ) : null}
       <Flash params={s} />
       {brands.length === 0 ? (
         <p className="muted">Add a brand first. <Link href="/brands/new">Add a brand</Link></p>
@@ -120,7 +125,7 @@ function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[];
               <form action={createIdea} className="item stack">
                 <input type="hidden" name="returnTo" value={here} />
                 {brandFilter ? <input type="hidden" name="brandId" value={brandFilter} /> : (
-                  <Select name="brandId" ariaLabel="Brand" width="auto" options={brands.map((b) => ({ value: b.id, label: b.name }))} />
+                  <Select name="brandId" ariaLabel="Brand" width="auto" options={brandOptions(brands)} />
                 )}
                 <input name="title" placeholder="New idea…" aria-label="Idea" required maxLength={300} />
                 <button type="submit">Add idea</button>
@@ -132,7 +137,7 @@ function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[];
                 <span className="spread"><span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Agent · Suggest ideas</span><span className="tag">Simulated</span></span>
                 <span className="dim small">From what worked, audience pain points and products. Each idea cites its reason.</span>
                 {brandFilter ? <input type="hidden" name="brandId" value={brandFilter} /> : (
-                  <Select name="brandId" ariaLabel="Brand to suggest for" width="auto" options={brands.map((b) => ({ value: b.id, label: b.name }))} />
+                  <Select name="brandId" ariaLabel="Brand to suggest for" width="auto" options={brandOptions(brands)} />
                 )}
                 <button type="submit" className="primary">Suggest 5 ideas</button>
               </form>

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { createIdea } from '../actions';
 import { getBrands, getDrafts, getIdeas, loadAll, type BrandView, type DraftView, type IdeaView } from '../api';
-import { Flash, LoadError, PageHeader } from '../ui';
+import { Flash, LoadError, PageHeader, brandOptions } from '../ui';
 import { Select } from '../components/select';
 
 export const dynamic = 'force-dynamic';
@@ -54,7 +54,7 @@ export default async function StudioIndex({ searchParams }: { searchParams: Prom
           <input type="hidden" name="returnTo" value="/studio" />
           <div className="field">
             <label htmlFor="brandId">Brand</label>
-            <Select id="brandId" name="brandId" options={brands.map((b) => ({ value: b.id, label: b.name }))} />
+            <Select id="brandId" name="brandId" options={brandOptions(brands)} />
           </div>
           <div className="field"><label htmlFor="title">Idea</label><input id="title" name="title" required placeholder="Why we chose AGPL" /></div>
           <div className="field"><label htmlFor="angle">Angle (optional)</label><textarea id="angle" name="angle" style={{ minHeight: 80 }} placeholder="Founder story, with the trade-offs" /></div>

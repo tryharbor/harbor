@@ -63,6 +63,14 @@ export function BrandMark({ name, logoUrl, size = 20 }: { name: string; logoUrl?
  */
 export const TZ = process.env.NEXT_PUBLIC_HARBOR_TIMEZONE || undefined;
 
+/** Options for a brand picker (components/select.tsx): each brand's logo, then its name; a person is marked "You". */
+export const brandOptions = (brands: { id: string; name: string; logoUrl?: string; kind?: 'brand' | 'person' }[]) =>
+  brands.map((b) => ({
+    value: b.id,
+    text: b.name,
+    label: <span className="brand-option"><BrandMark name={b.name} logoUrl={b.logoUrl} size={18} /><span className="truncate">{b.name}</span>{b.kind === 'person' ? <span className="dim small">You</span> : null}</span>,
+  }));
+
 export const when = (iso?: string, opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium', timeStyle: 'short' }) =>
   iso ? new Date(iso).toLocaleString('en-US', { ...opts, timeZone: TZ }) : '';
 

@@ -5,6 +5,7 @@ import { checksPass } from '../agents/agent-ui';
 import { Flash, LoadError, PageHeader, TZ } from '../ui';
 import { ApprovalCard } from './approval-card';
 import { ProposalCard } from './proposal-card';
+import { BrandFilter } from '../components/brand-filter';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,10 +58,13 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
             <Link href={params({ status: 'rejected' })} aria-current={status === 'rejected' ? 'page' : undefined}>Rejected · {counts.rejected}</Link>
           </nav>
           {brands.length > 1 ? (
-            <nav className="segmented" aria-label="Brand">
-              <Link href={params({ brand: undefined })} aria-current={!s.brand ? 'page' : undefined}>All brands</Link>
-              {brands.map((b) => <Link key={b.id} href={params({ brand: b.id })} aria-current={s.brand === b.id ? 'page' : undefined}>{b.name}</Link>)}
-            </nav>
+            <BrandFilter
+              brands={brands.map((b) => ({ id: b.id, name: b.name, logoUrl: b.logoUrl, kind: b.kind }))}
+              current={s.brand}
+              hrefs={Object.fromEntries(brands.map((b) => [b.id, params({ brand: b.id })]))}
+              allHref={params({ brand: undefined })}
+              width={220}
+            />
           ) : null}
           {s.run ? <Link href={params({ run: undefined })} className="tag signal">From one run · clear ✕</Link> : null}
         </div>

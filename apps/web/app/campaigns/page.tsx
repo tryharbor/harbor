@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { createCampaign } from '../canvas-actions';
 import { getBrands, getCampaigns, loadAll, type BrandView, type Campaign } from '../api';
-import { Flash, LoadError, PageHeader } from '../ui';
+import { Flash, LoadError, PageHeader, brandOptions } from '../ui';
 import { Select } from '../components/select';
 
 export const dynamic = 'force-dynamic';
@@ -50,7 +50,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
           <span className="label">New campaign</span>
           <div className="field">
             <label htmlFor="brandId">Brand</label>
-            <Select id="brandId" name="brandId" defaultValue={s.brandId} options={brands.map((b) => ({ value: b.id, label: b.name }))} />
+            <Select id="brandId" name="brandId" defaultValue={s.brandId} options={brandOptions(brands)} />
           </div>
           <div className="field"><label htmlFor="name">Name</label><input id="name" name="name" required placeholder="Launch week" /></div>
           <div className="field"><label htmlFor="goal">Goal</label><input id="goal" name="goal" placeholder="200 waitlist signups from builders" /></div>

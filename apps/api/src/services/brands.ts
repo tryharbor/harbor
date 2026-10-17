@@ -64,8 +64,43 @@ export async function checkSpeaksFor(db: Db, workspaceId: string, ids: string[])
   return unique;
 }
 
+/**
+ * A personal account speaks as you, so it can't take an account another brand in the workspace already posts from
+ * (easy to do by accident when the browser is signed in to the brand's account). Returns that brand's name, or
+ * undefined when the account is free or `brandId` isn't a person.
+ */
+export async function personAccountConflict(db: Db, brandId: string, platform: string, platformAccountId: string): Promise<string | undefined> {
+  const [row] = await db.query<{ name: string }>(
+    `SELECT b.name FROM channels c
+       JOIN brands b ON b.id = c.brand_id
+       JOIN brands me ON me.id = $1 AND me.kind = 'person' AND me.workspace_id = b.workspace_id
+     WHERE c.platform = $2 AND c.platform_account_id = $3 AND c.brand_id <> $1
+     ORDER BY c.created_at LIMIT 1`,
+    [brandId, platform, platformAccountId],
+  );
+  return row?.name;
+}
+
+/** Why a personal account can't take an account a brand already uses (the tokens are dropped, nothing is stored). */
+export const personAccountTaken = (handle: string, brandName: string, platformName: string) =>
+  `@${handle} is already connected to ${brandName}. Your personal account needs your own: sign out of ${platformName}, sign in as yourself, then connect again.`;
+
 /** A person's first connected account gives them a picture: its avatar becomes the logo, unless one is already set. */
 export async function adoptPersonAvatar(db: Db, brandId: string, avatarUrl: string | undefined): Promise<void> {
   if (!avatarUrl?.startsWith('https://') || avatarUrl.length > 2048) return;
   await db.query(`UPDATE brands SET logo_url = $2, updated_at = now() WHERE id = $1 AND kind = 'person' AND logo_url IS NULL`, [brandId, avatarUrl]);
+}
+
+/**
+ * After a person's account is disconnected: if their picture came from it, take the picture of an account still
+ * connected (the most recently updated), or clear it. A picture they uploaded themselves is left alone.
+ */
+export async function releasePersonAvatar(db: Db, brandId: string, avatarUrl: string | null | undefined): Promise<void> {
+  if (!avatarUrl) return;
+  await db.query(
+    `UPDATE brands SET updated_at = now(), logo_url = (
+       SELECT avatar_url FROM channels WHERE brand_id = $1 AND avatar_url LIKE 'https://%' AND length(avatar_url) <= 2048 ORDER BY updated_at DESC LIMIT 1
+     ) WHERE id = $1 AND kind = 'person' AND logo_url = $2`,
+    [brandId, avatarUrl],
+  );
 }

@@ -4,6 +4,10 @@ import { newId, type AuthCallback, type Platform, type PlatformProvider, type To
 import { createApp, createDeps, type App } from '../src/app.ts';
 import { openDb, type Db } from '../src/db/client.ts';
 
+/** The account the platform's consent screen is signed in as. */
+let signedIn: TokenSet['account'] = { platformAccountId: '7', handle: 'derek', displayName: 'Derek', avatarUrl: 'https://pbs.example/derek.jpg' };
+const account = (id: string, handle: string): TokenSet['account'] => ({ platformAccountId: id, handle, displayName: handle, avatarUrl: `https://pbs.example/${handle}.jpg` });
+
 /** Just enough of a platform to connect an account that has an avatar. */
 const fakeX = {
   identifier: 'x',
@@ -14,10 +18,7 @@ const fakeX = {
     return { url: 'https://x.example/auth', codeVerifier: 'v', state: `st_${Date.now()}_${Math.random()}` };
   },
   async authenticate(_cb: AuthCallback): Promise<TokenSet> {
-    return {
-      accessToken: 'a', refreshToken: 'r', expiresAt: new Date(Date.now() + 3600_000).toISOString(), scopes: ['write'],
-      account: { platformAccountId: '7', handle: 'derek', displayName: 'Derek', avatarUrl: 'https://pbs.example/derek.jpg' },
-    };
+    return { accessToken: 'a', refreshToken: 'r', expiresAt: new Date(Date.now() + 3600_000).toISOString(), scopes: ['write'], account: signedIn };
   },
 } as unknown as PlatformProvider;
 
@@ -108,5 +109,56 @@ describe('personal accounts', () => {
     expect(titles).toContain('My take on building in public');
     expect(titles).toContain('A lesson from building Harbor');
     expect(titles.some((t) => /building Derek/.test(t))).toBe(false);
+  });
+});
+
+describe("a personal account's connected accounts", () => {
+  let person: string;
+  const connect = async (brandId: string, as: TokenSet['account']) => {
+    signedIn = as;
+    await send('GET', `/v1/channels/x/connect?brandId=${brandId}`);
+    const [st] = await db.query<{ state: string }>('SELECT state FROM oauth_states WHERE brand_id = $1 ORDER BY created_at DESC LIMIT 1', [brandId]);
+    return send('GET', `/v1/channels/x/callback?code=c&state=${st!.state}`);
+  };
+  const channels = async (brandId: string) => (await (await send('GET', `/v1/brands/${brandId}/channels`)).json()).data as { id: string; account: { handle: string } }[];
+  const logo = async (brandId: string) => (await (await send('GET', `/v1/brands/${brandId}`)).json()).logoUrl as string | undefined;
+  const disconnect = async (brandId: string, handle: string) => {
+    const ch = (await channels(brandId)).find((c) => c.account.handle === handle)!;
+    expect((await send('DELETE', `/v1/channels/${ch.id}`)).status).toBe(204);
+  };
+
+  beforeAll(async () => {
+    [{ id: person }] = await db.query<{ id: string }>("SELECT id FROM brands WHERE kind = 'person'");
+    await connect(harbor, account('100', 'tryharbor'));
+  });
+
+  it("refuses an account another brand already posts from", async () => {
+    const before = await logo(person);
+    const res = await connect(person, account('100', 'tryharbor'));
+    const to = new URL(res.headers.get('location')!);
+    expect(to.searchParams.get('error')).toMatch(/^@tryharbor is already connected to Harbor\. .*sign in as yourself/);
+    expect((await channels(person)).map((c) => c.account.handle)).not.toContain('tryharbor');
+    expect(await logo(person)).toBe(before);
+    // The brand keeps its own connection.
+    expect((await channels(harbor)).map((c) => c.account.handle)).toContain('tryharbor');
+  });
+
+  it('gives the picture back when the account it came from is disconnected', async () => {
+    await disconnect(person, 'derek');
+    expect(await logo(person)).toBeUndefined();
+    await connect(person, account('200', 'first'));
+    await connect(person, account('300', 'dwkoza'));
+    expect(await logo(person)).toBe('https://pbs.example/first.jpg');
+    await disconnect(person, 'first');
+    expect(await logo(person)).toBe('https://pbs.example/dwkoza.jpg');
+    await disconnect(person, 'dwkoza');
+    expect(await logo(person)).toBeUndefined();
+  });
+
+  it('keeps a picture you set yourself', async () => {
+    await connect(person, account('400', 'again'));
+    await db.query('UPDATE brands SET logo_url = $2 WHERE id = $1', [person, 'https://example.com/me.png']);
+    await disconnect(person, 'again');
+    expect(await logo(person)).toBe('https://example.com/me.png');
   });
 });

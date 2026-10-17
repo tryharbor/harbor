@@ -3,7 +3,7 @@ import { HarborError, PLATFORM_METRICS, platformSchema } from '@harbor/core';
 import { getProvider } from '@harbor/providers';
 import type { App, AppDeps } from '../app.ts';
 import { body, check } from '../lib/http.ts';
-import { adoptPersonAvatar } from '../services/brands.ts';
+import { adoptPersonAvatar, personAccountConflict, personAccountTaken, releasePersonAvatar } from '../services/brands.ts';
 import { getChannelRow, toChannel, upsertChannel, type ChannelRow } from '../services/channels.ts';
 import { SCAN_DEFAULT, SCAN_MAX, importScanned, scanChannel } from '../services/imports.ts';
 import { supportsReplies } from '../services/replies.ts';
@@ -94,6 +94,8 @@ export function registerChannels(app: App, deps: AppDeps) {
     const provider = registry.get(platform.data)!;
     try {
       const tokens = await provider.authenticate({ code: c.req.query('code') ?? '', codeVerifier: pending.code_verifier, state });
+      const taken = await personAccountConflict(db, brandId, platform.data, tokens.account.platformAccountId);
+      if (taken) return c.redirect(back(brandId, { error: personAccountTaken(tokens.account.handle, taken, provider.name) }, to), 302);
       const channel = await upsertChannel(db, secrets(), brandId, platform.data, tokens);
       await adoptPersonAvatar(db, brandId, channel.account.avatarUrl);
       return c.redirect(back(brandId, { connected: `${provider.name} @${channel.account.handle}` }, to), 302);
@@ -120,6 +122,7 @@ export function registerChannels(app: App, deps: AppDeps) {
     const row = await getChannelRow(db, c.req.param('id'));
     await db.query('DELETE FROM channels WHERE id = $1', [row.id]);
     await secrets().delete(row.token_ref);
+    await releasePersonAvatar(db, row.brand_id, row.avatar_url);
     return c.body(null, 204);
   });
 }

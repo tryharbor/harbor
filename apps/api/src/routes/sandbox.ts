@@ -4,7 +4,7 @@ import { HarborError, platformSchema } from '@harbor/core';
 import type { App, AppDeps } from '../app.ts';
 import { body } from '../lib/http.ts';
 import { upsertChannel } from '../services/channels.ts';
-import { loadBrand } from '../services/brands.ts';
+import { loadBrand, personAccountConflict, personAccountTaken } from '../services/brands.ts';
 import { tick } from '../worker.ts';
 
 const channelSchema = z
@@ -38,11 +38,14 @@ export function registerSandbox(app: App, deps: AppDeps) {
     const brand = await loadBrand(db, input.brandId);
     const provider = deps.registry.get(input.platform);
     if (!provider) throw new HarborError('NOT_FOUND', `Unknown platform ${input.platform}.`);
+    const platformAccountId = `sbx_${input.platform}_${input.handle.toLowerCase().replace(/\s+/g, '_')}`;
+    const taken = await personAccountConflict(db, brand.id, input.platform, platformAccountId);
+    if (taken) throw new HarborError('INVALID_REQUEST', personAccountTaken(input.handle, taken, provider.name));
     const channel = await upsertChannel(db, deps.secrets(), brand.id, input.platform, {
       accessToken: `sbx_access_${randomBytes(12).toString('hex')}`,
       refreshToken: `sbx_refresh_${randomBytes(12).toString('hex')}`,
       scopes: [...provider.scopes],
-      account: { platformAccountId: `sbx_${input.platform}_${input.handle.toLowerCase().replace(/\s+/g, '_')}`, handle: input.handle, displayName: input.handle },
+      account: { platformAccountId, handle: input.handle, displayName: input.handle },
     });
     return c.json(channel, 201);
   });

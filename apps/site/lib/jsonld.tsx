@@ -91,7 +91,7 @@ export function faqPage(items: { q: string; a: string }[]) {
   };
 }
 
-export function blogPosting(post: { slug: string; title: string; description: string; date: string; author: string; tags: string[] }) {
+export function blogPosting(post: { slug: string; title: string; description: string; date: string; updated?: string; author: string; tags: string[] }) {
   const url = `${SITE.url}/blog/${post.slug}`;
   return {
     '@context': 'https://schema.org',
@@ -101,7 +101,7 @@ export function blogPosting(post: { slug: string; title: string; description: st
     url,
     mainEntityOfPage: url,
     datePublished: post.date,
-    dateModified: post.date,
+    dateModified: post.updated ?? post.date,
     author: { '@type': 'Person', name: post.author, url: SITE.url },
     publisher: { '@id': ORG_ID },
     image: `${SITE.url}/opengraph-image`,

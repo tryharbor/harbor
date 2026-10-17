@@ -11,13 +11,17 @@ import { Marked } from 'marked';
  *   description: One line for the index and the feed.
  *   author: Derek
  *   tags: [agents, approvals]
+ *   updated: 2026-11-02          (optional: when facts were last checked)
  *   ---
+ *
+ * A "## FAQ" (or "## Frequently asked questions") section whose "### " headings are questions becomes FAQPage
+ * structured data, so search engines and assistants can quote the answers.
  *
  * Read at build time only (every blog route is static).
  */
 
-export type PostMeta = { slug: string; title: string; date: string; description: string; author: string; tags: string[] };
-export type Post = PostMeta & { html: string; markdown: string; minutes: number };
+export type PostMeta = { slug: string; title: string; date: string; updated?: string; description: string; author: string; tags: string[] };
+export type Post = PostMeta & { html: string; markdown: string; minutes: number; faq: { q: string; a: string }[] };
 
 const DIR = join(process.cwd(), 'content', 'blog');
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -54,24 +58,49 @@ const list = (v: string | string[] | undefined) => (Array.isArray(v) ? v : typeo
 
 const marked = new Marked({ gfm: true });
 
+/** Markdown to plain text, enough for structured-data answers: links keep their text, emphasis and code marks go. */
+const plain = (md: string) =>
+  md.replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`]+/g, '').replace(/\s+/g, ' ').trim();
+
+/** Questions and answers from the post's FAQ section ("## FAQ", then "### Question" with the answer below). */
+export function extractFaq(body: string): { q: string; a: string }[] {
+  const start = /^##\s+(?:FAQ|Frequently asked questions)\s*$/im.exec(body);
+  if (!start) return [];
+  const rest = body.slice(start.index + start[0].length);
+  const end = /^##\s/m.exec(rest);
+  const section = end ? rest.slice(0, end.index) : rest;
+  return section
+    .split(/^###\s+/m)
+    .slice(1)
+    .map((block) => {
+      const [q = '', ...answer] = block.split('\n');
+      return { q: plain(q), a: plain(answer.join('\n')) };
+    })
+    .filter((f) => f.q && f.a);
+}
+
 function load(file: string): Post {
   const slug = file.replace(/\.md$/, '');
   if (!SLUG.test(slug)) throw new Error(`content/blog/${file}: file names are the slug (lowercase, dashes).`);
   const { data, body } = parseFrontmatter(readFileSync(join(DIR, file), 'utf8'));
   const date = str(data.date, 'date', file);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`content/blog/${file}: date must be YYYY-MM-DD.`);
+  const updated = typeof data.updated === 'string' && data.updated ? data.updated : undefined;
+  if (updated && !/^\d{4}-\d{2}-\d{2}$/.test(updated)) throw new Error(`content/blog/${file}: updated must be YYYY-MM-DD.`);
   const html = marked.parse(body, { async: false });
   const words = body.split(/\s+/).filter(Boolean).length;
   return {
     slug,
     title: str(data.title, 'title', file),
     date,
+    ...(updated ? { updated } : {}),
     description: str(data.description, 'description', file),
     author: str(data.author, 'author', file),
     tags: list(data.tags),
     html,
     markdown: body,
     minutes: Math.max(1, Math.round(words / 230)),
+    faq: extractFaq(body),
   };
 }
 

@@ -5,7 +5,7 @@ import { Reveal } from '../../../components/reveal';
 import { CtaBand } from '../../../components/ui';
 import { formatDate, getPost, getPosts } from '../../../lib/blog';
 import '../blog.css';
-import { JsonLd, blogPosting } from '../../../lib/jsonld';
+import { JsonLd, blogPosting, faqPage } from '../../../lib/jsonld';
 
 export const dynamicParams = false;
 
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description: post.description,
     authors: [{ name: post.author }],
     alternates: { canonical: `/blog/${post.slug}`, types: { 'application/rss+xml': '/blog/rss.xml' } },
-    openGraph: { type: 'article', title: post.title, description: post.description, url: `/blog/${post.slug}`, publishedTime: post.date, authors: [post.author], tags: post.tags },
+    openGraph: { type: 'article', title: post.title, description: post.description, url: `/blog/${post.slug}`, publishedTime: post.date, ...(post.updated ? { modifiedTime: post.updated } : {}), authors: [post.author], tags: post.tags },
     twitter: { card: 'summary_large_image', title: post.title, description: post.description },
   };
 }
@@ -35,6 +35,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
   return (
     <>
       <JsonLd data={blogPosting(post)} />
+      {post.faq.length ? <JsonLd data={faqPage(post.faq)} /> : null}
       <article className="section blog-article">
         <div className="container">
           <Reveal>
@@ -42,7 +43,7 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
           </Reveal>
           <header className="blog-head">
             <Reveal delay={40}>
-              <span className="eyebrow"><span className="pixels" /><time dateTime={post.date}>{formatDate(post.date)}</time><span aria-hidden="true">·</span>{post.minutes} min read</span>
+              <span className="eyebrow"><span className="pixels" /><time dateTime={post.date}>{formatDate(post.date)}</time>{post.updated ? <><span aria-hidden="true">·</span>Updated <time dateTime={post.updated}>{formatDate(post.updated)}</time></> : null}<span aria-hidden="true">·</span>{post.minutes} min read</span>
             </Reveal>
             <Reveal delay={80}><h1 className="h1 blog-h1">{post.title}</h1></Reveal>
             <Reveal delay={120}><p className="lede" style={{ margin: 0, maxWidth: '56ch' }}>{post.description}</p></Reveal>

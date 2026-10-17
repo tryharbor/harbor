@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { HarborError, newId } from '@harbor/core';
 import type { Db } from '../db/client.ts';
 import { iso } from '../lib/http.ts';
+import { startOfZonedDay, zoned, zonedToDate } from '../lib/tz.ts';
 import { agentInfo, recordFailedRun, runAgent, type AgentDeps } from './agents.ts';
 import { loadBrand } from './brands.ts';
 import { AGENT_EVENTS } from './events.ts';
@@ -40,12 +41,8 @@ export interface AutomationRow {
   created_at: Date | string;
 }
 
-/** Midnight today, server local time. */
-const startOfToday = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-};
+/** Midnight today on the workspace's clock (the daily run cap resets then). */
+const startOfToday = () => startOfZonedDay().toISOString();
 
 const SELECT_AUTOMATIONS = `
   SELECT a.*, b.name AS brand_name, lr.status AS last_run_status,
@@ -91,14 +88,31 @@ export async function listAutomations(db: Db, brandId?: string): Promise<Automat
   return rows.map(toAutomation);
 }
 
-/** The next time a schedule fires after `from` (server local time), or undefined for event triggers. */
+/** The next time a schedule fires after `from` (on the workspace's clock), or undefined for event triggers. */
 export function nextRunAt(trigger: Trigger, from = new Date()): Date | undefined {
   if (trigger.type !== 'schedule') return undefined;
-  const d = new Date(from);
-  d.setHours(trigger.hour, 0, 0, 0);
-  d.setDate(d.getDate() + ((trigger.weekday - d.getDay() + 7) % 7));
-  if (d.getTime() <= from.getTime()) d.setDate(d.getDate() + 7);
-  return d;
+  const wall = zoned(from);
+  const day = wall.day + ((trigger.weekday - wall.weekday + 7) % 7);
+  const at = zonedToDate(wall.year, wall.month, day, trigger.hour);
+  return at.getTime() > from.getTime() ? at : zonedToDate(wall.year, wall.month, day + 7, trigger.hour);
+}
+
+/**
+ * Move every upcoming schedule to the workspace's clock: runs scheduled before the timezone was set (or changed)
+ * sit hours off. Due runs are left alone so a missed run still happens. Safe to repeat; the worker calls it on start.
+ */
+export async function realignSchedules(db: Db): Promise<number> {
+  const rows = await db.query<{ id: string; trigger: Trigger; next_run_at: Date | string }>(
+    `SELECT id, trigger, next_run_at FROM automations WHERE enabled AND trigger->>'type' = 'schedule' AND next_run_at > now()`,
+  );
+  let moved = 0;
+  for (const r of rows) {
+    const next = nextRunAt(r.trigger);
+    if (!next || next.getTime() === new Date(r.next_run_at).getTime()) continue;
+    await db.query('UPDATE automations SET next_run_at = $2 WHERE id = $1 AND next_run_at > now()', [r.id, next.toISOString()]);
+    moved++;
+  }
+  return moved;
 }
 
 /** The trigger must be one the agent supports. */

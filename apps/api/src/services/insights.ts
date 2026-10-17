@@ -3,6 +3,7 @@ import type { DigestFinding, DigestInput, DigestPost, DigestStats } from '@harbo
 import type { AppDeps } from '../app.ts';
 import type { Db } from '../db/client.ts';
 import { bestTimesForBrand } from './best-times.ts';
+import { zoned } from '../lib/tz.ts';
 import { loadHistory, median, refreshBrandOutcomes, valueAt, type HistoryPost, type OutcomeView } from './outcomes.ts';
 import { withRun, type RunInfo, type RunOpts } from './runs.ts';
 import { derivePerformanceSignals } from './signals.ts';
@@ -61,6 +62,7 @@ async function performanceSignalIds(db: Db, brandId: string): Promise<Map<string
 
 function toDigestPost(p: HistoryPost, outcome: OutcomeView | undefined, signalId: string | undefined, inPeriod: boolean): DigestPost {
   const d = new Date(p.publishedAt);
+  const wall = zoned(d);
   const views24h = valueAt(p, 24, 'views');
   return {
     id: p.id,
@@ -68,8 +70,8 @@ function toDigestPost(p: HistoryPost, outcome: OutcomeView | undefined, signalId
     parts: p.parts.map((x) => x.text),
     hasMedia: p.parts.some((x) => x.media.length > 0),
     publishedAt: d.toISOString(),
-    weekday: d.getDay(),
-    hour: d.getHours(),
+    weekday: wall.weekday,
+    hour: wall.hour,
     inPeriod,
     ...(p.url ? { url: p.url } : {}),
     ...(signalId ? { signalId } : {}),

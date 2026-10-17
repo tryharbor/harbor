@@ -1,5 +1,5 @@
 import type { AgentDeps } from './services/agents.ts';
-import { processDueSchedules, processEvents } from './services/automations.ts';
+import { processDueSchedules, processEvents, realignSchedules } from './services/automations.ts';
 import { advancePending, publishPost, sweepStalePublishing, takeSnapshot, type PublishDeps } from './services/publisher.ts';
 
 /** Publishing needs the token store; automations (agents) also need the model. Without `agents` they're skipped. */
@@ -50,7 +50,8 @@ async function safely(step: string, id: string, fn: () => Promise<void>) {
 
 /** Run tick() every `intervalMs` (never overlapping). Returns a stop function. */
 export function startWorker(deps: WorkerDeps, intervalMs = 15_000): () => Promise<void> {
-  let running: Promise<void> | undefined;
+  // First, put upcoming schedule runs on the workspace's clock (the timezone may have been set or changed).
+  let running: Promise<void> | undefined = safely('realign', '-', async () => void (await realignSchedules(deps.db))).finally(() => (running = undefined));
   const timer = setInterval(() => {
     if (running) return;
     running = tick(deps).finally(() => (running = undefined));

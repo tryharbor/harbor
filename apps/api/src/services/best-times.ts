@@ -1,9 +1,10 @@
 import { PLATFORMS, type Platform } from '@harbor/core';
 import type { Db } from '../db/client.ts';
+import { zoned } from '../lib/tz.ts';
 import { loadHistory, median, platformPrimaryMetric, valueAt, type HistoryPost } from './outcomes.ts';
 
 /**
- * Best posting times: a 7×24 grid (weekday 0 = Sunday, hour 0–23, server local time) scored 0..1.
+ * Best posting times: a 7×24 grid (weekday 0 = Sunday, hour 0–23, in the workspace's timezone) scored 0..1.
  *
  * History: each post's primary metric at 24h, divided by the brand's median for that platform (so platforms mix),
  * credited to its publish slot and spread to neighbouring hours with a Gaussian kernel (σ 1.5h, ±3h); the same hour
@@ -89,8 +90,8 @@ export function relativePerformance(posts: HistoryPost[]): Scored[] {
     const med = median(list.map((x) => x.value));
     if (!(med > 0)) continue;
     for (const { post, value } of list) {
-      const d = new Date(post.publishedAt);
-      out.push({ weekday: d.getDay(), hour: d.getHours(), relative: Math.max(value, 1) / med });
+      const { weekday, hour } = zoned(new Date(post.publishedAt));
+      out.push({ weekday, hour, relative: Math.max(value, 1) / med });
     }
   }
   return out;

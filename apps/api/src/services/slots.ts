@@ -1,9 +1,10 @@
 import type { Platform } from '@harbor/core';
 import type { Db } from '../db/client.ts';
+import { zoned, zonedToDate } from '../lib/tz.ts';
 import { bestTimesForBrand } from './best-times.ts';
 
 /**
- * Open posting slots on one channel: the next 7 days starting tomorrow (server local time), best-time score first.
+ * Open posting slots on one channel: the next 7 days starting tomorrow, on the workspace's clock, best-time score first.
  * A slot is at least 1h away, at least 3h from any scheduled post or pending approval on the channel (and from the
  * other slots picked), and at most one per day while the week has room.
  */
@@ -42,14 +43,15 @@ export async function openSlots(
   const grid = await bestTimesForBrand(db, brandId, channel.platform);
   const busy = [...(await busyTimes(db, channel.id)), ...(opts.taken ?? [])].map((d) => d.getTime());
 
+  const today = zoned(new Date(now));
   const candidates: (Slot & { day: number })[] = [];
   for (let day = 1; day <= SLOT_DAYS; day++) {
-    for (let hour = 0; hour < 24; hour++) {
-      const at = new Date(now);
-      at.setDate(at.getDate() + day);
-      at.setHours(hour, 0, 0, 0);
+    for (let h = 0; h < 24; h++) {
+      const at = zonedToDate(today.year, today.month, today.day + day, h);
       if (at.getTime() < now + SLOT_MIN_LEAD_HOURS * HOUR_MS) continue;
-      const weekday = at.getDay();
+      // Read back from the instant: in a DST gap the hour asked for doesn't exist.
+      const { weekday, hour } = zoned(at);
+      if (candidates.some((c) => c.at.getTime() === at.getTime())) continue;
       candidates.push({ at, weekday, hour, day, score: grid.slots[weekday * 24 + hour]?.score ?? 0 });
     }
   }

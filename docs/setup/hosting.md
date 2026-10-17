@@ -42,6 +42,7 @@ Create a database and copy its connection string (the pooled one is fine). Harbo
    | `HARBOR_MODEL` | `simulated` (or `anthropic` with `ANTHROPIC_API_KEY`) |
    | `HARBOR_API_URL` | `https://api.example.com` |
    | `HARBOR_WEB_URL` | `https://app.example.com` |
+   | `HARBOR_TIMEZONE` | your timezone, e.g. `America/Chicago` (best times, posting slots and schedules; Railway runs in UTC) |
    | `RAILWAY_RUN_UID` | `0` (Railway mounts volumes as root; without it, uploads fail) |
    | `X_CLIENT_ID`, `X_CLIENT_SECRET`, `LINKEDIN_*`, `INSTAGRAM_*`, `THREADS_*` | your platform apps |
 
@@ -69,6 +70,7 @@ Copy the client ID and generate a client secret. Harbor asks for no scopes; it o
    | `HARBOR_API_URL` | `https://api.example.com` |
    | `HARBOR_API_BROWSER_URL` | `https://api.example.com` (uploads and media previews) |
    | `HARBOR_WEB_URL` | `https://app.example.com` |
+   | `NEXT_PUBLIC_HARBOR_TIMEZONE` | the same zone as `HARBOR_TIMEZONE` on Railway |
    | `HARBOR_INTERNAL_TOKEN` | the same value as on Railway |
    | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | from step 4 |
    | `HARBOR_SESSION_SECRET` | from step 1 |

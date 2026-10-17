@@ -12,7 +12,7 @@ import { BrandFilter } from '../components/brand-filter';
 export const dynamic = 'force-dynamic';
 
 type View = 'board' | 'table' | 'calendar';
-type Search = { view?: string; brand?: string; month?: string; week?: string; range?: string; notice?: string; error?: string };
+type Search = { view?: string; stage?: string; brand?: string; month?: string; week?: string; range?: string; notice?: string; error?: string };
 
 const STAGES: { key: IdeaStatus; label: string; hint: string }[] = [
   { key: 'idea', label: 'Ideas', hint: 'Worth posting about' },
@@ -26,7 +26,7 @@ const PREV: Partial<Record<IdeaStatus, IdeaStatus>> = { drafting: 'idea', approv
 
 const href = (s: Search, patch: Partial<Search>) => {
   const p = new URLSearchParams();
-  const merged = { view: s.view, brand: s.brand, month: s.month, week: s.week, range: s.range, ...patch };
+  const merged = { view: s.view, stage: s.stage, brand: s.brand, month: s.month, week: s.week, range: s.range, ...patch };
   for (const [k, v] of Object.entries(merged)) if (v) p.set(k, v);
   return `/hub${p.size ? `?${p}` : ''}`;
 };
@@ -44,13 +44,13 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
       <PageHeader
         eyebrow="Hub"
         title="Every idea, from first thought to measured result"
-        sub="Ideas, drafts and posts across your brands. Board, table or calendar."
+        sub="Ideas, drafts and posts across your brands. Pipeline, table or calendar."
         actions={
           <>
             <nav className="segmented" aria-label="View">
               {(['board', 'table', 'calendar'] as const).map((v) => (
                 <Link key={v} href={href(s, { view: v === 'board' ? undefined : v })} aria-current={view === v ? 'page' : undefined}>
-                  {v[0]!.toUpperCase() + v.slice(1)}
+                  {v === 'board' ? 'Pipeline' : v[0]!.toUpperCase() + v.slice(1)}
                 </Link>
               ))}
             </nav>
@@ -73,7 +73,11 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
       {brands.length === 0 ? (
         <p className="muted">Add a brand first. <Link href="/brands/new">Add a brand</Link></p>
       ) : view === 'board' ? (
-        <Board ideas={ideas} posts={posts} brands={brands} brandFilter={s.brand} here={here} />
+        <Board
+          ideas={ideas} posts={posts} brands={brands} brandFilter={s.brand} here={here}
+          stage={(STAGES.some((x) => x.key === s.stage) ? s.stage : 'idea') as IdeaStatus}
+          stageHrefs={{ ...Object.fromEntries(STAGES.map((x) => [x.key, href(s, { stage: x.key === 'idea' ? undefined : x.key })])), calendar: href(s, { view: 'calendar', stage: undefined }) }}
+        />
       ) : view === 'table' ? (
         <Table ideas={ideas} posts={posts} />
       ) : s.range === 'month' ? (
@@ -100,85 +104,101 @@ function plannedAt(i: IdeaView): string {
   return new Date(Date.UTC(year, month, Number(m[2]))).toISOString();
 }
 
-function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[]; posts: PostView[]; brands: BrandView[]; brandFilter?: string; here: string }) {
+function Board({ ideas, posts, brands, brandFilter, here, stage, stageHrefs }: {
+  ideas: IdeaView[]; posts: PostView[]; brands: BrandView[]; brandFilter?: string; here: string; stage: IdeaStatus; stageHrefs: Record<string, string>;
+}) {
   const ideaTitle = new Map(ideas.map((i) => [i.id, i.title]));
   const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000).toISOString();
+  const byStage = Object.fromEntries(STAGES.map(({ key }) => {
+    const stageIdeas = key === 'idea' || key === 'drafting' || key === 'approved'
+      ? ideas.filter((i) => i.status === key).sort((a, b) => plannedAt(a).localeCompare(plannedAt(b)) || a.createdAt.localeCompare(b.createdAt))
+      : [];
+    const stagePosts =
+      key === 'scheduled'
+        ? posts.filter((p) => ['scheduled', 'publishing', 'pending', 'unknown', 'failed'].includes(p.status))
+            .sort((a, b) => (a.scheduledFor ?? '').localeCompare(b.scheduledFor ?? ''))
+        : key === 'live'
+          ? posts.filter((p) => p.status === 'published' && (p.publishedAt ?? '') >= twoWeeksAgo)
+              .sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''))
+          : [];
+    return [key, { ideas: stageIdeas, posts: stagePosts }];
+  })) as Record<IdeaStatus, { ideas: IdeaView[]; posts: PostView[] }>;
+  const current = STAGES.find((x) => x.key === stage) ?? STAGES[0]!;
+  const { ideas: stageIdeas, posts: stagePosts } = byStage[current.key];
+  const selectable = current.key === 'idea' && stageIdeas.length > 1;
+
   return (
-    <div className="board">
-      {STAGES.map((stage) => {
-        const stageIdeas = ideas
-          .filter((i) => i.status === stage.key && (stage.key === 'idea' || stage.key === 'drafting' || stage.key === 'approved'))
-          .sort((a, b) => plannedAt(a).localeCompare(plannedAt(b)) || a.createdAt.localeCompare(b.createdAt));
-        const stagePosts =
-          stage.key === 'scheduled'
-            ? posts.filter((p) => ['scheduled', 'publishing', 'pending', 'unknown', 'failed'].includes(p.status))
-            : stage.key === 'live'
-              ? posts.filter((p) => p.status === 'published' && (p.publishedAt ?? '') >= twoWeeksAgo)
-              : [];
-        return (
-          <section key={stage.key} className="column" data-stage={stage.key} aria-label={stage.label}>
-            <div className="column-head">
-              <h2>{stage.label}</h2>
-              <span className="muted small">{stageIdeas.length + stagePosts.length}</span>
-            </div>
-            {stage.key === 'idea' ? (
-              <form action={createIdea} className="item stack">
-                <input type="hidden" name="returnTo" value={here} />
-                {brandFilter ? <input type="hidden" name="brandId" value={brandFilter} /> : (
-                  <Select name="brandId" ariaLabel="Brand" width="auto" options={brandOptions(brands)} />
-                )}
-                <input name="title" placeholder="New idea…" aria-label="Idea" required maxLength={300} />
-                <button type="submit">Add idea</button>
-              </form>
-            ) : null}
-            {stage.key === 'idea' ? (
-              <form action={suggestIdeas} className="item stack staging" style={{ background: 'transparent' }}>
-                <input type="hidden" name="returnTo" value={here} />
-                <span className="spread"><span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Agent · Suggest ideas</span><span className="tag">Simulated</span></span>
-                <span className="dim small">From what worked, audience pain points and products. Each idea cites its reason.</span>
-                {brandFilter ? <input type="hidden" name="brandId" value={brandFilter} /> : (
-                  <Select name="brandId" ariaLabel="Brand to suggest for" width="auto" options={brandOptions(brands)} />
-                )}
-                <button type="submit" className="primary">Suggest 5 ideas</button>
-              </form>
-            ) : null}
-            {stage.key === 'idea' && stageIdeas.length > 1 ? (
-              <form id="dismiss-ideas" action={dismissIdeas}>
-                <input type="hidden" name="returnTo" value={here} />
-                <BulkDismiss formId="dismiss-ideas" />
-              </form>
-            ) : null}
+    <>
+      {/* One brand picker for both: Enter (or Add idea) adds the typed idea, Suggest runs the agent without a title. */}
+      <form action={createIdea} className="board-bar">
+        <input type="hidden" name="returnTo" value={here} />
+        {brandFilter ? <input type="hidden" name="brandId" value={brandFilter} /> : (
+          <Select name="brandId" ariaLabel="Brand" width="auto" options={brandOptions(brands)} />
+        )}
+        <input name="title" placeholder="New idea…" aria-label="Idea" required maxLength={300} />
+        <button type="submit">Add idea</button>
+        <button type="submit" formAction={suggestIdeas} formNoValidate className="primary suggest" title="From what worked, audience pain points and products. Each idea cites its reason.">
+          <span className="pixels" aria-hidden="true" />Suggest 5 ideas
+        </button>
+      </form>
+
+      {/* The pipeline as tabs: every stage and its count in one row, one stage's cards at a time. */}
+      <nav className="stage-tabs" aria-label="Stage">
+        {STAGES.map((x) => {
+          const n = byStage[x.key].ideas.length + byStage[x.key].posts.length;
+          return (
+            <Link key={x.key} href={stageHrefs[x.key]!} data-stage={x.key} aria-current={x.key === current.key ? 'page' : undefined} className={n ? undefined : 'empty'}>
+              <span className="stage-name">{x.label}</span>
+              <span className="stage-count">{n}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <section aria-label={current.label} className="stage-panel">
+        <div className="spread small">
+          <span className="muted">{current.hint}{current.key === 'live' ? ' · last 14 days' : ''}</span>
+          {current.key === 'live' ? <Link href="/performance">All results →</Link> : null}
+          {current.key === 'scheduled' ? <Link href={stageHrefs.calendar!}>See them on the calendar →</Link> : null}
+        </div>
+        {selectable ? (
+          <form id="dismiss-ideas" action={dismissIdeas}>
+            <input type="hidden" name="returnTo" value={here} />
+            <BulkDismiss formId="dismiss-ideas" />
+          </form>
+        ) : null}
+        {stageIdeas.length + stagePosts.length === 0 ? (
+          <p className="muted stage-empty">{EMPTY[current.key]}</p>
+        ) : (
+          <div className="stage-grid">
             {stageIdeas.map((i) => (
-              <article key={i.id} className="item">
-                {i.status === 'idea' && stageIdeas.length > 1 ? (
-                  <label className="row small dim" style={{ gap: 6 }}>
-                    <input type="checkbox" name="ideaId" value={i.id} form="dismiss-ideas" aria-label={`Select "${i.title}"`} />
-                    Select
-                  </label>
-                ) : null}
-                <div className="item-title">{i.title}</div>
-                {i.angle ? <div className="muted small">{i.angle}</div> : null}
+              <article key={i.id} className="item idea-card">
+                <div className="item-head">
+                  {selectable ? <input type="checkbox" name="ideaId" value={i.id} form="dismiss-ideas" aria-label={`Select "${i.title}"`} /> : null}
+                  {/* The angle and notes live in Studio; the card keeps to the title (full text on hover). */}
+                  <div className="item-title clamp-2" title={i.angle ? `${i.title}\n\n${i.angle}` : i.title}>{i.title}</div>
+                </div>
                 <div className="item-meta">
                   <span>{i.brandName}</span>
                   {i.basis.length ? null : <span>added by you</span>}
                 </div>
-                {i.basis.slice(0, 2).map((b) => <span key={b.signalId} className="cite" style={{ justifySelf: 'start' }}>{b.note ?? 'cited signal'}</span>)}
+                {i.basis[0] ? <span className="cite clamp-1" title={i.basis[0].note ?? undefined}>{i.basis[0].note ?? 'cited signal'}</span> : null}
                 <div className="item-actions">
                   {PREV[i.status] ? <MoveButton id={i.id} to={PREV[i.status]!} label="←" here={here} title={`Back to ${PREV[i.status]}`} /> : null}
                   {NEXT[i.status] ? <MoveButton id={i.id} to={NEXT[i.status]!} label={`To ${NEXT[i.status]} →`} here={here} /> : null}
                   <Link className="button" href={`/studio/${i.id}`}>Studio →</Link>
-                  <form action={deleteIdea} className="inline-form">
-                    <input type="hidden" name="ideaId" value={i.id} />
-                    <input type="hidden" name="returnTo" value={here} />
-                    <button type="submit" className="link-button small" title="Delete idea">Delete</button>
-                  </form>
                 </div>
+                <form action={deleteIdea} className="item-x">
+                  <input type="hidden" name="ideaId" value={i.id} />
+                  <input type="hidden" name="returnTo" value={here} />
+                  <button type="submit" className="x-button" aria-label={`Delete "${i.title}"`} title="Delete idea">×</button>
+                </form>
               </article>
             ))}
             {stagePosts.map((p) => (
               <Link key={p.id} href={`/performance/${p.id}`} className="item" style={{ textDecoration: 'none', color: 'inherit' }}>
-                {p.ideaId && ideaTitle.get(p.ideaId) ? <div className="muted small">Idea: {ideaTitle.get(p.ideaId)}</div> : null}
-                <div className="item-title">{p.parts[0]?.text.slice(0, 120)}</div>
+                {p.ideaId && ideaTitle.get(p.ideaId) ? <div className="muted small clamp-1">Idea: {ideaTitle.get(p.ideaId)}</div> : null}
+                <div className="item-title clamp-3">{p.parts[0]?.text}</div>
                 <div className="item-meta">
                   <PlatformTag platform={p.channel.platform} />
                   <span>{p.brandName}</span>
@@ -187,13 +207,20 @@ function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[];
                 {p.status === 'published' ? <MetricLine metrics={p.latest?.metrics} /> : <StatusPill status={p.status} />}
               </Link>
             ))}
-            {stageIdeas.length + stagePosts.length === 0 && stage.key !== 'idea' ? <p className="muted small" style={{ padding: '0 4px' }}>{stage.hint}</p> : null}
-          </section>
-        );
-      })}
-    </div>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
+
+const EMPTY: Record<IdeaStatus, string> = {
+  idea: 'No open ideas. Add one above, or let Harbor suggest five from what worked.',
+  drafting: 'Nothing being written. Move an idea here, or open one in Studio.',
+  approved: 'Nothing approved and waiting to be scheduled.',
+  scheduled: 'Nothing queued. Approve a proposal or schedule a post from Studio.',
+  live: 'Nothing published in the last 14 days.',
+} as Record<IdeaStatus, string>;
 
 function MoveButton({ id, to, label, here, title }: { id: string; to: IdeaStatus; label: string; here: string; title?: string }) {
   return (

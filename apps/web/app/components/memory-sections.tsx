@@ -272,18 +272,30 @@ export function StyleSection({ brand, returnTo }: { brand: BrandView; returnTo: 
 
 // ---- Preview card (Jasper's live preview, Sanity's document preview) ----
 
-export function MemoryPreview({ brand, competitors, title = 'What Harbor knows', focus }: { brand: BrandView; competitors?: Competitor[]; title?: string; focus?: string }) {
+export function MemoryPreview({ brand, competitors, title = 'What Harbor knows', focus, speaksForNames }: { brand: BrandView; competitors?: Competitor[]; title?: string; focus?: string; speaksForNames?: string[] }) {
   const m = brand.memory;
   const exampleChars = m.examplePosts.reduce((n, e) => n + e.text.length, 0);
-  // Same order as setting a brand up: what it is, who it's for, how it sounds, then the extras.
-  const checks = [
-    { key: 'products', label: 'Products', ok: m.products.length > 0, detail: m.products.map((p) => p.name).join(', ') || 'None yet' },
-    { key: 'audiences', label: 'Audiences', ok: m.audiences.length > 0, detail: m.audiences.map((a) => a.name).join(', ') || 'None yet' },
-    { key: 'voice', label: 'Voice', ok: !!m.voice.summary, detail: m.voice.summary ? `${m.voice.values.length} values · ${m.voice.do.length} do · ${m.voice.avoid.length} avoid` : 'Not learned yet' },
-    { key: 'examples', label: 'Example posts', ok: m.examplePosts.length > 0, detail: m.examplePosts.length ? `${m.examplePosts.length} post${m.examplePosts.length === 1 ? '' : 's'} · ${exampleChars.toLocaleString('en-US')} chars` : 'None yet · optional' },
-    { key: 'knowledge', label: 'Knowledge', ok: m.knowledge.length > 0, detail: m.knowledge.length ? `${m.knowledge.length} item${m.knowledge.length === 1 ? '' : 's'}` : 'None yet · optional' },
-    { key: 'competitors', label: 'Competitors', ok: (competitors?.length ?? 0) > 0, detail: competitors?.map((c) => c.name).join(', ') || 'None yet · optional' },
-  ];
+  const voice = { key: 'voice', label: 'Voice', ok: !!m.voice.summary, detail: m.voice.summary ? `${m.voice.values.length} values · ${m.voice.do.length} do · ${m.voice.avoid.length} avoid` : 'Not learned yet' };
+  const examples = { key: 'examples', label: 'Example posts', ok: m.examplePosts.length > 0, detail: m.examplePosts.length ? `${m.examplePosts.length} post${m.examplePosts.length === 1 ? '' : 's'} · ${exampleChars.toLocaleString('en-US')} chars` : 'None yet · optional' };
+  const knowledge = { key: 'knowledge', label: 'Knowledge', ok: m.knowledge.length > 0, detail: m.knowledge.length ? `${m.knowledge.length} item${m.knowledge.length === 1 ? '' : 's'}` : 'None yet · optional' };
+  // Same order as setting it up: a brand is what it is, who it's for, how it sounds; a person is what they post about,
+  // which brands, how they sound.
+  const checks = brand.kind === 'person'
+    ? [
+        { key: 'topics', label: 'Topics', ok: m.topics.length > 0, detail: m.topics.join(', ') || 'None yet' },
+        { key: 'brands', label: 'Brands you post about', ok: brand.speaksFor.length > 0, detail: speaksForNames?.join(', ') || (brand.speaksFor.length ? `${brand.speaksFor.length} brand${brand.speaksFor.length === 1 ? '' : 's'}` : 'None yet · optional') },
+        voice,
+        examples,
+        knowledge,
+      ]
+    : [
+        { key: 'products', label: 'Products', ok: m.products.length > 0, detail: m.products.map((p) => p.name).join(', ') || 'None yet' },
+        { key: 'audiences', label: 'Audiences', ok: m.audiences.length > 0, detail: m.audiences.map((a) => a.name).join(', ') || 'None yet' },
+        voice,
+        examples,
+        knowledge,
+        { key: 'competitors', label: 'Competitors', ok: (competitors?.length ?? 0) > 0, detail: competitors?.map((c) => c.name).join(', ') || 'None yet · optional' },
+      ];
   const score = checks.filter((c) => c.ok).length;
   return (
     <aside className="preview-card">

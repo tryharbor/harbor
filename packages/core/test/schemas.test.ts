@@ -31,7 +31,16 @@ describe('brand schemas', () => {
       knowledge: [],
       styleRules: { terms: [], formatting: [] },
       examplePosts: [],
+      topics: [],
     });
+    expect(parsed.kind).toBe('brand');
+  });
+
+  it('takes a person with the brands they speak for', () => {
+    const parsed = brandCreateSchema.parse({ name: 'Derek', kind: 'person', speaksFor: ['brd_abc'] });
+    expect(parsed.kind).toBe('person');
+    expect(parsed.speaksFor).toEqual(['brd_abc']);
+    expect(brandCreateSchema.safeParse({ name: 'Derek', kind: 'founder' }).success).toBe(false);
   });
 
   it('rejects unknown fields and bad slugs', () => {

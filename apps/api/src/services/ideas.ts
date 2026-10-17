@@ -82,13 +82,18 @@ export async function generateIdeas(
   const signals = await latestSignals(db, brand.id, 100);
   const recentPosts = (await publishedPostsWithMetrics(db, brand.id, 20)).map((p) => ({ text: p.text, platform: p.platform, metrics: p.metrics }));
   const known = new Set(signals.map((s) => s.id));
+  // A person's ideas name the brands they build.
+  const speaksFor = brand.speaksFor.length
+    ? await db.query<{ id: string; name: string; memory: { products?: { summary?: string }[] } }>('SELECT id, name, memory FROM brands WHERE id = ANY($1::text[])', [brand.speaksFor])
+        .then((rows) => rows.map((r) => ({ id: r.id, name: r.name, summary: r.memory?.products?.[0]?.summary || undefined })))
+    : [];
   const guidance = opts.guidance?.filter((g) => g.trim()) ?? [];
   const input = {
     count, signals: signals.length, recentPosts: recentPosts.length,
     ...(opts.campaignId ? { campaignId: opts.campaignId } : {}), ...(guidance.length ? { guidance: guidance.length } : {}),
   };
   const { value: ids, run } = await withRun(db, brand, 'ideas', input, model.name, async (runId) => {
-    const res = await model.generateIdeas({ brand, signals, recentPosts, count, ...(guidance.length ? { guidance } : {}) });
+    const res = await model.generateIdeas({ brand, signals, recentPosts, count, ...(guidance.length ? { guidance } : {}), ...(speaksFor.length ? { speaksFor } : {}) });
     const ids: string[] = [];
     for (const idea of res.result) {
       let basis = idea.basis.filter((b) => known.has(b.signalId));

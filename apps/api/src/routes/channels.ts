@@ -3,6 +3,7 @@ import { HarborError, PLATFORM_METRICS, platformSchema } from '@harbor/core';
 import { getProvider } from '@harbor/providers';
 import type { App, AppDeps } from '../app.ts';
 import { body, check } from '../lib/http.ts';
+import { adoptPersonAvatar } from '../services/brands.ts';
 import { getChannelRow, toChannel, upsertChannel, type ChannelRow } from '../services/channels.ts';
 import { SCAN_DEFAULT, SCAN_MAX, importScanned, scanChannel } from '../services/imports.ts';
 import { supportsReplies } from '../services/replies.ts';
@@ -13,9 +14,16 @@ const importSchema = z.object({ scanId: z.string().min(1), include: z.array(z.st
 /** An OAuth handshake must finish within this window. */
 const STATE_TTL_MIN = 15;
 
+/** Where to send the browser after connecting: a path in the web app under /brands/, or nothing (the brand page). */
+const returnPath = (raw: string | undefined) =>
+  raw && raw.length <= 300 && /^\/brands\/[A-Za-z0-9_-]+(\/[A-Za-z0-9_/-]*)?(\?[A-Za-z0-9_=&%.-]*)?$/.test(raw) && !raw.includes('//') ? raw : undefined;
+
 export function registerChannels(app: App, deps: AppDeps) {
   const { db, registry, secrets, webUrl } = deps;
-  const back = (brandId: string, params: Record<string, string>) => `${webUrl}/brands/${brandId}?${new URLSearchParams(params)}`;
+  const back = (brandId: string, params: Record<string, string>, returnTo?: string | null) => {
+    const to = returnTo ?? `/brands/${brandId}`;
+    return `${webUrl}${to}${to.includes('?') ? '&' : '?'}${new URLSearchParams(params)}`;
+  };
 
   /** Which platforms exist, whether their developer app is configured, and what metrics each reports. */
   app.get('/v1/platforms', (c) =>
@@ -44,6 +52,8 @@ export function registerChannels(app: App, deps: AppDeps) {
   /** Start connecting an account: the browser lands here from the web app and is sent on to the platform's consent screen. */
   app.get('/v1/channels/:platform/connect', async (c) => {
     const brandId = c.req.query('brandId') ?? '';
+    // Onboarding passes returnTo so the browser comes back to the step it left.
+    const returnTo = returnPath(c.req.query('returnTo'));
     const [brand] = await db.query('SELECT id FROM brands WHERE id = $1', [brandId]);
     if (!brand) throw new HarborError('NOT_FOUND', `Brand ${brandId || '(missing brandId)'} not found.`);
     const provider = getProvider(registry, c.req.param('platform'));
@@ -54,12 +64,12 @@ export function registerChannels(app: App, deps: AppDeps) {
     }
     try {
       const auth = await provider.generateAuthUrl();
-      await db.query('INSERT INTO oauth_states (state, platform, brand_id, code_verifier) VALUES ($1, $2, $3, $4)', [
-        auth.state, provider.identifier, brandId, auth.codeVerifier,
+      await db.query('INSERT INTO oauth_states (state, platform, brand_id, code_verifier, return_to) VALUES ($1, $2, $3, $4, $5)', [
+        auth.state, provider.identifier, brandId, auth.codeVerifier, returnTo ?? null,
       ]);
       return c.redirect(auth.url, 302);
     } catch (err) {
-      return c.redirect(back(brandId, { error: err instanceof Error ? err.message : 'Could not start connecting.' }), 302);
+      return c.redirect(back(brandId, { error: err instanceof Error ? err.message : 'Could not start connecting.' }, returnTo), 302);
     }
   });
 
@@ -67,26 +77,28 @@ export function registerChannels(app: App, deps: AppDeps) {
   app.get('/v1/channels/:platform/callback', async (c) => {
     const platform = platformSchema.safeParse(c.req.param('platform'));
     const state = c.req.query('state') ?? '';
-    const [pending] = await db.query<{ brand_id: string; code_verifier: string; platform: string; fresh: boolean }>(
+    const [pending] = await db.query<{ brand_id: string; code_verifier: string; platform: string; return_to: string | null; fresh: boolean }>(
       `DELETE FROM oauth_states WHERE state = $1
-       RETURNING brand_id, code_verifier, platform, created_at > now() - make_interval(mins => $2) AS fresh`,
+       RETURNING brand_id, code_verifier, platform, return_to, created_at > now() - make_interval(mins => $2) AS fresh`,
       [state, STATE_TTL_MIN],
     );
     if (!pending || !platform.success || pending.platform !== platform.data) {
       throw new HarborError('INVALID_REQUEST', 'This connection link is invalid or was already used. Start connecting again from Harbor.');
     }
     const brandId = pending.brand_id;
+    const to = pending.return_to;
     const denied = c.req.query('error_description') ?? c.req.query('error');
-    if (denied) return c.redirect(back(brandId, { error: `The platform said: ${denied}` }), 302);
-    if (!pending.fresh) return c.redirect(back(brandId, { error: 'The connection took longer than 15 minutes. Try again.' }), 302);
+    if (denied) return c.redirect(back(brandId, { error: `The platform said: ${denied}` }, to), 302);
+    if (!pending.fresh) return c.redirect(back(brandId, { error: 'The connection took longer than 15 minutes. Try again.' }, to), 302);
 
     const provider = registry.get(platform.data)!;
     try {
       const tokens = await provider.authenticate({ code: c.req.query('code') ?? '', codeVerifier: pending.code_verifier, state });
       const channel = await upsertChannel(db, secrets(), brandId, platform.data, tokens);
-      return c.redirect(back(brandId, { connected: `${provider.name} @${channel.account.handle}` }), 302);
+      await adoptPersonAvatar(db, brandId, channel.account.avatarUrl);
+      return c.redirect(back(brandId, { connected: `${provider.name} @${channel.account.handle}` }, to), 302);
     } catch (err) {
-      return c.redirect(back(brandId, { error: `Connecting ${provider.name} failed: ${err instanceof Error ? err.message : 'unknown error'}` }), 302);
+      return c.redirect(back(brandId, { error: `Connecting ${provider.name} failed: ${err instanceof Error ? err.message : 'unknown error'}` }, to), 302);
     }
   });
 

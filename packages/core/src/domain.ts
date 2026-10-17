@@ -53,12 +53,22 @@ export const brandLogoUrlSchema = z.string().superRefine((v, ctx) => {
   }
 });
 
+/**
+ * `brand`: a product or company. `person`: someone's own account (a founder), at most one per workspace, which can
+ * speak for some of the workspace's brands.
+ */
+export const brandKindSchema = z.enum(['brand', 'person']);
+export type BrandKind = z.infer<typeof brandKindSchema>;
+
 export const brandSchema = z.object({
   id,
   workspaceId: id,
+  kind: brandKindSchema.default('brand'),
   name: z.string().min(1).max(200),
   slug,
   logoUrl: brandLogoUrlSchema.optional(),
+  /** For a person: the brands they post about, by id. Always empty for a brand. */
+  speaksFor: z.array(id).default([]),
   memory: brandMemorySchema,
   createdAt: timestamp,
   updatedAt: timestamp,
@@ -68,9 +78,11 @@ export type Brand = z.infer<typeof brandSchema>;
 export const brandCreateSchema = z
   .object({
     workspaceId: id.optional(),
+    kind: brandKindSchema.default('brand'),
     name: z.string().min(1).max(200),
     slug: slug.optional(),
     logoUrl: brandLogoUrlSchema.optional(),
+    speaksFor: z.array(id).max(50).optional(),
     memory: brandMemorySchema.default({}),
   })
   .strict();
@@ -82,6 +94,8 @@ export const brandUpdateSchema = z
     slug: slug.optional(),
     /** null removes the logo. */
     logoUrl: brandLogoUrlSchema.nullable().optional(),
+    /** People only: replaces the list of brands they speak for. */
+    speaksFor: z.array(id).max(50).optional(),
     /** Merged at the top level: `{ voice }` replaces only voice. */
     memory: brandMemoryPatchSchema.optional(),
   })

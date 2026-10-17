@@ -7,7 +7,8 @@ import { authEnabled, currentSession } from './auth';
 import { Icon } from './icons';
 import { NavLink } from './nav-link';
 import { SidebarToggle } from './sidebar-toggle';
-import { ThemeToggle, type Theme } from './theme-toggle';
+import { ProfileMenu } from './profile-menu';
+import { type Theme } from './theme-toggle';
 import { BrandMark, HarborMark } from './ui';
 import './globals.css';
 
@@ -58,6 +59,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     // Pages show the connection error themselves; the sidebar renders without brands.
   }
   const live = mode?.publish === 'live';
+  const person = brands.find((b) => b.kind === 'person');
   const collapsed = jar.get('harbor-sidebar')?.value === 'collapsed';
 
   return (
@@ -78,9 +80,18 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 </NavLink>
               ))}
             </nav>
+            {person ? (
+              <nav className="nav-group" aria-label="You">
+                <div className="nav-label nav-text">You</div>
+                <NavLink href={`/brands/${person.id}`} title={person.name}>
+                  <BrandMark name={person.name} logoUrl={person.logoUrl} size={20} />
+                  <span className="nav-text">{person.name}</span>
+                </NavLink>
+              </nav>
+            ) : null}
             <nav className="nav-group" aria-label="Brands">
               <div className="nav-label nav-text">Brands</div>
-              {brands.map((b) => (
+              {brands.filter((b) => b.kind !== 'person').map((b) => (
                 <NavLink key={b.id} href={`/brands/${b.id}`} title={b.name}>
                   <BrandMark name={b.name} logoUrl={b.logoUrl} size={20} />
                   <span className="nav-text">{b.name}</span>
@@ -98,17 +109,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   </span>
                 </div>
               ) : null}
-              <div className="sidebar-foot">
-                <NavLink href="/settings" title="Settings"><Icon.settings /><span className="nav-text">Settings</span></NavLink>
-                <span className="nav-text"><ThemeToggle initial={theme} /></span>
-              </div>
-              {authEnabled() ? (
-                <form action="/auth/logout" method="post">
-                  <button type="submit" className="nav-link sign-out" title={`Sign out @${session.login}`}>
-                    <Icon.signOut /><span className="nav-text">Sign out <span className="dim">@{session.login}</span></span>
-                  </button>
-                </form>
-              ) : null}
+              <ProfileMenu
+                name={person?.name ?? (authEnabled() ? `@${session.login}` : 'You')}
+                detail={authEnabled() ? `Signed in as @${session.login}` : 'Running on this machine'}
+                avatarUrl={person?.logoUrl ?? (authEnabled() ? `https://github.com/${encodeURIComponent(session.login)}.png?size=64` : undefined)}
+                theme={theme}
+                canSignOut={authEnabled()}
+              />
             </div>
           </aside>
           <main className="content">{children}</main>

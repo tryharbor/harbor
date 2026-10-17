@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from 'react';
 import { applyVoice, learnVoice, type LearnState } from '../actions';
 import type { BrandVoice } from '../api';
 import { VOICE_PERSONALITIES, voiceStrength } from './voice-samples';
-import { NEUTRAL, VoiceMixer, applyMix, mixFromPicks, type Mix } from './voice-mixer';
+import { FOUNDER_MIX, NEUTRAL, VoiceMixer, applyMix, mixFromPicks, type Mix } from './voice-mixer';
 
 /** Learning is quick on the built-in model; a short staged reveal shows what it's doing rather than flashing the result. */
 const MIN_REVEAL_MS = 1600;
@@ -15,16 +15,27 @@ const STAGES = { pick: ['Reading your picks', 'Finding sentence patterns', 'Writ
  * real posts, or import them from a connected account. Harbor proposes a voice (personality → values → do/avoid →
  * excerpts → sources); nothing is saved until "Use this voice".
  */
-export function VoiceLearner({ brandId, returnTo, savedExampleChars, skipHref, importHref }: { brandId: string; returnTo: string; savedExampleChars: number; skipHref?: string; importHref?: string }) {
+export function VoiceLearner({ brandId, returnTo, savedExampleChars, skipHref, importHref, initialMode = 'pick', preset }: {
+  brandId: string;
+  returnTo: string;
+  savedExampleChars: number;
+  skipHref?: string;
+  importHref?: string;
+  /** Founder accounts start on "Paste your own": their own posts say more than samples. */
+  initialMode?: 'pick' | 'paste' | 'import';
+  /** Where the dials sit before any sample is picked: 'founder' starts personal and candid. */
+  preset?: 'founder';
+}) {
+  const baseMix = preset === 'founder' ? FOUNDER_MIX : NEUTRAL;
   const [state, action, pending] = useActionState<LearnState, FormData>(learnVoice, undefined);
-  const [mode, setMode] = useState<'pick' | 'paste' | 'import'>('pick');
+  const [mode, setMode] = useState<'pick' | 'paste' | 'import'>(initialMode);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [pasted, setPasted] = useState('');
   const toggle = (t: string) => setPicked((s) => { const n = new Set(s); if (n.has(t)) n.delete(t); else n.add(t); return n; });
   // Dials follow the picks until the owner moves one themselves.
-  const [mix, setMix] = useState<Mix>(NEUTRAL);
+  const [mix, setMix] = useState<Mix>(baseMix);
   const [touched, setTouched] = useState(false);
-  useEffect(() => { if (!touched) setMix(mixFromPicks(picked)); }, [picked, touched]);
+  useEffect(() => { if (!touched) setMix(mixFromPicks(picked, baseMix)); }, [picked, touched, baseMix]);
   // Staged reveal: `run` marks when generating started and from which path; the proposal shows once the
   // result is in and the stages have had time to play.
   const [run, setRun] = useState<{ kind: 'pick' | 'paste' | 'dials'; at: number } | null>(null);
@@ -54,7 +65,7 @@ export function VoiceLearner({ brandId, returnTo, savedExampleChars, skipHref, i
         <div className="spread" style={{ flexWrap: 'wrap', gap: 10 }}>
           <div className="stack" style={{ gap: 4 }}>
             <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Learn the voice</span>
-            <strong style={{ fontWeight: 500 }}>Show Harbor how this brand sounds</strong>
+            <strong style={{ fontWeight: 500 }}>{preset === 'founder' ? 'Show Harbor how you sound' : 'Show Harbor how this brand sounds'}</strong>
           </div>
           <nav className="segmented" aria-label="How to show the voice">
             <button type="button" aria-pressed={mode === 'pick'} onClick={() => setMode('pick')}>Pick posts</button>

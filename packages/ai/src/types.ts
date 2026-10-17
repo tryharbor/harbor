@@ -46,6 +46,8 @@ export interface GenerateIdeasInput {
   count: number;
   /** Extra direction for this batch (e.g. a digest's recommendations), most important first. */
   guidance?: string[];
+  /** For a person (brand.kind 'person'): the brands they speak for, so ideas can name what they build. */
+  speaksFor?: { id: string; name: string; summary?: string }[];
 }
 
 export interface IdeaSuggestion {

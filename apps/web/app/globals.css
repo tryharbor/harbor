@@ -112,7 +112,6 @@ code { font-size: 12.5px; background: var(--raised); border: 1px solid var(--lin
 .nav-link { position: relative; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 0; color: var(--muted); text-decoration: none; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; }
 .nav-link:hover { color: var(--ink); background: var(--raised); }
 .nav-link[aria-current='page'] { color: var(--ink); background: var(--raised); }
-.sign-out { width: 100%; border: 0; background: none; font: inherit; cursor: pointer; text-align: left; }
 .brand-dot { display: inline-grid; place-items: center; width: 20px; height: 20px; flex: none; border-radius: 0; border: 1px solid var(--line-strong); color: var(--muted); font-family: var(--font-mono); font-size: 10px; }
 .mode-badge { display: grid; gap: 6px; padding: 10px; border: 1px dashed var(--line-strong); border-radius: var(--r-panel); font-size: 12px; color: var(--muted); }
 .mode-badge .row { gap: 6px; }
@@ -676,3 +675,28 @@ img.avatar { object-fit: cover; padding: 0; }
 .login-card p { margin: 0; }
 .login-mark { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; }
 .login-button { justify-content: center; gap: 10px; margin-top: 6px; padding-top: 12px; padding-bottom: 12px; }
+
+/* A checkbox that looks like a chip (the input stays for keyboard and forms). */
+.check-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 5px 10px; font-size: 13px; }
+.check-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.check-chip:has(input:checked) { border-color: var(--signal); color: var(--ink); background: var(--signal-soft); }
+.check-chip:has(input:focus-visible) { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+.truncate { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* ---- Profile menu (bottom-left) ---- */
+.profile { position: relative; }
+.profile-button { width: 100%; border: 0; background: none; font: inherit; cursor: pointer; text-align: left; padding: 6px 8px; }
+.profile-button[aria-expanded='true'] { background: var(--raised); color: var(--ink); }
+.profile-caret { margin-left: auto; color: var(--dim); display: inline-flex; }
+.profile-menu { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 30; min-width: 220px; display: grid; gap: 1px; padding: 6px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18); }
+.profile-head { display: flex; align-items: center; gap: 10px; padding: 8px 8px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); min-width: 0; }
+.profile-head strong { font-weight: 500; font-size: 14px; }
+.profile-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; background: none; font: inherit; font-size: 14px; color: var(--muted); text-decoration: none; text-align: left; cursor: pointer; }
+.profile-item:hover, .profile-item[aria-current='page'] { background: var(--raised); color: var(--ink); }
+.profile-item.theme-item { justify-content: space-between; cursor: default; }
+.profile-item.theme-item:hover { background: none; color: var(--muted); }
+.shell.collapsed .profile-button { justify-content: center; padding-inline: 0; }
+.shell.collapsed .profile-menu { right: auto; left: 0; }
+.profile-item.theme-item > .row { flex-wrap: nowrap; white-space: nowrap; }
+.profile-menu .segmented button { padding: 3px 9px; font-size: 12px; }

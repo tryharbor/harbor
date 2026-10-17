@@ -52,6 +52,38 @@ export async function createBrand(form: FormData) {
   go('/brands/new', { brandId: id, step: 'audience' });
 }
 
+/** Comma- or line-separated topics, trimmed, de-duplicated, at most 20. */
+const topicsFrom = (form: FormData) => [...new Set(text(form, 'topics').split(/[,\n]/).map((t) => t.trim()).filter(Boolean))].slice(0, 20);
+const speaksForFrom = (form: FormData) => form.getAll('speaksFor').map(String).filter(Boolean);
+
+/** Your own account: one per workspace, linked to the brands you post about. Next: connect it. */
+export async function createPerson(form: FormData) {
+  let id = '';
+  try {
+    ({ id } = await api<{ id: string }>('/v1/brands', {
+      method: 'POST',
+      body: JSON.stringify({ kind: 'person', name: text(form, 'name'), speaksFor: speaksForFrom(form), memory: { topics: topicsFrom(form) } }),
+    }));
+  } catch (err) {
+    go('/brands/new', { kind: 'person', error: message(err, 'Could not add your account.') });
+  }
+  refresh();
+  go('/brands/new', { brandId: id, kind: 'person', step: 'connect' });
+}
+
+/** A person's topics and linked brands, from the account page. */
+export async function savePersonDetails(form: FormData) {
+  const brandId = text(form, 'brandId');
+  const back = returnTo(form, `/brands/${brandId}`);
+  try {
+    await api(`/v1/brands/${brandId}`, { method: 'PATCH', body: JSON.stringify({ speaksFor: speaksForFrom(form), memory: { topics: topicsFrom(form) } }) });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not save.') });
+  }
+  refresh();
+  go(back, { notice: 'Saved.' });
+}
+
 export async function renameBrand(form: FormData) {
   const brandId = text(form, 'brandId');
   await api(`/v1/brands/${brandId}`, { method: 'PATCH', body: JSON.stringify({ name: text(form, 'name') }) }).catch(() => undefined);

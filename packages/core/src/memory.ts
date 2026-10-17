@@ -248,6 +248,8 @@ const memoryShape = {
   knowledge: z.array(knowledgeItemSchema),
   styleRules: styleRulesSchema,
   examplePosts: z.array(examplePostSchema),
+  /** What a person posts about (founder accounts): short phrases like "building in public" or "pricing". */
+  topics: z.array(z.string().trim().min(1).max(80)).max(20),
 };
 
 /** Brand Memory v2. Accepts v1 documents and migrates them. */
@@ -260,6 +262,7 @@ export const brandMemorySchema = z.preprocess(
     knowledge: memoryShape.knowledge.default([]),
     styleRules: memoryShape.styleRules.default({}),
     examplePosts: memoryShape.examplePosts.default([]),
+    topics: memoryShape.topics.default([]),
   }),
 );
 export type BrandMemory = z.infer<typeof brandMemorySchema>;
@@ -278,6 +281,7 @@ export const brandMemoryPatchSchema = z.preprocess(
       knowledge: memoryShape.knowledge.optional(),
       styleRules: memoryShape.styleRules.optional(),
       examplePosts: memoryShape.examplePosts.optional(),
+      topics: memoryShape.topics.optional(),
     })
     .strict(),
 );

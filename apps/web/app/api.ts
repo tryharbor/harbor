@@ -55,10 +55,16 @@ export interface BrandMemoryV2 {
   knowledge: KnowledgeItem[];
   styleRules: { terms: { use: string; insteadOf: string }[]; formatting: string[] };
   examplePosts: ExamplePost[];
+  /** What a person posts about. */
+  topics: string[];
 }
 export interface BrandView {
   id: string;
   workspaceId: string;
+  /** 'person': someone's own account (one per workspace), which can speak for some of the brands. */
+  kind: 'brand' | 'person';
+  /** A person's linked brands, by id. */
+  speaksFor: string[];
   name: string;
   /** https URL or data: URI; absent → monogram. */
   logoUrl?: string;

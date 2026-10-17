@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { App, AppDeps } from '../app.ts';
 import { DEFAULT_WORKSPACE_ID, HarborError, brandCreateSchema, brandMemorySchema, brandUpdateSchema, newId } from '@harbor/core';
 import { body, isUniqueViolation } from '../lib/http.ts';
-import { loadBrand, prepareBrandBody, toBrand, type BrandRow } from '../services/brands.ts';
+import { checkSpeaksFor, loadBrand, prepareBrandBody, toBrand, type BrandRow } from '../services/brands.ts';
 import { withRun } from '../services/runs.ts';
 import { latestSignals } from '../services/signals.ts';
 
@@ -38,14 +38,23 @@ export function registerBrands(app: App, deps: AppDeps) {
     const [ws] = await db.query('SELECT id FROM workspaces WHERE id = $1', [workspaceId]);
     if (!ws) throw new HarborError('NOT_FOUND', `Workspace ${workspaceId} not found.`);
     const slug = input.slug ?? slugify(input.name);
+    if (input.kind === 'brand' && input.speaksFor?.length) throw new HarborError('INVALID_REQUEST', 'Only a person can speak for brands (kind: "person").');
+    if (input.kind === 'person') {
+      const [existing] = await db.query<{ id: string }>(`SELECT id FROM brands WHERE workspace_id = $1 AND kind = 'person'`, [workspaceId]);
+      if (existing) throw new HarborError('CONFLICT', `This workspace already has a personal account (${existing.id}). There can be one.`);
+    }
+    const speaksFor = input.kind === 'person' ? await checkSpeaksFor(db, workspaceId, input.speaksFor ?? []) : [];
     try {
       const [row] = await db.query<BrandRow>(
-        'INSERT INTO brands (id, workspace_id, name, slug, memory, logo_url) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-        [newId('brand'), workspaceId, input.name, slug, JSON.stringify(input.memory), input.logoUrl ?? null],
+        'INSERT INTO brands (id, workspace_id, kind, name, slug, memory, logo_url, speaks_for) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        [newId('brand'), workspaceId, input.kind, input.name, slug, JSON.stringify(input.memory), input.logoUrl ?? null, JSON.stringify(speaksFor)],
       );
       return c.json(toBrand(row!), 201);
     } catch (err) {
-      if (isUniqueViolation(err)) throw slugTaken(slug);
+      if (isUniqueViolation(err)) {
+        if (input.kind === 'person') throw new HarborError('CONFLICT', 'This workspace already has a personal account. There can be one.');
+        throw slugTaken(slug);
+      }
       throw err;
     }
   });
@@ -53,14 +62,16 @@ export function registerBrands(app: App, deps: AppDeps) {
   app.get('/v1/brands/:id', async (c) => c.json(await loadBrand(db, c.req.param('id'))));
 
   /**
-   * Update name/slug/logoUrl (null removes the logo), and merge `memory` at the top level: each memory key given (voice, audiences, products,
-   * knowledge, styleRules, examplePosts) replaces that key; the others are kept.
+   * Update name/slug/logoUrl (null removes the logo), a person's speaksFor, and merge `memory` at the top level: each memory key given
+   * (voice, audiences, products, knowledge, styleRules, examplePosts, topics) replaces that key; the others are kept.
    */
   app.patch('/v1/brands/:id', async (c) => {
     const input = await body(c, brandUpdateSchema, prepareBrandBody);
     const id = c.req.param('id');
     const current = await loadBrand(db, id);
     const memory = input.memory ? brandMemorySchema.parse({ ...current.memory, ...input.memory }) : undefined;
+    if (input.speaksFor && current.kind !== 'person') throw new HarborError('INVALID_REQUEST', 'Only a person can speak for brands.');
+    const speaksFor = input.speaksFor ? await checkSpeaksFor(db, current.workspaceId, input.speaksFor) : undefined;
     try {
       const [row] = await db.query<BrandRow>(
         `UPDATE brands SET
@@ -68,9 +79,10 @@ export function registerBrands(app: App, deps: AppDeps) {
            slug = COALESCE($3, slug),
            memory = COALESCE($4::jsonb, memory),
            logo_url = CASE WHEN $5::boolean THEN $6 ELSE logo_url END,
+           speaks_for = COALESCE($7::jsonb, speaks_for),
            updated_at = now()
          WHERE id = $1 RETURNING *`,
-        [id, input.name ?? null, input.slug ?? null, memory ? JSON.stringify(memory) : null, input.logoUrl !== undefined, input.logoUrl ?? null],
+        [id, input.name ?? null, input.slug ?? null, memory ? JSON.stringify(memory) : null, input.logoUrl !== undefined, input.logoUrl ?? null, speaksFor ? JSON.stringify(speaksFor) : null],
       );
       if (!row) throw new HarborError('NOT_FOUND', `Brand ${id} not found.`);
       return c.json(toBrand(row));
@@ -83,6 +95,8 @@ export function registerBrands(app: App, deps: AppDeps) {
   app.delete('/v1/brands/:id', async (c) => {
     const rows = await db.query('DELETE FROM brands WHERE id = $1 RETURNING id', [c.req.param('id')]);
     if (rows.length === 0) throw new HarborError('NOT_FOUND', `Brand ${c.req.param('id')} not found.`);
+    // A person who spoke for this brand no longer does.
+    await db.query(`UPDATE brands SET speaks_for = speaks_for - $1::text WHERE kind = 'person' AND speaks_for ? $1::text`, [c.req.param('id')]);
     return c.body(null, 204);
   });
 

@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import type { Channel, Platform } from '@harbor/core';
-import { getApprovals, getBrand, getChannels, getDigest, getIdeas, getOverview, getPosts, loadAll, type ApprovalCounts, type BrandView, type Digest, type IdeaView, type OverviewBrand, type PostView } from '../../api';
+import { savePersonDetails } from '../../actions';
+import { getApprovals, getBrand, getBrands, getChannels, getDigest, getIdeas, getOverview, getPosts, loadAll, type ApprovalCounts, type BrandView, type Digest, type IdeaView, type OverviewBrand, type PostView } from '../../api';
 import { PlatformIcon } from '../../platform-icon';
-import { Flash, LoadError, MetricLine, PLATFORM_NAME, PlatformTag, StatusPill, VerdictTag, compact, when } from '../../ui';
+import { BrandMark, Flash, LoadError, MetricLine, PLATFORM_NAME, PlatformTag, StatusPill, VerdictTag, compact, when } from '../../ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,7 @@ const pct = (r: number) => `${r >= 1 ? '+' : ''}${Math.round((r - 1) * 100)}%`;
 export default async function BrandOverview({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ connected?: string; notice?: string; error?: string }> }) {
   const { id } = await params;
   const flash = await searchParams;
-  const res = await loadAll<[BrandView, Channel[], PostView[], IdeaView[], { counts: ApprovalCounts }, Digest | undefined, OverviewBrand[]]>([
+  const res = await loadAll<[BrandView, Channel[], PostView[], IdeaView[], { counts: ApprovalCounts }, Digest | undefined, OverviewBrand[], BrandView[]]>([
     getBrand(id),
     getChannels(id),
     getPosts({ brandId: id, limit: '60' }),
@@ -20,9 +21,12 @@ export default async function BrandOverview({ params, searchParams }: { params: 
     getApprovals({ status: 'pending', brandId: id }),
     getDigest(id),
     getOverview().catch(() => []),
+    getBrands(),
   ]);
   if (!res.ok) return <LoadError message={res.error} />;
-  const [brand, channels, posts, ideas, { counts }, digest, overview] = res.data;
+  const [brand, channels, posts, ideas, { counts }, digest, overview, allBrands] = res.data;
+  const you = brand.kind === 'person';
+  const otherBrands = allBrands.filter((b) => b.kind === 'brand');
   const m = brand.memory;
   const stats = overview.find((o) => o.brandId === id);
   const connected = channels.filter((c) => c.status === 'connected');
@@ -31,12 +35,20 @@ export default async function BrandOverview({ params, searchParams }: { params: 
   const recent = posts.filter((p) => p.status === 'published').slice(0, 6);
   const active = ideas.filter((i) => i.status !== 'live');
 
-  const steps = [
-    { done: m.products.length > 0 && m.audiences.length > 0, label: 'Describe it', why: 'What it is and who it’s for.', href: `/brands/new?brandId=${id}&step=audience`, cta: 'Add an audience' },
-    { done: !!m.voice.summary, label: 'Learn the voice', why: 'Pick a few posts that sound right.', href: `/brands/new?brandId=${id}&step=voice`, cta: 'Pick posts' },
-    { done: connected.length > 0, label: 'Connect an account', why: 'X, LinkedIn, Instagram or Threads.', href: `/brands/${id}/channels`, cta: 'Connect' },
-    { done: posts.some((p) => p.status === 'published' || p.status === 'scheduled'), label: 'Schedule a first post', why: 'Harbor starts learning from it.', href: `/compose?brandId=${id}`, cta: 'Write a post' },
-  ];
+  const firstPost = { done: posts.some((p) => p.status === 'published' || p.status === 'scheduled'), label: 'Schedule a first post', why: 'Harbor starts learning from it.', href: `/compose?brandId=${id}`, cta: 'Write a post' };
+  const steps = you
+    ? [
+        { done: connected.length > 0, label: 'Connect your account', why: 'X or LinkedIn. Your picture comes with it.', href: `/brands/new?brandId=${id}&kind=person&step=connect`, cta: 'Connect' },
+        { done: !!m.voice.summary, label: 'Teach it your voice', why: 'Paste a few of your own posts.', href: `/brands/new?brandId=${id}&kind=person&step=voice`, cta: 'Add posts' },
+        { done: m.topics.length > 0 || brand.speaksFor.length > 0, label: 'Your topics and brands', why: 'What you post about, and which brands.', href: '#about-you', cta: 'Add them' },
+        firstPost,
+      ]
+    : [
+        { done: m.products.length > 0 && m.audiences.length > 0, label: 'Describe it', why: 'What it is and who it’s for.', href: `/brands/new?brandId=${id}&step=audience`, cta: 'Add an audience' },
+        { done: !!m.voice.summary, label: 'Learn the voice', why: 'Pick a few posts that sound right.', href: `/brands/new?brandId=${id}&step=voice`, cta: 'Pick posts' },
+        { done: connected.length > 0, label: 'Connect an account', why: 'X, LinkedIn, Instagram or Threads.', href: `/brands/${id}/channels`, cta: 'Connect' },
+        firstPost,
+      ];
   const doneCount = steps.filter((s) => s.done).length;
   const nextStep = steps.find((s) => !s.done);
 
@@ -47,7 +59,7 @@ export default async function BrandOverview({ params, searchParams }: { params: 
       {nextStep ? (
         <section className="setup">
           <div className="spread" style={{ flexWrap: 'wrap', gap: 10 }}>
-            <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />Set up {brand.name} · {doneCount} of {steps.length}</span>
+            <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />{you ? 'Set up your account' : `Set up ${brand.name}`} · {doneCount} of {steps.length}</span>
             <span className="meter" aria-hidden="true" style={{ width: 160 }}><i style={{ width: `${(doneCount / steps.length) * 100}%` }} /></span>
           </div>
           <ol className="setup-steps">
@@ -61,6 +73,33 @@ export default async function BrandOverview({ params, searchParams }: { params: 
             ))}
           </ol>
         </section>
+      ) : null}
+
+      {you ? (
+        <form action={savePersonDetails} className="card stack" id="about-you">
+          <input type="hidden" name="brandId" value={id} />
+          <input type="hidden" name="returnTo" value={`/brands/${id}`} />
+          <span className="label">About you</span>
+          <div className="field">
+            <label htmlFor="topics">What you post about</label>
+            <input id="topics" name="topics" defaultValue={m.topics.join(', ')} placeholder="Building in public, pricing, open source" />
+          </div>
+          {otherBrands.length ? (
+            <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+              <legend className="small" style={{ marginBottom: 6 }}>Brands you post about</legend>
+              <div className="chips">
+                {otherBrands.map((b) => (
+                  <label key={b.id} className="chip check-chip">
+                    <input type="checkbox" name="speaksFor" value={b.id} defaultChecked={brand.speaksFor.includes(b.id)} />
+                    <BrandMark name={b.name} logoUrl={b.logoUrl} size={16} />{b.name}
+                  </label>
+                ))}
+              </div>
+              <span className="small dim">Harbor suggests quoting their best posts with your take.</span>
+            </fieldset>
+          ) : null}
+          <div><button type="submit">Save</button></div>
+        </form>
       ) : null}
 
       <div className="stat-strip">

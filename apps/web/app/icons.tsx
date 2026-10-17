@@ -18,6 +18,8 @@ export const Icon = {
   key: () => <Svg><path d="M2.5 6.5h5v5h-5Z" /><path d="M7.5 9h6M11.5 9v2.5M13.5 9v2" /></Svg>,
   settings: () => <Svg><path d="M8 5.5v-3M8 13.5v-3M5.5 8h-3M13.5 8h-3" /><path d="M6 6h4v4H6Z" /></Svg>,
   plus: () => <Svg><path d="M8 3v10M3 8h10" /></Svg>,
+  theme: () => <Svg><path d="M8 2.5a5.5 5.5 0 1 0 0 11Z" /><path d="M8 2.5a5.5 5.5 0 0 1 0 11" /></Svg>,
+  updown: () => <Svg><path d="M5 6.5 8 3.5l3 3M5 9.5l3 3 3-3" /></Svg>,
   signOut: () => <Svg><path d="M9.5 2.5h-7v11h7" /><path d="M6.5 8h7M11 5.5 13.5 8 11 10.5" /></Svg>,
   collapse: () => <Svg><path d="M2.5 2.5h11v11h-11ZM6.5 2.5v11" /><path d="M11 6 9 8l2 2" /></Svg>,
   expand: () => <Svg><path d="M2.5 2.5h11v11h-11ZM6.5 2.5v11" /><path d="M9 6l2 2-2 2" /></Svg>,

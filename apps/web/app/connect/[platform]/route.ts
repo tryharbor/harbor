@@ -11,10 +11,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!(await currentSession())) return NextResponse.redirect(`${origin}/login`);
   const { platform } = await params;
   const brandId = request.nextUrl.searchParams.get('brandId') ?? '';
+  // Onboarding asks to come back to the step it left; the API only accepts paths under /brands/.
+  const returnTo = request.nextUrl.searchParams.get('returnTo');
   const back = (error: string) => NextResponse.redirect(`${origin}/brands/${encodeURIComponent(brandId)}/channels?${new URLSearchParams({ error })}`);
   let res: Response;
   try {
-    res = await fetch(`${API_INTERNAL_URL}/v1/channels/${encodeURIComponent(platform)}/connect?${new URLSearchParams({ brandId })}`, {
+    res = await fetch(`${API_INTERNAL_URL}/v1/channels/${encodeURIComponent(platform)}/connect?${new URLSearchParams({ brandId, ...(returnTo ? { returnTo } : {}) })}`, {
       headers: internalAuthHeader(),
       redirect: 'manual',
       cache: 'no-store',

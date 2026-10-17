@@ -299,8 +299,9 @@ const snippet = (text: string | undefined, max = 60) => preview(splitSentences(t
 const fmtRatio = (r: number) => `${r >= 10 ? Math.round(r) : Math.round(r * 10) / 10}x`;
 const PLATFORM_NAMES: Record<Platform, string> = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', threads: 'Threads' };
 
-/** Speaks as "I" unless the voice says otherwise. */
+/** Speaks as "I" unless the voice says otherwise. A person always speaks as "I". */
 const povOf = (brand: Brand): 'I' | 'we' => {
+  if (brand.kind === 'person') return 'I';
   const v = brand.memory.voice;
   const text = [v.summary, ...v.do, ...v.values.map((x) => x.name)].join(' ');
   if (/"we"|team voice|team-first/i.test(text) && !/"I"|first person|personal/i.test(text)) return 'we';
@@ -429,6 +430,33 @@ export function generateIdeas(input: GenerateIdeasInput): IdeaSuggestion[] {
     });
   }
 
+  // Founder accounts: the brands they speak for, and what they post about.
+  if (brand.kind === 'person') {
+    for (const s of manual.filter((x) => (x.data as { from?: string } | undefined)?.from === 'speaks_for').slice(0, 2)) {
+      const d = s.data as { brandName?: string; text?: string };
+      buckets[0]!.push({
+        title: `Quote ${d.brandName ?? 'your brand'}'s win with your take`,
+        angle: `"${snippet(d.text, 80)}" did well for ${d.brandName ?? 'the brand'}. Quote it from your own account: why it worked, what you'd change, and what it says about where it's going. First person, one opinion.`,
+        basis: [{ signalId: s.id, note: preview(s.summary, 120) }],
+      });
+    }
+    for (const t of m.topics.slice(0, 3)) {
+      buckets[3]!.push({
+        title: `My take on ${stripEnd(t)}`,
+        angle: `A clear opinion on ${t}, backed by one thing that happened to you this month. Say what most people get wrong and what you do instead.`,
+        basis: cite(t, `Something you post about: ${t}`),
+      });
+    }
+    const built = input.speaksFor?.[0];
+    if (built) {
+      buckets[2]!.push({
+        title: `A lesson from building ${built.name}`,
+        angle: `One decision you made building ${built.name}, what it cost, and what you'd tell someone about to make the same call.`,
+        basis: cite(built.name, `You build ${built.name}`),
+      });
+    }
+  }
+
   // 6. Fallback when the brand has little memory yet.
   if (bestPostText && !winners.length) {
     buckets[0]!.push({
@@ -437,10 +465,12 @@ export function generateIdeas(input: GenerateIdeasInput): IdeaSuggestion[] {
       basis: cite(snippet(bestPostText), 'Best recent post'),
     });
   }
+  // A person builds their brands, not themselves.
+  const building = brand.kind === 'person' ? (input.speaksFor?.map((b) => b.name).join(' and ') || 'my projects') : brand.name;
   buckets[5]!.push({
-    title: `What ${my} week building ${brand.name} looked like`,
+    title: `What ${my} week building ${building} looked like`,
     angle: `A plain build-in-public update: what shipped, what broke, one number, and what's next. Easy to write and it shows the work.`,
-    basis: cite(brand.name, 'Build-in-public update'),
+    basis: cite(building, 'Build-in-public update'),
   });
 
   // Round-robin across buckets for variety, then dedupe.

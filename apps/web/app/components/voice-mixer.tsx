@@ -30,11 +30,13 @@ const PERSONALITY_MIX: Record<string, Mix> = {
 };
 
 export const NEUTRAL: Mix = { personal: 50, punchy: 50, data: 50, playful: 50, candid: 50 };
+/** Where a founder's own account starts: one person, saying what they actually did and think. */
+export const FOUNDER_MIX: Mix = { personal: 90, punchy: 55, data: 55, playful: 35, candid: 85 };
 
-/** The average position of the picked posts' personalities, or neutral with no picks. */
-export function mixFromPicks(picked: Set<string>): Mix {
+/** The average position of the picked posts' personalities, or `base` (neutral) with no picks. */
+export function mixFromPicks(picked: Set<string>, base: Mix = NEUTRAL): Mix {
   const mixes = VOICE_PERSONALITIES.flatMap((p) => p.posts.filter((t) => picked.has(t)).map(() => PERSONALITY_MIX[p.key]!));
-  if (!mixes.length) return NEUTRAL;
+  if (!mixes.length) return base;
   const avg = (k: AxisKey) => Math.round(mixes.reduce((n, m) => n + m[k], 0) / mixes.length);
   return { personal: avg('personal'), punchy: avg('punchy'), data: avg('data'), playful: avg('playful'), candid: avg('candid') };
 }

@@ -126,6 +126,7 @@ async function ensureManual(db: Db, brandId: string, summary: string, data: Reco
  * ("Audience pain point: …"). A brand with no pain points and no other signals gets one "Brand focus" signal.
  */
 export async function ensureMemorySignals(db: Db, brand: Brand): Promise<void> {
+  if (brand.kind === 'person') await ensurePersonSignals(db, brand);
   for (const a of brand.memory.audiences) {
     for (const p of a.painPoints.slice(0, 6)) {
       await ensureManual(db, brand.id, `Audience pain point: ${p.trim()} (${a.name})`, { from: 'brand_memory', audienceId: a.id, painPoint: p });
@@ -135,5 +136,33 @@ export async function ensureMemorySignals(db: Db, brand: Brand): Promise<void> {
   if (!any) {
     const focus = brand.memory.products[0]?.summary || brand.memory.voice.summary || brand.name;
     await ensureManual(db, brand.id, `Brand focus: ${preview(focus, 200)}`, { from: 'brand_memory' });
+  }
+}
+
+/** A linked brand's post is worth quoting from the founder's account at this multiple of its median, within this window. */
+const QUOTABLE_RATIO = 1.5;
+const QUOTABLE_DAYS = 14;
+
+/**
+ * A person's planning material: one signal per topic they post about, and each linked brand's best recent post
+ * ("Harbor's X post … did 3.1x its median"), which the planner turns into a quote-with-your-take idea.
+ */
+async function ensurePersonSignals(db: Db, person: Brand): Promise<void> {
+  for (const t of person.memory.topics) await ensureManual(db, person.id, `Something you post about: ${t}`, { from: 'topic', topic: t });
+  if (!person.speaksFor.length) return;
+  const brands = await db.query<{ id: string; name: string }>('SELECT id, name FROM brands WHERE id = ANY($1::text[])', [person.speaksFor]);
+  for (const b of brands) {
+    await derivePerformanceSignals(db, b.id);
+    const [best] = await db.query<{ data: { postId?: string; platform?: Platform; text?: string; ratio?: number } }>(
+      `SELECT data FROM signals
+       WHERE brand_id = $1 AND kind = 'post_performance' AND (data->>'ratio')::float >= $2 AND observed_at > now() - make_interval(days => $3)
+       ORDER BY (data->>'ratio')::float DESC, observed_at DESC LIMIT 1`,
+      [b.id, QUOTABLE_RATIO, QUOTABLE_DAYS],
+    );
+    if (!best?.data.postId) continue;
+    const d = best.data;
+    await ensureManual(db, person.id, `${b.name}'s ${PLATFORM_NAMES[d.platform ?? 'x'] ?? ''} post "${preview(d.text || '(no text)', 60)}" did ${d.ratio}x its median.`, {
+      from: 'speaks_for', brandId: b.id, brandName: b.name, postId: d.postId, text: d.text, ratio: d.ratio,
+    });
   }
 }

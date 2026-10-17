@@ -8,6 +8,8 @@ export interface BrandRow {
   name: string;
   slug: string;
   logo_url: string | null;
+  kind: 'brand' | 'person';
+  speaks_for: unknown;
   memory: unknown;
   created_at: Date | string;
   updated_at: Date | string;
@@ -17,9 +19,11 @@ export interface BrandRow {
 export const toBrand = (r: BrandRow): Brand => ({
   id: r.id,
   workspaceId: r.workspace_id,
+  kind: r.kind ?? 'brand',
   name: r.name,
   slug: r.slug,
   logoUrl: r.logo_url ?? undefined,
+  speaksFor: Array.isArray(r.speaks_for) ? (r.speaks_for as string[]) : [],
   memory: brandMemorySchema.parse(r.memory ?? {}),
   createdAt: iso(r.created_at),
   updatedAt: iso(r.updated_at),
@@ -44,4 +48,24 @@ export function prepareBrandBody(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !('memory' in raw)) return raw;
   const b = raw as Record<string, unknown>;
   return { ...b, memory: prepareMemoryInput(b.memory) };
+}
+
+/**
+ * The brands a person may speak for: existing brands (not people) in the same workspace, de-duplicated, in the order
+ * given. Anything else is a 400, so a typo doesn't silently drop a link.
+ */
+export async function checkSpeaksFor(db: Db, workspaceId: string, ids: string[]): Promise<string[]> {
+  const unique = [...new Set(ids)];
+  if (!unique.length) return [];
+  const rows = await db.query<{ id: string; kind: string; workspace_id: string }>('SELECT id, kind, workspace_id FROM brands WHERE id = ANY($1::text[])', [unique]);
+  const ok = new Set(rows.filter((r) => r.kind === 'brand' && r.workspace_id === workspaceId).map((r) => r.id));
+  const bad = unique.filter((id) => !ok.has(id));
+  if (bad.length) throw new HarborError('INVALID_REQUEST', `speaksFor must list brands in this workspace: ${bad.join(', ')} ${bad.length === 1 ? 'is' : 'are'} not one.`);
+  return unique;
+}
+
+/** A person's first connected account gives them a picture: its avatar becomes the logo, unless one is already set. */
+export async function adoptPersonAvatar(db: Db, brandId: string, avatarUrl: string | undefined): Promise<void> {
+  if (!avatarUrl?.startsWith('https://') || avatarUrl.length > 2048) return;
+  await db.query(`UPDATE brands SET logo_url = $2, updated_at = now() WHERE id = $1 AND kind = 'person' AND logo_url IS NULL`, [brandId, avatarUrl]);
 }

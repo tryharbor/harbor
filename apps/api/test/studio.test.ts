@@ -70,6 +70,12 @@ describe('ideas', () => {
     const again = (await (await send('GET', `/v1/brands/${brandId}/signals`)).json()).data;
     expect(again).toHaveLength(signals.length);
   });
+
+  it("doesn't suggest an idea that's already open on the board", async () => {
+    const before = (await (await send('GET', `/v1/ideas?brandId=${brandId}`)).json()).data.map((i: { title: string }) => i.title.toLowerCase());
+    const { data } = await (await send('POST', '/v1/ideas/generate', { brandId, count: 4 })).json();
+    for (const idea of data) expect(before).not.toContain(idea.title.toLowerCase());
+  });
 });
 
 describe('drafts (Studio)', () => {

@@ -16,13 +16,16 @@ const SPLIT = /^\s*---\s*$/m;
 
 export interface PostedSummary { id: string; status: string; url?: string; publishedAt?: string; scheduledFor?: string }
 
+/** A pending approval made from one of this pane's drafts. */
+export interface WaitingApproval { id: string; version: number; proposedFor: string; handle: string }
+
 export interface ChannelOption { id: string; handle: string; displayName?: string; avatarUrl?: string }
 
 /** One platform's pane in the Studio: edit, preview, rewrite, save a version, schedule. */
 export function DraftEditor({
-  brandId, brandName, ideaId, platform, draft, versions, channels, apiUrl, logoUrl, posted = [],
+  brandId, brandName, ideaId, platform, draft, versions, channels, apiUrl, logoUrl, posted = [], waiting = [], connectHref,
 }: {
-  brandId: string; brandName: string; ideaId: string; platform: Platform; draft?: DraftView; versions: DraftView[]; channels: ChannelOption[]; apiUrl: string; logoUrl?: string; posted?: PostedSummary[];
+  brandId: string; brandName: string; ideaId: string; platform: Platform; draft?: DraftView; versions: DraftView[]; channels: ChannelOption[]; apiUrl: string; logoUrl?: string; posted?: PostedSummary[]; waiting?: WaitingApproval[]; connectHref?: string;
 }) {
   const initial = draft ? draft.parts.map((p) => p.text).join('\n---\n') : '';
   const [body, setBody] = useState(initial);
@@ -50,6 +53,12 @@ export function DraftEditor({
         <span className="row"><span className="ptag"><PlatformIcon platform={platform} size={13} />{NAME[platform]}</span>{draft ? <span className="dim small mono">v{draft.version} · {draft.author === 'agent' ? 'drafted by Harbor' : 'edited by you'}</span> : <span className="dim small">No draft yet</span>}</span>
         {draft?.author === 'agent' ? <span className="tag">Simulated</span> : null}
       </div>
+      {waiting.map((w) => (
+        <p key={w.id} className="notice small" role="status" style={{ margin: 0 }}>
+          <a href="/approvals">Waiting in Approvals · {fmt(w.proposedFor)}</a> for @{w.handle}, with v{w.version}
+          {draft && w.version !== draft.version ? <> (this pane shows v{draft.version})</> : null}. Saving a new version here won’t change it.
+        </p>
+      ))}
 
       <form action={saveDraft} className="stack">
         <input type="hidden" name="brandId" value={brandId} />
@@ -133,7 +142,7 @@ export function DraftEditor({
         </div>
       ) : null}
 
-      {draft ? <PublishBox draft={draft} ideaId={ideaId} platform={platform} brandName={brandName} channels={channels} dirty={dirty} posted={posted} /> : null}
+      {draft ? <PublishBox draft={draft} ideaId={ideaId} platform={platform} brandName={brandName} channels={channels} dirty={dirty} posted={posted} connectHref={connectHref} /> : null}
     </div>
   );
 }
@@ -144,7 +153,7 @@ const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-US', { tim
  * Post now or schedule, with the result shown right here. "Post now" asks once more before sending, since it's
  * public and immediate. Posts already made from this idea on this platform are listed so nothing goes out twice.
  */
-function PublishBox({ draft, ideaId, platform, brandName, channels, dirty, posted }: { draft: DraftView; ideaId: string; platform: Platform; brandName: string; channels: ChannelOption[]; dirty: boolean; posted: PostedSummary[] }) {
+function PublishBox({ draft, ideaId, platform, brandName, channels, dirty, posted, connectHref }: { draft: DraftView; ideaId: string; platform: Platform; brandName: string; channels: ChannelOption[]; dirty: boolean; posted: PostedSummary[]; connectHref?: string }) {
   const [state, action, pending] = useActionState<PublishState, FormData>(publishDraft, undefined);
   const [confirming, setConfirming] = useState(false);
   const [tz, setTz] = useState('0');
@@ -171,15 +180,16 @@ function PublishBox({ draft, ideaId, platform, brandName, channels, dirty, poste
         </ul>
       ) : null}
       {channels.length === 0 ? (
-        <span className="dim small">No {NAME[platform]} account connected for {brandName}.</span>
+        <span className="dim small">No {NAME[platform]} account connected for {brandName}.{connectHref ? <> <a href={connectHref}>Connect {NAME[platform]}</a></> : null}</span>
       ) : (
         <>
           <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
             <Select name="channelId" ariaLabel="Account" width="auto" options={channels.map((c) => ({ value: c.id, label: `@${c.handle}` }))} />
+            {/* Distinct keys: reusing one <button> would turn it into a submit during the first click, which then posts. */}
             {confirming ? (
-              <button className="primary" type="submit" name="intent" value="now" disabled={pending}>{pending ? 'Posting…' : `Confirm: post to ${NAME[platform]} now`}</button>
+              <button key="confirm" className="primary" type="submit" name="intent" value="now" disabled={pending}>{pending ? 'Posting…' : `Confirm: post to ${NAME[platform]} now`}</button>
             ) : (
-              <button className="primary" type="button" onClick={() => setConfirming(true)} disabled={dirty || pending}>Post now</button>
+              <button key="ask" className="primary" type="button" onClick={() => setConfirming(true)} disabled={dirty || pending}>Post now</button>
             )}
             <span className="dim small">or</span>
             <input name="scheduledFor" type="datetime-local" aria-label="Schedule for" style={{ width: 'auto' }} />

@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import type { Channel, Platform } from '@harbor/core';
 import { generateDrafts, moveIdea } from '../../actions';
-import { API_BROWSER_URL, getBrand, getChannels, getDrafts, getIdeas, getPosts, getSignals, loadAll, type BrandView, type DraftView, type IdeaView, type PostView, type SignalView } from '../../api';
+import { API_BROWSER_URL, getApprovals, getBrand, getChannels, getDrafts, getIdeas, getPosts, getSignals, loadAll, type Approval, type ApprovalCounts, type BrandView, type DraftView, type IdeaView, type PostView, type SignalView } from '../../api';
 import { DraftEditor } from '../../components/draft-editor';
-import { Flash, LoadError, PageHeader, PLATFORM_NAME } from '../../ui';
+import { Flash, LoadError, PageHeader, PLATFORM_NAME, when } from '../../ui';
 import { PlatformIcon } from '../../platform-icon';
 
 export const dynamic = 'force-dynamic';
@@ -18,11 +18,15 @@ export default async function StudioIdea({ params, searchParams }: { params: Pro
   const idea = ideasRes.data[0].find((i) => i.id === ideaId);
   if (!idea) return (<><Link href="/studio">← Studio</Link><LoadError message="That idea doesn't exist anymore." /></>);
 
-  const res = await loadAll<[BrandView, Channel[], DraftView[], SignalView[], PostView[]]>([
+  const res = await loadAll<[BrandView, Channel[], DraftView[], SignalView[], PostView[], { data: Approval[]; counts: ApprovalCounts }]>([
     getBrand(idea.brandId), getChannels(idea.brandId), getDrafts({ ideaId, all: '1' }), getSignals(idea.brandId), getPosts({ brandId: idea.brandId, limit: '200' }),
+    getApprovals({ status: 'pending', brandId: idea.brandId }),
   ]);
   if (!res.ok) return <LoadError message={res.error} />;
-  const [brand, channels, allDrafts, signals, brandPosts] = res.data;
+  const [brand, channels, allDrafts, signals, brandPosts, approvals] = res.data;
+  // Pending approvals that use this idea's drafts, so editing here isn't done blind (an approval keeps the version it was made from).
+  const waiting = approvals.data.filter((a) => a.ideaId === ideaId);
+  const waitingFor = (p: Platform) => waiting.filter((a) => a.draft.platform === p).map((a) => ({ id: a.id, version: a.draft.version, proposedFor: a.proposedFor, handle: a.channel.handle }));
   const postsFor = (p: Platform) => brandPosts.filter((x) => x.ideaId === ideaId && x.channel.platform === p).map((x) => ({ id: x.id, status: x.status, url: x.url, publishedAt: x.publishedAt, scheduledFor: x.scheduledFor }));
   const connected = channels.filter((c) => c.status === 'connected');
   const latest = (p: Platform) => allDrafts.filter((d) => d.platform === p).sort((a, b) => b.version - a.version);
@@ -30,6 +34,8 @@ export default async function StudioIdea({ params, searchParams }: { params: Pro
   const defaults = new Set(drafted.length ? drafted : connected.map((c) => c.platform));
   const cited = idea.basis.map((b) => ({ ...b, signal: signals.find((s) => s.id === b.signalId) }));
   const back = `/studio/${ideaId}`;
+  // Where to connect an account: a founder account connects in its own setup step, a brand on its Channels page.
+  const connectHref = brand.kind === 'person' ? `/brands/new?brandId=${brand.id}&kind=person&step=connect` : `/brands/${brand.id}/channels`;
   const m = brand.memory;
 
   return (
@@ -55,6 +61,17 @@ export default async function StudioIdea({ params, searchParams }: { params: Pro
           <span className="label">Why this idea</span>
           {cited.map((c) => <span key={c.signalId} className="cite">{c.note || c.signal?.summary || 'signal'}</span>)}
         </div>
+      ) : null}
+      {waiting.length ? (
+        <p className="notice small" role="status">
+          <Link href="/approvals">Waiting in Approvals</Link>
+          {waiting.map((a, i) => (
+            <span key={a.id}>
+              {i ? ',' : ':'} {when(a.proposedFor, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+              <span className="muted"> ({PLATFORM_NAME[a.channel.platform]} v{a.draft.version})</span>
+            </span>
+          ))}
+        </p>
       ) : null}
       <Flash params={flash} />
 
@@ -112,6 +129,8 @@ export default async function StudioIdea({ params, searchParams }: { params: Pro
                 channels={connected.filter((c) => c.platform === p).map((c) => ({ id: c.id, handle: c.account.handle, displayName: c.account.displayName, avatarUrl: c.account.avatarUrl }))}
                 logoUrl={brand.logoUrl}
                 posted={postsFor(p)}
+                waiting={waitingFor(p)}
+                connectHref={connectHref}
                 apiUrl={API_BROWSER_URL}
               />
             );

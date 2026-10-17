@@ -85,7 +85,7 @@ export default async function NewBrandWizard({ searchParams }: { searchParams: P
               <div className="field"><label htmlFor="name">Brand name</label><input id="name" name="name" required maxLength={200} placeholder="Harbor" autoFocus /></div>
               <div className="field"><label htmlFor="summary">What it is, in a sentence</label><input id="summary" name="summary" placeholder="The open-source content strategist for builders" /></div>
               <div className="grid-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                <div className="field"><label htmlFor="cta">Main call to action</label><input id="cta" name="cta" placeholder="Join the waitlist" /></div>
+                <div className="field"><label htmlFor="cta">Main call to action</label><input id="cta" name="cta" placeholder="Try it free" /></div>
                 <div className="field"><label htmlFor="url">Link</label><input id="url" name="url" type="url" placeholder="https://…" /></div>
               </div>
               <div><button className="primary" type="submit">Continue</button></div>

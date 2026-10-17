@@ -6,6 +6,7 @@ import { reschedulePost } from '../actions';
 import type { BestTimes, PostView } from '../api';
 import { PlatformIcon } from '../platform-icon';
 import { TZ } from '../ui';
+import { addDays, dateOf, dayKey, weekdayOf, zoned, zonedToDate } from '../tz';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6:00–23:00
@@ -14,16 +15,15 @@ const movable = (p: PostView) => p.status === 'scheduled' || p.status === 'faile
 const when = (p: PostView) => new Date(p.publishedAt ?? p.scheduledFor ?? p.createdAt);
 
 /**
- * A week of posts by day and hour. Scheduled posts drag to a new slot (saved immediately). When a brand is
+ * A week of posts by day and hour, in the workspace's timezone (not the machine's, which is UTC on hosts). Scheduled posts drag to a new slot (saved immediately). When a brand is
  * selected, its best posting times shade the grid: one hue (violet), lighter to darker = better.
  */
 export function WeekCalendar({ weekStart, posts: initial, best, brandName }: { weekStart: string; posts: PostView[]; best?: BestTimes; brandName?: string }) {
   const [posts, setPosts] = useState(initial);
   const [dragging, setDragging] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: 'info' | 'error'; text: string } | null>(null);
-  const start = useMemo(() => new Date(`${weekStart}T00:00:00`), [weekStart]);
-  const days = useMemo(() => DAYS.map((_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)), [start]);
-  const today = new Date();
+  const days = useMemo(() => DAYS.map((_, i) => addDays(weekStart, i)), [weekStart]);
+  const today = dayKey(new Date());
 
   const score = useMemo(() => {
     const m = new Map<string, BestTimes['slots'][number]>();
@@ -38,20 +38,21 @@ export function WeekCalendar({ weekStart, posts: initial, best, brandName }: { w
   }, [best]);
   const rel = (v: number) => (range.max > range.min ? (v - range.min) / (range.max - range.min) : 0);
 
-  const inCell = (day: Date, hour: number) =>
+  // Posts before 6:00 sit in the first row.
+  const inCell = (day: string, hour: number) =>
     posts.filter((p) => {
-      const d = when(p);
-      return d.getFullYear() === day.getFullYear() && d.getMonth() === day.getMonth() && d.getDate() === day.getDate() && (d.getHours() === hour || (hour === 6 && d.getHours() < 6) || (hour === 23 && d.getHours() > 23));
+      const at = when(p);
+      const h = zoned(at).hour;
+      return dayKey(at) === day && (h === hour || (hour === HOURS[0] && h < hour));
     });
 
-  const drop = async (day: Date, hour: number) => {
+  const drop = async (day: string, hour: number) => {
     const id = dragging;
     setDragging(null);
     if (!id) return;
     const post = posts.find((p) => p.id === id);
     if (!post) return;
-    const old = when(post);
-    const next = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour, old.getMinutes());
+    const next = zonedToDate(day, hour, zoned(when(post)).minute);
     if (next.getTime() < Date.now()) return setMessage({ kind: 'error', text: "That slot is in the past. Pick a time that's still ahead." });
     setPosts((ps) => ps.map((p) => (p.id === id ? { ...p, scheduledFor: next.toISOString(), status: 'scheduled' } : p)));
     const res = await reschedulePost(id, next.toISOString());
@@ -59,8 +60,8 @@ export function WeekCalendar({ weekStart, posts: initial, best, brandName }: { w
       setPosts((ps) => ps.map((p) => (p.id === id ? post : p)));
       return setMessage({ kind: 'error', text: res.error });
     }
-    const s = score.get(`${next.getDay()}:${hour}`);
-    setMessage({ kind: 'info', text: `Moved to ${DAYS[next.getDay()]} ${hourLabel(hour)}${s ? ` · best-time score ${Math.round(s.score * 100)}` : ''}.` });
+    const s = score.get(`${weekdayOf(day)}:${hour}`);
+    setMessage({ kind: 'info', text: `Moved to ${DAYS[weekdayOf(day)]} ${hourLabel(hour)}${s ? ` · best-time score ${Math.round(s.score * 100)}` : ''}.` });
   };
 
   return (
@@ -83,26 +84,26 @@ export function WeekCalendar({ weekStart, posts: initial, best, brandName }: { w
         <div className="week" role="grid" aria-label="Week calendar">
           <div className="week-corner" />
           {days.map((d) => {
-            const isToday = d.toDateString() === today.toDateString();
+            const isToday = d === today;
             return (
-              <div key={d.toISOString()} className={`week-day${isToday ? ' today' : ''}`} role="columnheader">
-                <span className="label">{DAYS[d.getDay()]}</span> <span className="mono">{d.getDate()}</span>
+              <div key={d} className={`week-day${isToday ? ' today' : ''}`} role="columnheader">
+                <span className="label">{DAYS[weekdayOf(d)]}</span> <span className="mono">{dateOf(d)}</span>
               </div>
             );
           })}
           {HOURS.map((h) => (
             <Row key={h} hour={h}>
               {days.map((d) => {
-                const s = score.get(`${d.getDay()}:${h}`);
-                const isTop = top.has(`${d.getDay()}:${h}`);
+                const s = score.get(`${weekdayOf(d)}:${h}`);
+                const isTop = top.has(`${weekdayOf(d)}:${h}`);
                 const items = inCell(d, h);
                 return (
                   <div
-                    key={d.toISOString()}
+                    key={d}
                     className={`week-cell${dragging ? ' droppable' : ''}`}
                     role="gridcell"
                     style={s ? { background: heat(rel(s.score)) } : undefined}
-                    title={s ? `${DAYS[d.getDay()]} ${hourLabel(h)} · score ${Math.round(s.score * 100)} (${s.basis === 'history' ? `${s.posts} past posts` : 'platform norm'})` : undefined}
+                    title={s ? `${DAYS[weekdayOf(d)]} ${hourLabel(h)} · score ${Math.round(s.score * 100)} (${s.basis === 'history' ? `${s.posts} past posts` : 'platform norm'})` : undefined}
                     onDragOver={(e) => { if (dragging) e.preventDefault(); }}
                     onDrop={(e) => { e.preventDefault(); void drop(d, h); }}
                   >

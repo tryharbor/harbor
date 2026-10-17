@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Channel } from '@harbor/core';
 import { createPost } from '../actions';
+import { PostOrSchedule } from '../components/post-or-schedule';
 import { TzInput } from '../components/tz-input';
 import { getBrands, getChannels, getIdeas, loadAll, type BrandView, type IdeaView } from '../api';
 import { Flash, LoadError, PageHeader, PlatformTag, Upcoming } from '../ui';
@@ -67,17 +68,11 @@ export default async function ComposePage({ searchParams }: { searchParams: Prom
                   <textarea id="body" name="body" required defaultValue={idea ? `${idea.title}\n\n${idea.angle}`.trim() : ''} />
                   <span className="muted small">{LIMITS}</span>
                 </div>
-                <div className="row" style={{ alignItems: 'flex-start' }}>
-                  <div className="field" style={{ flex: '2 1 280px' }}>
-                    <label htmlFor="mediaUrl">Image or video URL (public; required for Instagram)</label>
-                    <input id="mediaUrl" name="mediaUrl" type="url" placeholder="https://…" />
-                  </div>
-                  <div className="field" style={{ flex: '1 1 200px' }}>
-                    <label htmlFor="scheduledFor">Schedule (empty = post now)</label>
-                    <input id="scheduledFor" name="scheduledFor" type="datetime-local" />
-                  </div>
+                <div className="field">
+                  <label htmlFor="mediaUrl">Image or video URL (public; required for Instagram)</label>
+                  <input id="mediaUrl" name="mediaUrl" type="url" placeholder="https://…" />
                 </div>
-                <div><button className="primary" type="submit">Publish</button></div>
+                <PostOrSchedule />
               </form>
             )}
           </section>

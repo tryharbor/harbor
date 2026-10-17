@@ -83,6 +83,17 @@ export function preview(text: string, max: number): string {
 }
 
 export const lowerFirst = (s: string) => (s && !/^[A-Z]{2}/.test(s) && !/^I\b/.test(s) ? s[0]!.toLowerCase() + s.slice(1) : s);
+/**
+ * A user-entered phrase put mid-sentence: lower-cases the first letter when the first word reads as an ordinary
+ * capitalized word ("Building in public" → "building in public", "Setting up OAuth apps" → "setting up OAuth apps").
+ * Names and acronyms keep their capitals: a one-letter or camel-case first word, or a two-word name ("X API costs",
+ * "GitHub stars", "Claude Code").
+ */
+export const midSentence = (s: string) => {
+  const [first = '', second = ''] = s.trim().split(/\s+/);
+  if (!/^[A-Z][a-z]/.test(first) || /[A-Z]/.test(first.slice(1)) || /^\W*[A-Z]/.test(second)) return s.trim();
+  return lowerFirst(s.trim());
+};
 export const upperFirst = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 export const stripEnd = (s: string) => s.trim().replace(/[\s.!?…:;,]+$/, '');
 export const ensureEnd = (s: string) => (/[.!?…:)"'”]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);

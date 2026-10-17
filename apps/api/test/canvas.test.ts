@@ -303,6 +303,10 @@ describe('canvas agent', () => {
   });
 
   it('suggest_ideas: into a given frame, or right of everything when there are no frames', async () => {
+    // Ideas already on the board aren't suggested again, so give the brand new material first.
+    await json('PATCH', `/v1/brands/${brandId}`, {
+      memory: { audiences: [...RICH_MEMORY.audiences, { name: 'Self-hosters', painPoints: ['Setting up OAuth apps', 'Upgrading without downtime'], goals: ['Own their data'] }] },
+    }, 200);
     const f = await json('POST', `/v1/campaigns/${cid}/items`, { kind: 'frame', x: 0, y: 2000, width: 640, height: 300, data: { title: 'Week 2' } }, 201);
     const res = await json('POST', `/v1/campaigns/${cid}/agent`, { action: 'suggest_ideas', count: 1, frameId: f.id }, 201);
     expect(res.items[0]).toMatchObject({ parentId: f.id, x: 20, y: 48 });

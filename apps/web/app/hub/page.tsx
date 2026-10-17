@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import type { IdeaStatus } from '@harbor/core';
-import { createIdea, deleteIdea, moveIdea, suggestIdeas } from '../actions';
+import { createIdea, deleteIdea, dismissIdeas, moveIdea, suggestIdeas } from '../actions';
 import { getBestTimes, getBrands, getIdeas, getPosts, loadAll, type BestTimes, type BrandView, type IdeaView, type PostView } from '../api';
+import { BulkDismiss } from '../components/bulk-dismiss';
 import { WeekCalendar } from '../components/week-calendar';
 import { Flash, LoadError, MetricLine, PageHeader, PlatformTag, StatusPill, when, TZ } from '../ui';
 import { Select } from '../components/select';
+import { addDays, dateOf, dayKey, sundayOf, weekdayOf, zonedToDate } from '../tz';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,13 +80,30 @@ export default async function HubPage({ searchParams }: { searchParams: Promise<
   );
 }
 
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+/**
+ * When an idea is planned for: a date typed at the start of its title ("Oct 27 · Week 1 recap"), in the year that
+ * puts it nearest after the idea was created; else when it was added. Columns read in that order, oldest first.
+ */
+function plannedAt(i: IdeaView): string {
+  const m = /^\s*(?:[a-z]{3}[a-z]*\.?,?\s+)?([a-z]{3})[a-z]*\.?\s+(\d{1,2})\b/i.exec(i.title);
+  const month = m ? MONTHS.indexOf(m[1]!.toLowerCase()) : -1;
+  if (!m || month < 0) return i.createdAt;
+  const created = new Date(i.createdAt);
+  let year = created.getUTCFullYear();
+  if (Date.UTC(year, month, Number(m[2])) < created.getTime() - 60 * 86_400_000) year += 1;
+  return new Date(Date.UTC(year, month, Number(m[2]))).toISOString();
+}
+
 function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[]; posts: PostView[]; brands: BrandView[]; brandFilter?: string; here: string }) {
   const ideaTitle = new Map(ideas.map((i) => [i.id, i.title]));
   const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000).toISOString();
   return (
     <div className="board">
       {STAGES.map((stage) => {
-        const stageIdeas = ideas.filter((i) => i.status === stage.key && (stage.key === 'idea' || stage.key === 'drafting' || stage.key === 'approved'));
+        const stageIdeas = ideas
+          .filter((i) => i.status === stage.key && (stage.key === 'idea' || stage.key === 'drafting' || stage.key === 'approved'))
+          .sort((a, b) => plannedAt(a).localeCompare(plannedAt(b)) || a.createdAt.localeCompare(b.createdAt));
         const stagePosts =
           stage.key === 'scheduled'
             ? posts.filter((p) => ['scheduled', 'publishing', 'pending', 'unknown', 'failed'].includes(p.status))
@@ -118,8 +137,20 @@ function Board({ ideas, posts, brands, brandFilter, here }: { ideas: IdeaView[];
                 <button type="submit" className="primary">Suggest 5 ideas</button>
               </form>
             ) : null}
+            {stage.key === 'idea' && stageIdeas.length > 1 ? (
+              <form id="dismiss-ideas" action={dismissIdeas}>
+                <input type="hidden" name="returnTo" value={here} />
+                <BulkDismiss formId="dismiss-ideas" />
+              </form>
+            ) : null}
             {stageIdeas.map((i) => (
               <article key={i.id} className="item">
+                {i.status === 'idea' && stageIdeas.length > 1 ? (
+                  <label className="row small dim" style={{ gap: 6 }}>
+                    <input type="checkbox" name="ideaId" value={i.id} form="dismiss-ideas" aria-label={`Select "${i.title}"`} />
+                    Select
+                  </label>
+                ) : null}
                 <div className="item-title">{i.title}</div>
                 {i.angle ? <div className="muted small">{i.angle}</div> : null}
                 <div className="item-meta">
@@ -201,26 +232,26 @@ function Table({ ideas, posts }: { ideas: IdeaView[]; posts: PostView[] }) {
   );
 }
 
+/** A month of posts by day, in the workspace's timezone (TZ), like the week view. */
 function Calendar({ posts, month, s }: { posts: PostView[]; month?: string; s: Search }) {
-  const now = new Date();
-  const [y, m] = /^\d{4}-\d{2}$/.test(month ?? '') ? month!.split('-').map(Number) as [number, number] : [now.getFullYear(), now.getMonth() + 1];
-  const first = new Date(y, m - 1, 1);
-  const start = new Date(first);
-  start.setDate(1 - first.getDay());
-  const days = Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
-  const key = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const today = dayKey(new Date());
+  const [y, m] = (/^\d{4}-\d{2}$/.test(month ?? '') ? month! : today.slice(0, 7)).split('-').map(Number) as [number, number];
+  const ymKey = (yy: number, mm: number) => { const d = new Date(Date.UTC(yy, mm - 1, 1)); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; };
+  const firstKey = `${ymKey(y, m)}-01`;
+  const first = zonedToDate(firstKey, 12);
+  const start = sundayOf(firstKey);
+  const days = Array.from({ length: 42 }, (_, i) => addDays(start, i));
   const byDay = new Map<string, PostView[]>();
   for (const p of posts) {
     const at = p.publishedAt ?? p.scheduledFor;
     if (!at) continue;
-    const k = key(new Date(at));
+    const k = dayKey(new Date(at));
     byDay.set(k, [...(byDay.get(k) ?? []), p]);
   }
-  const ym = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  const prev = ym(new Date(y, m - 2, 1));
-  const next = ym(new Date(y, m, 1));
+  const prev = ymKey(y, m - 1);
+  const next = ymKey(y, m + 1);
   // Show only as many weeks as the month needs (4–6).
-  const lastInMonth = new Date(y, m, 0).getDate() + first.getDay();
+  const lastInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate() + weekdayOf(firstKey);
   const visible = days.slice(0, Math.ceil(lastInMonth / 7) * 7);
 
   return (
@@ -239,11 +270,11 @@ function Calendar({ posts, month, s }: { posts: PostView[]; month?: string; s: S
         <div className="calendar" role="grid">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <div key={d} className="cal-head" role="columnheader">{d}</div>)}
           {visible.map((d) => {
-            const items = byDay.get(key(d)) ?? [];
-            const isToday = key(d) === key(now);
+            const items = byDay.get(d) ?? [];
+            const isToday = d === today;
             return (
-              <div key={key(d)} className={`cal-day${d.getMonth() !== m - 1 ? ' other' : ''}${isToday ? ' today' : ''}`} role="gridcell">
-                <span className="cal-date">{d.getDate()}</span>
+              <div key={d} className={`cal-day${!d.startsWith(ymKey(y, m)) ? ' other' : ''}${isToday ? ' today' : ''}`} role="gridcell">
+                <span className="cal-date">{dateOf(d)}</span>
                 {items.map((p) => (
                   <Link key={p.id} href={`/performance/${p.id}`} className={`cal-post s-${p.status}`} title={`${p.brandName}: ${p.parts[0]?.text ?? ''}`}>
                     {when(p.publishedAt ?? p.scheduledFor, { hour: 'numeric', minute: '2-digit' })} {p.channel.platform} · {p.parts[0]?.text.slice(0, 40)}
@@ -259,17 +290,12 @@ function Calendar({ posts, month, s }: { posts: PostView[]; month?: string; s: S
 }
 
 
-/** Sunday of the week containing `d` (local), as YYYY-MM-DD. */
-const sundayOf = (d: Date) => {
-  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
-};
-
+/** A week, Sunday to Sunday, in the workspace's timezone (TZ), not the server's clock. */
 async function Week({ posts, s, brandName }: { posts: PostView[]; s: Search; brandName?: string }) {
-  const weekStart = /^\d{4}-\d{2}-\d{2}$/.test(s.week ?? '') ? sundayOf(new Date(`${s.week}T12:00:00`)) : sundayOf(new Date());
-  const start = new Date(`${weekStart}T00:00:00`);
-  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
-  const shift = (days: number) => sundayOf(new Date(start.getFullYear(), start.getMonth(), start.getDate() + days));
+  const weekStart = sundayOf(/^\d{4}-\d{2}-\d{2}$/.test(s.week ?? '') ? s.week! : dayKey(new Date()));
+  const start = zonedToDate(weekStart);
+  const end = zonedToDate(addDays(weekStart, 7));
+  const shift = (days: number) => addDays(weekStart, days);
   const inWeek = posts.filter((p) => {
     const t = new Date(p.publishedAt ?? p.scheduledFor ?? p.createdAt).getTime();
     return t >= start.getTime() && t < end.getTime();

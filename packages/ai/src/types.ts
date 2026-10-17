@@ -48,6 +48,8 @@ export interface GenerateIdeasInput {
   guidance?: string[];
   /** For a person (brand.kind 'person'): the brands they speak for, so ideas can name what they build. */
   speaksFor?: { id: string; name: string; summary?: string }[];
+  /** Titles of the brand's open ideas, so a new batch doesn't suggest what's already on the board. */
+  existingTitles?: string[];
 }
 
 export interface IdeaSuggestion {

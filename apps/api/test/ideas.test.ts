@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type App } from '../src/app.ts';
 import { openDb, type Db } from '../src/db/client.ts';
+import { insertApproval } from '../src/services/approvals.ts';
 
 let db: Db;
 let app: App;
@@ -17,6 +18,40 @@ beforeAll(async () => {
   brandB = (await (await send('POST', '/v1/brands', { name: 'Beta' })).json()).id;
 });
 afterAll(() => db.close());
+
+describe('/v1/ideas/bulk-delete', () => {
+  it('removes only ideas still in the Ideas stage and lists the rest as skipped', async () => {
+    const mk = async (title: string) => (await (await send('POST', '/v1/ideas', { brandId: brandA, title })).json()).id as string;
+    const stale1 = await mk('Stale one');
+    const stale2 = await mk('Stale two');
+    const drafting = await mk('In progress');
+    await send('PATCH', `/v1/ideas/${drafting}`, { status: 'drafting' });
+    const res = await send('POST', '/v1/ideas/bulk-delete', { ids: [stale1, stale2, drafting, 'idea_missing', stale1] });
+    expect(res.status).toBe(200);
+    const out = await res.json();
+    expect(out.deleted.sort()).toEqual([stale1, stale2].sort());
+    expect(out.skipped.sort()).toEqual([drafting, 'idea_missing'].sort());
+    const left = (await (await send('GET', `/v1/ideas?brandId=${brandA}`)).json()).data.map((i: { id: string }) => i.id);
+    expect(left).toContain(drafting);
+    expect(left).not.toContain(stale1);
+    await send('DELETE', `/v1/ideas/${drafting}`);
+    expect((await send('POST', '/v1/ideas/bulk-delete', { ids: [] })).status).toBe(400);
+  });
+
+  it('keeps an idea whose draft is waiting in Approvals', async () => {
+    const ideaId = (await (await send('POST', '/v1/ideas', { brandId: brandA, title: 'Waiting on approval' })).json()).id;
+    const draft = await (await send('POST', '/v1/drafts', { brandId: brandA, ideaId, platform: 'x', parts: [{ text: 'Proposed post' }] })).json();
+    await db.query(`INSERT INTO channels (id, brand_id, platform, platform_account_id, handle, token_ref) VALUES ('ch_bulk', $1, 'x', 'acct', 'alpha', 'tok')`, [brandA]);
+    await insertApproval(db, {
+      workspaceId: 'ws_default', brandId: brandA, draftId: draft.id, channelId: 'ch_bulk', platform: 'x',
+      proposedFor: new Date(Date.now() + 86_400_000), reason: 'test', checks: [], source: 'ui',
+    });
+    const out = await (await send('POST', '/v1/ideas/bulk-delete', { ids: [ideaId] })).json();
+    expect(out).toEqual({ deleted: [], skipped: [ideaId] });
+    await db.query(`DELETE FROM channels WHERE id = 'ch_bulk'`);
+    await send('DELETE', `/v1/ideas/${ideaId}`);
+  });
+});
 
 describe('/v1/ideas', () => {
   let ideaId: string;

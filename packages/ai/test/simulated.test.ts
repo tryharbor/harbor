@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HarborError, brandVoiceSchema } from '@harbor/core';
+import { HarborError, brandSchema, brandVoiceSchema } from '@harbor/core';
 import { AnthropicModel, SimulatedModel, createModel } from '../src/index.ts';
 import { EXAMPLES, RICH_MEMORY, makeBrand, signal } from './fixtures.ts';
 
@@ -72,7 +72,10 @@ describe('SimulatedModel', () => {
   });
 
   it('drafts within maxLength, threads long X drafts and uses the CTA and style rules', async () => {
-    const idea = { title: 'How I handle context switching between brands', angle: 'Most users hit the same wall. I batch by brand, one per day. It cut my Monday planning from 90 minutes to 20. Show the calendar.' };
+    const idea = {
+      title: 'How I handle context switching between brands',
+      angle: 'Most users hit the same wall: four brands, four calendars, and a Monday spent deciding instead of writing. I batch by brand, one per day, and keep a single queue for all of them. It cut my Monday planning from 90 minutes to 20, and I post more than before. Show the calendar.',
+    };
     const x = (await model.draft({ brand, idea, platform: 'x', maxLength: 280 })).result;
     expect(x.length).toBeGreaterThan(1);
     for (const p of x) expect([...p.text].length).toBeLessThanOrEqual(280);
@@ -127,6 +130,61 @@ describe('SimulatedModel', () => {
   });
 });
 
+describe('Simulated ideas and drafts from dogfooding', () => {
+  const multi = makeBrand({
+    ...RICH_MEMORY,
+    audiences: [
+      { id: 'aud1', name: 'Indie hackers', painPoints: ['Context switching between brands'], goals: ['Getting paid users'] },
+      { id: 'aud2', name: 'Self-hosters', painPoints: ['Setting up OAuth apps'], goals: ['Run it on their own server'] },
+      { id: 'aud3', name: 'Claude/MCP users', painPoints: ['Wiring tools into Claude'], goals: ['More inbound leads'] },
+    ],
+  });
+
+  it('draws on every audience, not only the first', async () => {
+    const { result } = await model.generateIdeas({ brand: multi, signals, recentPosts: [], count: 12 });
+    const text = result.map((i) => `${i.title} ${i.angle}`).join(' ');
+    expect(text).toMatch(/context switching/i);
+    expect(text).toMatch(/OAuth/);
+    expect(text).toMatch(/Claude/);
+  });
+
+  it('writes goal checklists grammatically, whatever form the goal is in', async () => {
+    const { result } = await model.generateIdeas({ brand: multi, signals, recentPosts: [], count: 20 });
+    const titles = result.map((i) => i.title);
+    expect(titles).toContain('A checklist for getting paid users');
+    expect(titles).toContain('A checklist to run it on their own server');
+    expect(titles).toContain('A checklist for more inbound leads');
+    expect(titles.join(' ')).not.toMatch(/checklist to getting|^Proof:/m);
+  });
+
+  it("doesn't suggest ideas already open on the board (ignoring a date or format prefix)", async () => {
+    const first = (await model.generateIdeas({ brand, signals, recentPosts: [], count: 3 })).result;
+    const existingTitles = [`Oct 27 · ${first[0]!.title}`, `As a thread: ${first[1]!.title}`, first[2]!.title.toUpperCase()];
+    const next = (await model.generateIdeas({ brand, signals, recentPosts: [], count: 3, existingTitles })).result;
+    expect(next.length).toBeGreaterThan(0);
+    const keys = new Set(first.map((i) => i.title.toLowerCase()));
+    for (const i of next) expect(keys.has(i.title.replace(/^As an? [\w ]+: /, '').toLowerCase())).toBe(false);
+  });
+
+  it('keeps a topic lower-case mid-sentence unless it is a name', async () => {
+    const person = brandSchema.parse({ ...makeBrand(), kind: 'person', memory: { topics: ['Building in public', 'X API costs', 'GitHub stars'] } });
+    const titles = (await model.generateIdeas({ brand: person, signals, recentPosts: [], count: 20 })).result.map((i) => i.title);
+    expect(titles).toEqual(expect.arrayContaining(['My take on building in public', 'My take on X API costs', 'My take on GitHub stars']));
+  });
+
+  it("doesn't copy the idea title (or its date) into the draft, or label the proof point", async () => {
+    const idea = { title: 'Oct 27 · Week 1 recap', angle: 'Week one of building Harbor in public is done. We shipped three fixes from dogfooding. Share the star count.' };
+    const text = (await model.draft({ brand, idea, platform: 'linkedin', maxLength: 3000 })).result[0]!.text;
+    expect(text.startsWith('Week one of building Harbor in public is done.')).toBe(true);
+    expect(text).not.toMatch(/Oct 27|Week 1 recap|Proof point:/);
+    expect(text).toContain('Tracks every post at 1h, 6h, 24h, 72h and 7d.');
+    expect(text).not.toMatch(/sounds familiar/);
+    const bare = (await model.draft({ brand, idea: { title: 'Nov 3 · X API costs', angle: '' }, platform: 'x', maxLength: 280 })).result.map((p) => p.text).join(' ');
+    expect(bare).toContain('[Open with your hook on: X API costs.]');
+    expect(bare).not.toMatch(/Nov 3/);
+  });
+});
+
 describe('createModel', () => {
   it('defaults to the simulated model and keeps the real one switched off', async () => {
     expect(createModel({}).name).toBe('simulated-v1');
@@ -142,7 +200,7 @@ describe('createModel', () => {
 
 describe('Brand Memory that learns', () => {
   it('traces the Brand Memory a draft actually used', async () => {
-    const res = await model.draft({ brand, idea: { title: 'Our users leverage synergy', angle: 'One place for every brand!' }, platform: 'linkedin', maxLength: 3000 });
+    const res = await model.draft({ brand, idea: { title: 'Our users leverage synergy', angle: 'Our users leverage synergy!' }, platform: 'linkedin', maxLength: 3000 });
     expect(res.result[0]!.text).not.toMatch(/leverage|synergy|!/);
     expect(res.trace).toEqual(
       expect.arrayContaining([

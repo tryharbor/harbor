@@ -24,6 +24,8 @@ const ideaUpdateSchema = z
   })
   .strict();
 
+const bulkDeleteSchema = z.object({ ids: z.array(z.string().min(1)).min(1).max(200) }).strict();
+
 const generateSchema = z
   .object({
     brandId: z.string().min(1),
@@ -88,6 +90,25 @@ export function registerIdeas(app: App, deps: AppDeps) {
       [current.id, input.title ?? null, input.angle ?? null, input.status ?? null],
     );
     return c.json(toIdea(await load(current.id)));
+  });
+
+  /**
+   * Dismiss stale suggestions in one go. Only ideas still in the Ideas stage, with no posts and nothing waiting in
+   * Approvals, are removed; anything else is skipped (and listed), so a clean-up never orphans work in progress.
+   */
+  app.post('/v1/ideas/bulk-delete', async (c) => {
+    const input = await body(c, bulkDeleteSchema);
+    const ids = [...new Set(input.ids)];
+    const deleted = await db.query<{ id: string }>(
+      `DELETE FROM ideas i
+       WHERE i.id = ANY($1::text[]) AND i.status = 'idea'
+         AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.idea_id = i.id)
+         AND NOT EXISTS (SELECT 1 FROM approvals a JOIN drafts d ON d.id = a.draft_id WHERE d.idea_id = i.id AND a.status = 'pending')
+       RETURNING i.id`,
+      [ids],
+    );
+    const gone = new Set(deleted.map((r) => r.id));
+    return c.json({ deleted: [...gone], skipped: ids.filter((id) => !gone.has(id)) });
   });
 
   app.delete('/v1/ideas/:id', async (c) => {

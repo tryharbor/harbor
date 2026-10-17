@@ -88,12 +88,14 @@ export async function generateIdeas(
         .then((rows) => rows.map((r) => ({ id: r.id, name: r.name, summary: r.memory?.products?.[0]?.summary || undefined })))
     : [];
   const guidance = opts.guidance?.filter((g) => g.trim()) ?? [];
+  // What's already on the board (not yet live), so a new batch doesn't repeat it.
+  const existingTitles = (await db.query<{ title: string }>(`SELECT title FROM ideas WHERE brand_id = $1 AND status <> 'live' ORDER BY created_at DESC LIMIT 300`, [brand.id])).map((r) => r.title);
   const input = {
     count, signals: signals.length, recentPosts: recentPosts.length,
     ...(opts.campaignId ? { campaignId: opts.campaignId } : {}), ...(guidance.length ? { guidance: guidance.length } : {}),
   };
   const { value: ids, run } = await withRun(db, brand, 'ideas', input, model.name, async (runId) => {
-    const res = await model.generateIdeas({ brand, signals, recentPosts, count, ...(guidance.length ? { guidance } : {}), ...(speaksFor.length ? { speaksFor } : {}) });
+    const res = await model.generateIdeas({ brand, signals, recentPosts, count, existingTitles, ...(guidance.length ? { guidance } : {}), ...(speaksFor.length ? { speaksFor } : {}) });
     const ids: string[] = [];
     for (const idea of res.result) {
       let basis = idea.basis.filter((b) => known.has(b.signalId));

@@ -13,6 +13,7 @@ import {
   hardWrap,
   lowerFirst,
   mean,
+  midSentence,
   pct,
   preview,
   quantile,
@@ -299,6 +300,27 @@ const snippet = (text: string | undefined, max = 60) => preview(splitSentences(t
 const fmtRatio = (r: number) => `${r >= 10 ? Math.round(r) : Math.round(r * 10) / 10}x`;
 const PLATFORM_NAMES: Record<Platform, string> = { x: 'X', linkedin: 'LinkedIn', instagram: 'Instagram', threads: 'Threads' };
 
+/** A planned date someone typed in front of a title ("Oct 27 · ", "Mon, Oct 27: ", "10/27 - "). */
+const DATE_PREFIX = /^\s*(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*\.?,?\s+)?(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:,?\s+\d{4})?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s*[·•|:\-–—]\s*/i;
+export const stripDatePrefix = (title: string) => title.replace(DATE_PREFIX, '');
+
+const FORMAT_PREFIX = /^as an? (thread|carousel|short video script|poll):\s*/i;
+/** When two idea titles are the same idea: ignoring a date prefix, a format prefix ("As a thread:"), case and punctuation. */
+export const ideaKey = (title: string) =>
+  stripDatePrefix(title).replace(FORMAT_PREFIX, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+const GOAL_VERBS = new Set(
+  'get grow ship build find land save reach hit win sell launch stop start make keep cut reduce increase learn earn hire run publish post write automate own scale avoid spend turn double triple be become stay'.split(' '),
+);
+/** A goal as a checklist title and as what an audience wants, whatever form it was entered in ("Get paid users", "Getting paid users", "More inbound leads"). */
+function goalPhrases(goal: string): { checklist: string; wants: string } {
+  const g = midSentence(stripEnd(goal)).replace(/^to\s+/i, '');
+  const verb = (words(g)[0] ?? '').toLowerCase();
+  if (GOAL_VERBS.has(verb)) return { checklist: `A checklist to ${g}`, wants: `want to ${g}` };
+  if (/ing$/.test(verb)) return { checklist: `A checklist for ${g}`, wants: `are working on ${g}` };
+  return { checklist: `A checklist for ${g}`, wants: `want ${g}` };
+}
+
 /** Speaks as "I" unless the voice says otherwise. A person always speaks as "I". */
 const povOf = (brand: Brand): 'I' | 'we' => {
   if (brand.kind === 'person') return 'I';
@@ -320,9 +342,9 @@ export function generateIdeas(input: GenerateIdeasInput): IdeaSuggestion[] {
   const losers = [...ranked].reverse().filter((s) => perf(s).ratio! <= 0.75);
   const manual = signals.filter((s) => s.kind === 'manual');
   const competitor = signals.filter((s) => s.kind === 'competitor_post' || s.kind === 'trend' || s.kind === 'comment');
-  const audience = m.audiences[0];
   const product = m.products[0];
-  const audienceName = audience ? lowerFirst(audience.name) : 'people like you';
+  // Every audience gets a turn: ideas rotate through them rather than all speaking to the first.
+  const audienceAt = (i: number) => (m.audiences.length ? midSentence(m.audiences[i % m.audiences.length]!.name) : 'people like you');
   const bestPostText = input.recentPosts
     .filter((p) => p.metrics?.views !== undefined || p.metrics?.likes !== undefined)
     .sort((a, b) => (b.metrics?.views ?? b.metrics?.likes ?? 0) - (a.metrics?.views ?? a.metrics?.likes ?? 0))[0]?.text;
@@ -343,55 +365,66 @@ export function generateIdeas(input: GenerateIdeasInput): IdeaSuggestion[] {
   const buckets: IdeaSuggestion[][] = [[], [], [], [], [], []];
 
   // 1. Double down on what worked.
-  for (const s of winners.slice(0, 3)) {
+  winners.slice(0, 3).forEach((s, i) => {
     const d = perf(s);
     const topic = snippet(d.text);
     buckets[0]!.push({
       title: `Go one level deeper on "${topic}"`,
-      angle: `"${topic}" reached ${fmtRatio(d.ratio!)} the usual ${d.metric ?? 'views'}. Follow it up while the topic is warm: take the one detail people reacted to and turn it into a step-by-step for ${audienceName}.`,
+      angle: `"${topic}" reached ${fmtRatio(d.ratio!)} the usual ${d.metric ?? 'views'}. Follow it up while the topic is warm: take the one detail people reacted to and turn it into a step-by-step for ${audienceAt(i)}.`,
       basis: [{ signalId: s.id, note: perfNote(s) }],
     });
-  }
+  });
   if (winners[0]) {
     const s = winners[0];
     buckets[0]!.push({
       title: `The template behind "${snippet(perf(s).text, 50)}"`,
-      angle: `Show the structure of ${my} best recent post (hook, proof, ask) so ${audienceName} can reuse it. Publish the template and one filled-in example.`,
+      angle: `Show the structure of ${my} best recent post (hook, proof, ask) so ${audienceAt(1)} can reuse it. Publish the template and one filled-in example.`,
       basis: [{ signalId: s.id, note: perfNote(s) }],
     });
   }
 
-  // 2. Audience pain points.
-  for (const a of m.audiences) {
-    for (const p of a.painPoints.slice(0, 3)) {
-      const pain = stripEnd(p);
+  // 2. Audience pain points and goals, taking turns across audiences (each one's first pain point before anyone's second).
+  for (let j = 0; j < 3; j++) {
+    for (const a of m.audiences) {
+      const p = a.painPoints[j];
+      if (!p) continue;
+      const pain = midSentence(stripEnd(p));
+      const who = midSentence(a.name);
       buckets[1]!.push({
-        title: pov === 'I' ? `How I handle ${lowerFirst(pain)}` : `How we handle ${lowerFirst(pain)}`,
-        angle: `Most ${lowerFirst(a.name)} hit the same wall: ${lowerFirst(pain)}. Name it in the first line, show the exact workaround ${pov === 'I' ? 'I use' : 'we use'} with one real example, and end with ${product ? `how ${product.name} takes care of it` : 'one thing to try this week'}.`,
-        basis: cite(pain, `Pain point of ${a.name}`),
+        title: pov === 'I' ? `How I handle ${pain}` : `How we handle ${pain}`,
+        angle: `Most ${who} hit the same wall: ${pain}. Name it in the first line, show the exact workaround ${pov === 'I' ? 'I use' : 'we use'} with one real example, and end with ${product ? `how ${product.name} takes care of it` : 'one thing to try this week'}.`,
+        basis: cite(stripEnd(p), `Pain point of ${a.name}`),
       });
       buckets[5]!.push({
-        title: `The ${lowerFirst(pain)} advice ${pov === 'I' ? "I'd" : "we'd"} ignore`,
-        angle: `A contrarian take for ${lowerFirst(a.name)}: the common advice about ${lowerFirst(pain)}, why it doesn't hold up, and what to do instead.`,
-        basis: cite(pain, `Pain point of ${a.name}`),
+        title: `The ${pain} advice ${pov === 'I' ? "I'd" : "we'd"} ignore`,
+        angle: `A contrarian take for ${who}: the common advice about ${pain}, why it doesn't hold up, and what to do instead.`,
+        basis: cite(stripEnd(p), `Pain point of ${a.name}`),
       });
     }
-    for (const g of a.goals.slice(0, 2)) {
-      const goal = stripEnd(g);
+  }
+  for (let j = 0; j < 2; j++) {
+    for (const a of m.audiences) {
+      const g = a.goals[j];
+      if (!g) continue;
+      const goal = goalPhrases(g);
       buckets[3]!.push({
-        title: `A checklist to ${lowerFirst(goal).replace(/^to /, '')}`,
-        angle: `${upperFirst(a.name)} want to ${lowerFirst(goal).replace(/^to /, '')}. Give them a short checklist, ${my} own numbers next to each step, and the one step most people skip.`,
-        basis: cite(goal, `Goal of ${a.name}`),
+        title: goal.checklist,
+        angle: `${upperFirst(a.name.trim())} ${goal.wants}. Give them a short checklist, ${my} own numbers next to each step, and the one step most people skip.`,
+        basis: cite(stripEnd(g), `Goal of ${a.name}`),
       });
     }
   }
 
   // 3. Product proof.
+  let proofs = 0;
   for (const pr of m.products) {
     for (const proof of pr.proofPoints.slice(0, 2)) {
+      const claim = stripEnd(proof);
+      const n = proofs++;
       buckets[2]!.push({
-        title: `Proof: ${stripEnd(proof)}`,
-        angle: `Show, don't claim: walk through what's behind "${stripEnd(proof)}" for ${audienceName}, with the before and after.${pr.cta ? ` Close with: ${stripEnd(pr.cta)}.` : ''}`,
+        // Two shapes, so a product's proof points don't all read "Proof: …".
+        title: n % 2 === 0 ? `${upperFirst(claim)}, shown step by step` : `Before and after: ${midSentence(claim)}`,
+        angle: `Show, don't claim: walk through what's behind "${claim}" for ${audienceAt(n)}, with the before and after.${pr.cta ? ` Close with: ${stripEnd(pr.cta)}.` : ''}`,
         basis: cite(pr.name, `Supports ${pr.name}`),
       });
     }
@@ -422,13 +455,13 @@ export function generateIdeas(input: GenerateIdeasInput): IdeaSuggestion[] {
       basis: [{ signalId: s.id, note: preview(s.summary, 120) }],
     });
   }
-  for (const k of m.knowledge.slice(0, 2)) {
+  m.knowledge.slice(0, 2).forEach((k, i) => {
     buckets[5]!.push({
       title: `From ${my} notes: ${stripEnd(k.title)}`,
-      angle: `${k.body ? `${preview(k.body, 200)} ` : ''}Turn this note into a post for ${audienceName}: one takeaway, one example, one question.`,
+      angle: `${k.body ? `${preview(k.body, 200)} ` : ''}Turn this note into a post for ${audienceAt(i)}: one takeaway, one example, one question.`,
       basis: cite(k.title, `From the brand's knowledge: ${k.title}`),
     });
-  }
+  });
 
   // Founder accounts: the brands they speak for, and what they post about.
   if (brand.kind === 'person') {
@@ -441,9 +474,10 @@ export function generateIdeas(input: GenerateIdeasInput): IdeaSuggestion[] {
       });
     }
     for (const t of m.topics.slice(0, 3)) {
+      const topic = midSentence(stripEnd(t));
       buckets[3]!.push({
-        title: `My take on ${stripEnd(t)}`,
-        angle: `A clear opinion on ${t}, backed by one thing that happened to you this month. Say what most people get wrong and what you do instead.`,
+        title: `My take on ${topic}`,
+        angle: `A clear opinion on ${topic}, backed by one thing that happened to you this month. Say what most people get wrong and what you do instead.`,
         basis: cite(t, `Something you post about: ${t}`),
       });
     }
@@ -476,7 +510,11 @@ export function generateIdeas(input: GenerateIdeasInput): IdeaSuggestion[] {
   // Round-robin across buckets for variety, then dedupe.
   const ordered: IdeaSuggestion[] = [];
   for (let i = 0; buckets.some((b) => b.length > i); i++) for (const b of buckets) if (b[i]) ordered.push(b[i]!);
-  let ideas = uniqueBy(ordered, (i) => i.title.toLowerCase()).filter((i) => i.basis.length > 0 || signals.length === 0);
+  // Ideas already open on the board (a date prefix or a format prefix doesn't make one new) aren't suggested again.
+  const open = new Set((input.existingTitles ?? []).map(ideaKey));
+  let ideas = uniqueBy(ordered, (i) => ideaKey(i.title))
+    .filter((i) => i.basis.length > 0 || signals.length === 0)
+    .filter((i) => !open.has(ideaKey(i.title)));
 
   // Not enough? Offer the strongest ideas again in another format.
   const formats = ['As a thread', 'As a carousel', 'As a short video script', 'As a poll'];
@@ -608,19 +646,24 @@ export function draftWithTrace(input: DraftInput): { parts: PostPart[]; trace: T
   const m = brand.memory;
   const pov = povOf(brand);
   const product = m.products[0];
-  const audience = m.audiences[0];
+  // The audience the idea is about (named in its title or angle), else the first.
+  const about = `${idea.title} ${idea.angle}`.toLowerCase();
+  const audience = m.audiences.find((a) => a.name.trim() && about.includes(a.name.trim().toLowerCase())) ?? m.audiences[0];
 
-  const hook = ensureEnd(stripEnd(idea.title).replace(/^"(.*)"$/, '$1'));
   // The angle mixes statements (usable as copy) with instructions to the writer ("Show the workaround…").
   // Statements go into the draft; the first instruction becomes a bracketed note where the owner adds the specifics.
-  const angleSentences = splitSentences(idea.angle).map((s) => s.text);
+  const angleSentences = splitSentences(stripDatePrefix(idea.angle)).map((s) => s.text);
   const statements = angleSentences.filter((s) => !isInstruction(s));
   const instruction = angleSentences.find(isInstruction);
+  // The idea's title is a label for the board ("Oct 27 · X API costs"), not post copy: the first statement of the
+  // angle opens the post, and with none, a note asks for a hook on the topic.
+  const topic = stripEnd(stripDatePrefix(idea.title)).replace(/^"(.*)"$/, '$1');
+  const hook = statements[0] ? ensureEnd(statements[0]) : `[Open with your hook on: ${topic}.]`;
   const paragraphs: string[] = [hook];
   // "Open with a number": lead with a sentence that already holds a real number (never invent one), else leave a note.
   const numberRule = m.voice.do.find((d) => /open\w* with a number/i.test(d));
   let lead: string | undefined;
-  if (numberRule && !/^\d/.test(hook)) {
+  if (numberRule && !/^\W*\d/.test(hook)) {
     const proofText = product?.proofPoints[0];
     const numbered = [...angleSentences, ...(proofText ? [proofText] : [])].find((t) => /^\W*\d/.test(t) && !isInstruction(t));
     lead = numbered;
@@ -628,14 +671,17 @@ export function draftWithTrace(input: DraftInput): { parts: PostPart[]; trace: T
     use({ kind: 'do', text: numberRule });
   }
   paragraphs.push(...contextParagraphs(input.context ?? []));
-  paragraphs.push(...statements.filter((t) => t !== lead).slice(0, 3).map(ensureEnd));
+  paragraphs.push(...statements.slice(1).filter((t) => t !== lead).slice(0, 3).map(ensureEnd));
   if (instruction) paragraphs.push(`[${stripEnd(instruction)}.]`);
-  if (audience?.painPoints[0] && !idea.angle.toLowerCase().includes(audience.painPoints[0].toLowerCase())) {
-    paragraphs.push(`If ${lowerFirst(stripEnd(audience.painPoints[0]))} sounds familiar, this one's for you.`);
-    use({ kind: 'audience', text: audience.name });
+  // The audience's pain as a line of its own only when the angle gives little copy to work with.
+  const pain = audience?.painPoints[0];
+  if (pain && statements.length < 2 && !about.includes(stripEnd(pain).toLowerCase())) {
+    paragraphs.push(`If ${midSentence(stripEnd(pain))} sounds familiar, this one's for you.`);
+    use({ kind: 'audience', text: audience!.name });
   }
+  // The proof point reads as a sentence of the post, not a labelled field.
   const proof = product?.proofPoints[0];
-  if (proof && proof !== lead) paragraphs.push(`Proof point: ${stripEnd(proof)}.`);
+  if (proof && proof !== lead && !about.includes(stripEnd(proof).toLowerCase())) paragraphs.push(ensureEnd(upperFirst(stripEnd(proof))));
   const questionRule = m.voice.do.find((d) => /question/i.test(d));
   if (product?.cta || product?.url) {
     const cta = product.cta ? stripEnd(product.cta) : `More on ${product.name}`;

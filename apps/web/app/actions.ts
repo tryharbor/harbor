@@ -308,7 +308,10 @@ export async function suggestIdeas(form: FormData) {
   try {
     const res = await api<{ data: unknown[] }>('/v1/ideas/generate', { method: 'POST', body: JSON.stringify({ brandId: text(form, 'brandId'), count: Number(text(form, 'count')) || 5 }) });
     refresh();
-    go(back, { notice: `${res.data.length} ideas suggested, each citing what it's based on.` });
+    const n = res.data.length;
+    go(back, n
+      ? { notice: `${n} new idea${n === 1 ? '' : 's'} suggested, each citing what it's based on.` }
+      : { notice: 'No new ideas: everything Harbor would suggest is already on the board. Add audiences, products or notes to widen it.' });
   } catch (err) {
     if (err instanceof ApiError) go(back, { error: err.message });
     throw err;
@@ -324,6 +327,22 @@ export async function moveIdea(form: FormData) {
   }
   refresh();
   go(back);
+}
+
+/** Dismiss several ideas from the Ideas column at once (the API skips any that have moved on or have posts). */
+export async function dismissIdeas(form: FormData) {
+  const back = returnTo(form, '/hub');
+  const ids = form.getAll('ideaId').map(String).filter(Boolean);
+  if (!ids.length) go(back, { error: 'Tick at least one idea first.' });
+  let res: { deleted: string[]; skipped: string[] };
+  try {
+    res = await api<{ deleted: string[]; skipped: string[] }>('/v1/ideas/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) });
+  } catch (err) {
+    return go(back, { error: message(err, 'Could not dismiss those ideas.') });
+  }
+  refresh();
+  const n = res.deleted.length;
+  go(back, { notice: `Dismissed ${n} idea${n === 1 ? '' : 's'}.${res.skipped.length ? ` ${res.skipped.length} kept: in progress, posted or waiting in Approvals.` : ''}` });
 }
 
 export async function deleteIdea(form: FormData) {
@@ -419,7 +438,14 @@ export async function createPost(form: FormData) {
   if (media && parts[0]) parts[0].media.push(media);
   if (parts.length === 0) go(back, { error: 'Write something first.' });
 
-  const when = text(form, 'scheduledFor');
+  // `intent` is 'now' (confirmed in the form) or 'schedule', like the Studio publish box: a time typed in the
+  // schedule field never turns "Post now" into a scheduled post, and an empty one never posts immediately.
+  const intent = text(form, 'intent');
+  const when = intent === 'schedule' ? text(form, 'scheduledFor') : '';
+  if (intent === 'schedule' && !when) go(back, { error: 'Pick a date and time, or use Post now.' });
+  if (intent !== 'schedule' && intent !== 'now') go(back, { error: 'Choose Post now or Schedule.' });
+  const scheduledFor = when ? localToIso(when, Number(text(form, 'tz')) || 0) : undefined;
+  if (scheduledFor && Date.parse(scheduledFor) < Date.now()) go(back, { error: 'That time has passed. Pick a time ahead, or use Post now.' });
   const ideaId = text(form, 'ideaId') || undefined;
   const channelIds = form.getAll('channelId').map(String).filter(Boolean);
   if (channelIds.length === 0) go(back, { error: 'Pick at least one channel.' });
@@ -430,7 +456,7 @@ export async function createPost(form: FormData) {
     try {
       const post = await api<{ status: string; channel: { platform: string; handle: string }; error?: { message: string } }>('/v1/posts', {
         method: 'POST',
-        body: JSON.stringify({ channelId, parts, ideaId, scheduledFor: when ? localToIso(when, Number(text(form, 'tz')) || 0) : undefined }),
+        body: JSON.stringify({ channelId, parts, ideaId, scheduledFor }),
       });
       failed ||= post.status === 'failed' || post.status === 'unknown';
       results.push(`${post.channel.platform} @${post.channel.handle}: ${post.status}${post.error ? ` (${post.error.message})` : ''}`);

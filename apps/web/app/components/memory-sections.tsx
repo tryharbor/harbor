@@ -28,15 +28,18 @@ function SectionIntro({ title, children }: { title: string; children: ReactNode 
 
 // ---- Voice ----
 
+/** With a voice saved, it comes first and the learner folds under "Relearn"; with none yet, learning comes first. */
 export function VoiceSection({ brand, returnTo }: { brand: BrandView; returnTo: string }) {
   const v = brand.memory.voice;
   const savedChars = brand.memory.examplePosts.reduce((n, e) => n + e.text.length, 0);
+  const hasVoice = !!v.summary.trim();
+  const learner = <VoiceLearner brandId={brand.id} returnTo={returnTo} savedExampleChars={savedChars} />;
   return (
     <div className="stack-lg">
       <SectionIntro title="Voice">
         How {brand.name} sounds, specific enough that someone new could write like it. Learn it from real posts, then edit anything.
       </SectionIntro>
-      <VoiceLearner brandId={brand.id} returnTo={returnTo} savedExampleChars={savedChars} />
+      {hasVoice ? null : learner}
       <form action={saveVoice} className="stack card">
         <Hidden brandId={brand.id} returnTo={returnTo} />
         <div className="spread">
@@ -72,6 +75,15 @@ export function VoiceSection({ brand, returnTo }: { brand: BrandView; returnTo: 
         {v.sources.length ? <div className="chips"><span className="label">Sources</span>{v.sources.map((s, i) => <span key={i} className="chip">{s.label}</span>)}</div> : null}
         <div><button className="inverse" type="submit">Save voice</button></div>
       </form>
+      {hasVoice ? (
+        <details key={`relearn:${brand.updatedAt}`} className="card">
+          <summary className="spread">
+            <span className="stack" style={{ gap: 2 }}><strong style={{ fontWeight: 500 }}>Relearn</strong><span className="muted small">Propose a new voice from sample or real posts. Nothing changes until you choose “Use this voice”.</span></span>
+            <span className="dim small">Open</span>
+          </summary>
+          <div style={{ marginTop: 14 }}>{learner}</div>
+        </details>
+      ) : null}
     </div>
   );
 }
@@ -92,8 +104,9 @@ export function ListSection({ brand, list, returnTo }: { brand: BrandView; list:
     <div className="stack-lg">
       <SectionIntro title={copy.title}>{copy.intro(brand.name)}</SectionIntro>
       {items.length === 0 ? <div className="empty"><span className="muted">{copy.empty}</span></div> : null}
+      {/* Keyed on the brand's last save, so a saved item folds back into the list instead of staying open as a form. */}
       {items.map((item) => (
-        <details key={item.id} className="card">
+        <details key={`${item.id}:${brand.updatedAt}`} className="card">
           <summary className="spread">
             <ItemSummary list={list} item={item} />
             <span className="dim small">Edit</span>
@@ -111,7 +124,7 @@ export function ListSection({ brand, list, returnTo }: { brand: BrandView; list:
           </div>
         </details>
       ))}
-      <details className="card staging" open={items.length === 0}>
+      <details key={`add:${brand.updatedAt}`} className="card staging" open={items.length === 0}>
         <summary className="row"><span className="button mono-button">+ {copy.add}</span></summary>
         <form action={saveListItem} className="stack" style={{ marginTop: 14 }}>
           <Hidden brandId={brand.id} returnTo={returnTo} list={list} />
@@ -131,7 +144,18 @@ function ItemSummary({ list, item }: { list: MemoryListKey; item: { id: string }
     }
     case 'products': {
       const p = item as Product;
-      return <span className="stack" style={{ gap: 2 }}><strong style={{ fontWeight: 500 }}>{p.name}</strong><span className="muted small">{p.summary}</span></span>;
+      const facts = [
+        p.cta ? `CTA: ${p.cta}` : 'No CTA',
+        p.url ? p.url.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'no link',
+        `${p.proofPoints.length} proof point${p.proofPoints.length === 1 ? '' : 's'}`,
+      ];
+      return (
+        <span className="stack" style={{ gap: 2 }}>
+          <strong style={{ fontWeight: 500 }}>{p.name}</strong>
+          {p.summary ? <span className="muted small">{p.summary}</span> : null}
+          <span className="dim small">{facts.join(' · ')}</span>
+        </span>
+      );
     }
     case 'knowledge': {
       const k = item as KnowledgeItem;
@@ -166,7 +190,7 @@ function ItemFields({ list, item }: { list: MemoryListKey; item?: { id: string }
           <div className="field"><label>Name</label><input name="name" required defaultValue={p?.name} /></div>
           <div className="field"><label>What it is, in a sentence</label><input name="summary" defaultValue={p?.summary} /></div>
           <div className="grid-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
-            <div className="field"><label>Call to action</label><input name="cta" defaultValue={p?.cta} placeholder="Join the waitlist" /></div>
+            <div className="field"><label>Call to action</label><input name="cta" defaultValue={p?.cta} placeholder="Try it free" /></div>
             <div className="field"><label>Link</label><input name="url" type="url" defaultValue={p?.url} placeholder="https://…" /></div>
           </div>
           <div className="field"><label>Proof points (one per line: numbers, customers, results)</label><textarea name="proofPoints" defaultValue={join(p?.proofPoints)} style={{ minHeight: 90 }} /></div>

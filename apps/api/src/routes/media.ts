@@ -14,7 +14,11 @@ import {
   normalizeTags,
   openVariant,
   updateMedia,
+  VIDEO_MAX_BYTES,
 } from '../services/media.ts';
+
+/** `brd_…/med_…/<file>`: the only shape the media store writes. */
+const MEDIA_FILE_KEY = /^brd_[a-z0-9]+\/med_[a-z0-9]+\/[a-z0-9][a-z0-9._-]*$/i;
 
 const tagsInput = z.union([z.string().max(2000), z.array(z.string().max(100)).max(50)]).transform(normalizeTags);
 
@@ -51,6 +55,20 @@ const IMMUTABLE = 'public, max-age=31536000, immutable';
  */
 export function registerMedia(app: App, deps: AppDeps) {
   const { db } = deps;
+
+  /**
+   * Raw body → the media store at `<brandId>/<assetId>/<file>`, for moving a library between servers (media:copy).
+   * The database rows travel separately (db:copy). Same guard as the rest of /v1: the internal token, or this machine.
+   */
+  app.put('/v1/media-files/*', async (c) => {
+    const key = decodeURIComponent(c.req.path.slice('/v1/media-files/'.length));
+    if (!MEDIA_FILE_KEY.test(key)) throw new HarborError('INVALID_REQUEST', `Not a media file path: ${key}. Expected brd_…/med_…/<file>.`);
+    const bytes = new Uint8Array(await c.req.arrayBuffer());
+    if (!bytes.length) throw new HarborError('INVALID_REQUEST', 'Send the file bytes as the request body.');
+    if (bytes.length > VIDEO_MAX_BYTES) throw new HarborError('INVALID_REQUEST', `Files must be ${VIDEO_MAX_BYTES / (1024 * 1024)} MB or less.`);
+    await deps.mediaStore.put(key, bytes, c.req.header('content-type') ?? 'application/octet-stream');
+    return c.json({ key, bytes: bytes.length }, 201);
+  });
 
   /** Multipart: `file`, `alt?`, `tags?` (comma-separated). 201 with a new asset; 200 with the existing one for the same file. */
   app.post('/v1/brands/:id/media', async (c) => {

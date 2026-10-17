@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# The Harbor API and background worker (apps/api). Railway builds this (railway.json); docker-compose.yml runs it
+# The Harbor API and background worker (apps/api). Railway builds this; docker-compose.yml runs it
 # next to Postgres and the web app. Migrations run on start. Build from the repo root: docker build -t harbor-api .
 FROM node:22-slim
 

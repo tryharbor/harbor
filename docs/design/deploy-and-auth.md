@@ -49,7 +49,7 @@ Status: build contract, 2026-10-16.
   - runs `pnpm --filter @harbor/api start`;
   - port from `PORT`;
   - `HEALTHCHECK` on `/health`.
-- **`railway.json`:** the Dockerfile builder, healthcheck path `/health`, and a restart policy.
+- **Railway settings** (set in the dashboard; Railway no longer reads config files for new services): the Dockerfile builder (detected), healthcheck path `/health`, watch paths for `apps/api`, `packages`, the Dockerfile and the lockfile.
 - **`docker-compose.yml`** for one-command self-hosting:
   - postgres:17 with a volume;
   - api, built from the Dockerfile, with a media volume;

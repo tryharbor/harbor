@@ -26,13 +26,16 @@ Create a database and copy its connection string (the pooled one is fine). Harbo
 
 ## 3. The API on Railway
 
-1. **Create the service:** a new project, then deploy from the GitHub repo. Railway finds `railway.json` and builds the `Dockerfile`.
+1. **Create the service:** a new project, then deploy from the GitHub repo. Railway detects the monorepo and offers a service per app; keep only the API (the app goes on Vercel). It builds the root `Dockerfile`.
+   - Give Railway's GitHub app access to the repo. If it can't see an organization's repos, install the app on that organization.
+   - In the service's **Settings**: set **Healthcheck Path** to `/health`, and add **Watch Paths** `/packages/**`, `/Dockerfile` and `/pnpm-lock.yaml` next to `/apps/api/**`, so changes to the shared packages redeploy the API too.
+   - Postgres: add a database to the same project (**Add → Database → PostgreSQL**) and set `DATABASE_URL` to `${{Postgres.DATABASE_URL}}`.
 2. **Add a volume** mounted at `/data/media`.
 3. **Set variables:**
 
    | Variable | Value |
    |---|---|
-   | `DATABASE_URL` | the Postgres connection string |
+   | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}`, or your Postgres connection string |
    | `HARBOR_SECRET_KEY` | your existing key |
    | `HARBOR_INTERNAL_TOKEN` | from step 1 |
    | `HARBOR_PUBLISH_MODE` | `live` |
@@ -43,7 +46,7 @@ Create a database and copy its connection string (the pooled one is fine). Harbo
    | `X_CLIENT_ID`, `X_CLIENT_SECRET`, `LINKEDIN_*`, `INSTAGRAM_*`, `THREADS_*` | your platform apps |
 
    Don't set `HARBOR_API_PORT`: Railway sets `PORT`, and `HARBOR_API_PORT` would override it.
-4. **Add the custom domain** and create the CNAME record your DNS provider needs.
+4. **Add the custom domain** (target port `8080`, which is the `PORT` Railway sets) and create the CNAME and `_railway-verify` TXT records it shows at your DNS provider.
 5. **Check it:** `https://api.example.com/health` answers `{"ok":true,"db":"postgres"}`, and `https://api.example.com/v1/brands` answers 401.
 
 ## 4. GitHub sign-in

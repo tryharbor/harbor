@@ -138,8 +138,9 @@ section > h2:first-child, .card > h2:first-child { margin-top: -2px; }
 .small { font-size: 13px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .spread { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
-.stack { display: grid; gap: 12px; align-content: start; }
-.stack-lg { display: grid; gap: 20px; align-content: start; }
+/* One column that never grows past its container: long URLs or words wrap instead of widening the card. */
+.stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; }
+.stack-lg { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-content: start; }
 .list { list-style: none; padding: 0; margin: 0; display: grid; }
 .list > li { padding: 12px 0; border-top: 1px solid var(--line); display: grid; gap: 4px; min-width: 0; }
 .list > li:first-child { border-top: 0; padding-top: 0; }

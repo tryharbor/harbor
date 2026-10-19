@@ -87,8 +87,8 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
           {post.parts.map((part, i) => (
             <div key={i} className="stack">
               {post.parts.length > 1 ? <span className="muted small">Part {i + 1}</span> : null}
-              <p style={{ whiteSpace: 'pre-wrap' }}>{part.text}</p>
-              {part.media.map((m) => <a key={m.url} className="small" href={m.url} target="_blank" rel="noreferrer">{m.kind}: {m.url}</a>)}
+              <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{part.text}</p>
+              {part.media.map((m, j) => <a key={m.url} className="small" href={m.url} target="_blank" rel="noreferrer">{m.kind === 'video' ? 'Video' : 'Image'}{part.media.length > 1 ? ` ${j + 1}` : ''} ↗</a>)}
             </div>
           ))}
           <p className="muted small">{post.publishedAt ? `Published ${when(post.publishedAt)}` : post.scheduledFor ? `Scheduled for ${when(post.scheduledFor)}` : ''}</p>

@@ -185,15 +185,17 @@ export class InstagramProvider extends MetaGraphProvider {
   async fetchReplies(ctx: ProviderContext, platformPostId: string, opts: { limit?: number } = {}): Promise<Reply[]> {
     const { data } = await this.request({
       url: `${API}/${encodeURIComponent(platformPostId)}/comments`,
-      query: { fields: 'id,text,username,timestamp,like_count', limit: String(Math.min(100, opts.limit ?? 50)), access_token: ctx.accessToken },
+      query: { fields: 'id,text,username,from,timestamp,like_count', limit: String(Math.min(100, opts.limit ?? 50)), access_token: ctx.accessToken },
     });
     const list = asRecord(data).data;
+    // Instagram names the commenter in from.username; the top-level username field is often left out.
+    const handleOf = (r: Record<string, unknown>) => optionalString(asRecord(r.from).username) ?? optionalString(r.username);
     return (Array.isArray(list) ? list : [])
       .map(asRecord)
-      .filter((r) => r.id && typeof r.text === 'string' && r.text.trim() && r.username !== ctx.account.handle)
+      .filter((r) => r.id && typeof r.text === 'string' && r.text.trim() && handleOf(r) !== ctx.account.handle)
       .map((r) => ({
         platformReplyId: String(r.id),
-        author: { handle: String(r.username ?? 'unknown') },
+        author: { handle: handleOf(r) ?? 'unknown' },
         text: String(r.text),
         createdAt: isoTime(r.timestamp),
         ...(optionalCount(r.like_count) !== undefined ? { likes: optionalCount(r.like_count) } : {}),

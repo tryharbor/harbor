@@ -167,14 +167,20 @@ describe('InstagramProvider', () => {
           { id: 'c1', text: 'How do you pick the beans?', username: 'ana', timestamp: '2026-10-14T09:30:00+0000', like_count: 3 },
           { id: 'c2', text: 'Thanks all!', username: 'harbor', timestamp: '2026-10-14T10:00:00+0000' },
           { id: 'c3', text: '', username: 'ben', timestamp: '2026-10-14T10:05:00+0000' },
+          // What Instagram sends now: the commenter only under from.
+          { id: 'c4', text: 'How many posts before it works?', from: { id: '29', username: 'dwkoza' }, timestamp: '2026-10-19T03:19:36+0000', like_count: 0 },
+          { id: 'c5', text: 'Our own reply', from: { id: '1', username: 'harbor' }, timestamp: '2026-10-19T03:20:00+0000' },
         ],
       }),
     });
     const p = new InstagramProvider(app('instagram'), f.impl);
     expect(p.reportsReplies).toBe(true);
     const replies = await p.fetchReplies(ctx, 'm9', { limit: 20 });
-    expect(replies).toEqual([{ platformReplyId: 'c1', author: { handle: 'ana' }, text: 'How do you pick the beans?', createdAt: '2026-10-14T09:30:00.000Z', likes: 3 }]);
-    expect(f.calls[0]!.url.searchParams.get('fields')).toBe('id,text,username,timestamp,like_count');
+    expect(replies).toEqual([
+      { platformReplyId: 'c1', author: { handle: 'ana' }, text: 'How do you pick the beans?', createdAt: '2026-10-14T09:30:00.000Z', likes: 3 },
+      { platformReplyId: 'c4', author: { handle: 'dwkoza' }, text: 'How many posts before it works?', createdAt: '2026-10-19T03:19:36.000Z', likes: 0 },
+    ]);
+    expect(f.calls[0]!.url.searchParams.get('fields')).toBe('id,text,username,from,timestamp,like_count');
     expect(f.calls[0]!.url.searchParams.get('limit')).toBe('20');
     expect(f.calls[0]!.url.searchParams.get('access_token')).toBe('tok');
   });

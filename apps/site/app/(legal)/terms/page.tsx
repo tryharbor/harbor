@@ -26,7 +26,7 @@ const SECTIONS = [
 
 export default function TermsPage() {
   return (
-    <LegalPage eyebrow="Legal" title="Terms" updated="2026-10-16" sections={SECTIONS}>
+    <LegalPage eyebrow="Legal" title="Terms" updated="2026-10-18" sections={SECTIONS}>
       <h2 id="short">The short version</h2>
       <ul>
         <li>The Harbor software is open source under the AGPL-3.0. These terms don’t change that license.</li>
@@ -34,7 +34,7 @@ export default function TermsPage() {
         <li>You decide what gets posted, and you’re responsible for it. Harbor never posts without your approval.</li>
         <li>Follow the rules of each platform you post to.</li>
       </ul>
-      <p>“Harbor”, “we” and “us” mean the people who build and run Harbor, reachable at <a href={`mailto:${SITE.email}`}>{SITE.email}</a>. “You” means you, or the organization you use Harbor for.</p>
+      <p>“Harbor”, “we” and “us” mean Harbor Labs LLC, the company that builds and runs Harbor, reachable at <a href={`mailto:${SITE.email}`}>{SITE.email}</a>. “You” means you, or the organization you use Harbor for.</p>
 
       <h2 id="software">The open-source software</h2>
       <p>The Harbor source code is licensed under the <a href={`${SITE.github}/blob/main/LICENSE`}>GNU Affero General Public License v3.0</a>. When you self-host Harbor, that license is the agreement between us; nothing on this page adds to it or takes away from it. In short: you can use, change and share Harbor, and if you let others use a modified version over a network, you must offer them its source. The <Link href="/open-source">open-source page</Link> explains this in plain words.</p>

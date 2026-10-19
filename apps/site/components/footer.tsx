@@ -43,7 +43,7 @@ export function Footer() {
         </div>
         <p className="footer-big" aria-hidden="true">Harbor</p>
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span>© {new Date().getFullYear()} Harbor. Built in public.</span>
+          <span>© {new Date().getFullYear()} Harbor Labs LLC. Built in public.</span>
           <span className="mono small">Publishes to X · LinkedIn · Instagram · Threads</span>
         </div>
       </div>

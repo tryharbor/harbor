@@ -44,7 +44,7 @@ export default function PrivacyPage() {
         <li><strong>Harbor Cloud</strong> is in early access, by invitation. It stores the same kinds of data on infrastructure we run, uses it only to run Harbor for you, and never sells it or uses it to train AI models.</li>
         <li>Harbor never posts without a person approving it, on either version.</li>
       </ul>
-      <p>“Harbor”, “we” and “us” below mean the people who build and run Harbor. You can reach us at <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.</p>
+      <p>“Harbor”, “we” and “us” below mean Harbor Labs LLC, the company that builds and runs Harbor. You can reach us at <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.</p>
 
       <h2 id="website">This website</h2>
       <p>useharbor.io is a static site. We don’t run analytics, advertising pixels or third-party trackers on it, and we don’t set cookies. Fonts are served from this site, not from a font provider.</p>

@@ -33,6 +33,11 @@ describe('public gate', () => {
     expect((await (await viaTunnel('/v1/channels/x/callback?state=nope')).json()).error.message).toMatch(/invalid or was already used/);
     expect((await (await viaTunnel('/media/med_missing/square.jpg')).json()).error?.message ?? '').not.toMatch(/public address/);
     expect((await viaTunnel('/mcp', 'POST')).status).toBe(401);
+    // Meta's callbacks reach the route, which wants a signed_request; the deletion status page is public too.
+    expect((await (await viaTunnel('/v1/channels/instagram/data-deletion', 'POST')).json()).error.message).not.toMatch(/public address/);
+    expect((await (await viaTunnel('/v1/channels/threads/deauthorize', 'POST')).json()).error.message).not.toMatch(/public address/);
+    expect((await viaTunnel('/v1/channels/x/deauthorize', 'POST')).status).toBe(404);
+    expect(await (await viaTunnel('/data-deletion/0123456789abcdef0123')).text()).toMatch(/Deletion request not found/);
   });
 
   it('leaves local requests alone', async () => {

@@ -85,12 +85,20 @@ export class InstagramProvider extends MetaGraphProvider {
   }
 
   private async me(accessToken: string): Promise<ChannelAccount> {
-    const { data } = await this.request({ url: `${API}/me`, query: { fields: 'user_id,username,name,profile_picture_url', access_token: accessToken } });
+    const { data } = await this.request({ url: `${API}/me`, query: { fields: 'id,user_id,username,name,profile_picture_url', access_token: accessToken } });
     const u = asRecord(data);
-    // user_id is the professional account id the content publishing endpoints expect; id is app-scoped.
+    // user_id is the professional account id the content publishing endpoints expect; id is app-scoped, and is what
+    // Meta's deauthorize and data deletion callbacks name the user by.
     const id = u.user_id ?? u.id;
     if (!id || !u.username) throw new BadRequest('instagram', 'Instagram /me returned no account.');
-    return { platformAccountId: String(id), handle: String(u.username), displayName: optionalString(u.name), avatarUrl: optionalUrl(u.profile_picture_url) };
+    const appScopedId = u.id !== undefined && String(u.id) !== String(id) ? String(u.id) : undefined;
+    return {
+      platformAccountId: String(id),
+      handle: String(u.username),
+      displayName: optionalString(u.name),
+      avatarUrl: optionalUrl(u.profile_picture_url),
+      ...(appScopedId ? { appScopedId } : {}),
+    };
   }
 
   // ---- Publishing ----

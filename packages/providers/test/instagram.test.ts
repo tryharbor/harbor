@@ -33,7 +33,7 @@ describe('InstagramProvider', () => {
     });
     const t = await new InstagramProvider(app('instagram'), f.impl).authenticate({ code: 'c0de#_', codeVerifier: '' });
     expect(t).toMatchObject({ accessToken: 'long', refreshToken: 'long', scopes: ['instagram_business_basic', 'instagram_business_content_publish'] });
-    expect(t.account).toEqual({ platformAccountId: '1784', handle: 'harbor', displayName: 'Harbor', avatarUrl: 'https://scontent.test/p.jpg' });
+    expect(t.account).toEqual({ platformAccountId: '1784', handle: 'harbor', displayName: 'Harbor', avatarUrl: 'https://scontent.test/p.jpg', appScopedId: 'app-scoped' });
     expect(Date.parse(t.expiresAt!)).toBeGreaterThan(Date.now() + 59 * 86400_000);
     expect(f.calls[0]!.body).toMatchObject({ grant_type: 'authorization_code', code: 'c0de#_', client_secret: 'client-secret' });
     const exchange = f.calls[1]!.url.searchParams;

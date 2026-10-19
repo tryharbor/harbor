@@ -3,8 +3,8 @@ import { HarborError, PLATFORM_METRICS, platformSchema } from '@harbor/core';
 import { getProvider } from '@harbor/providers';
 import type { App, AppDeps } from '../app.ts';
 import { body, check } from '../lib/http.ts';
-import { adoptPersonAvatar, personAccountConflict, personAccountTaken, releasePersonAvatar } from '../services/brands.ts';
-import { getChannelRow, toChannel, upsertChannel, type ChannelRow } from '../services/channels.ts';
+import { adoptPersonAvatar, personAccountConflict, personAccountTaken } from '../services/brands.ts';
+import { deleteChannel, getChannelRow, toChannel, upsertChannel, type ChannelRow } from '../services/channels.ts';
 import { SCAN_DEFAULT, SCAN_MAX, importScanned, scanChannel } from '../services/imports.ts';
 import { supportsReplies } from '../services/replies.ts';
 
@@ -119,10 +119,7 @@ export function registerChannels(app: App, deps: AppDeps) {
 
   /** Disconnect in Harbor: forgets the token. (Revoke access on the platform's own settings page too.) */
   app.delete('/v1/channels/:id', async (c) => {
-    const row = await getChannelRow(db, c.req.param('id'));
-    await db.query('DELETE FROM channels WHERE id = $1', [row.id]);
-    await secrets().delete(row.token_ref);
-    await releasePersonAvatar(db, row.brand_id, row.avatar_url);
+    await deleteChannel(db, secrets(), await getChannelRow(db, c.req.param('id')));
     return c.body(null, 204);
   });
 }

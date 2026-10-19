@@ -125,6 +125,8 @@ export const channelAccountSchema = z.object({
   handle: z.string().min(1),
   displayName: z.string().optional(),
   avatarUrl: z.string().url().optional(),
+  /** The app-scoped user id Meta's deauthorize and data deletion callbacks send, when it differs from platformAccountId (Instagram). */
+  appScopedId: z.string().optional(),
 });
 export type ChannelAccount = z.infer<typeof channelAccountSchema>;
 

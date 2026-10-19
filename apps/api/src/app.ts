@@ -22,6 +22,7 @@ import { registerIdeas } from './routes/ideas.ts';
 import { registerInsights } from './routes/insights.ts';
 import { registerMedia } from './routes/media.ts';
 import { registerMcp } from './routes/mcp.ts';
+import { registerMetaCallbacks, type MetaPlatform } from './routes/meta-callbacks.ts';
 import { registerMemory } from './routes/memory.ts';
 import { registerPosts } from './routes/posts.ts';
 import { registerReplies } from './routes/replies.ts';
@@ -54,6 +55,8 @@ export interface AppOptions {
   fetch?: typeof fetch;
   /** Bearer token every /v1 request must carry (production). Defaults to HARBOR_INTERNAL_TOKEN; unset = local-only gate. */
   internalToken?: string;
+  /** Secrets that sign Meta's deauthorize and data deletion callbacks. Defaults to INSTAGRAM_APP_SECRET / THREADS_APP_SECRET. */
+  metaAppSecrets?: Partial<Record<MetaPlatform, string[]>>;
 }
 
 /** What routes share. `secrets()` is lazy so brand routes work before HARBOR_SECRET_KEY is set. */
@@ -72,6 +75,8 @@ export interface AppDeps {
   publishDeps: () => PublishDeps;
   /** What the worker needs: publishing plus the model for automations. */
   workerDeps: () => WorkerDeps;
+  /** Checks Meta's signed_request on the deauthorize and data deletion callbacks. */
+  metaAppSecrets: Record<MetaPlatform, string[]>;
 }
 
 export function createDeps(db: Db, opts: AppOptions = {}): AppDeps {
@@ -95,6 +100,10 @@ export function createDeps(db: Db, opts: AppOptions = {}): AppDeps {
     resolveHost: opts.fetch ? offlineResolveHost : resolvePublicHost,
     publishDeps: () => ({ db, registry, secrets: secrets() }),
     workerDeps: () => ({ db, registry, secrets: secrets(), agents: { db, model, registry, publishMode, modelMode } }),
+    metaAppSecrets: {
+      instagram: opts.metaAppSecrets?.instagram ?? [process.env.INSTAGRAM_APP_SECRET ?? ''].filter(Boolean),
+      threads: opts.metaAppSecrets?.threads ?? [process.env.THREADS_APP_SECRET ?? ''].filter(Boolean),
+    },
   };
 }
 
@@ -108,8 +117,9 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   });
   // With HARBOR_INTERNAL_TOKEN set (production), every /v1 request needs it as a bearer token: only the web app's
   // server side holds it. Without it, /v1 is only for this machine. Requests that arrive through a tunnel or proxy
-  // (a non-local Host, or X-Forwarded-For) only reach what the outside world needs: OAuth callbacks, public media
-  // (platforms download it), /mcp (API keys) and /health. HARBOR_PUBLIC_API=all turns that gate off.
+  // (a non-local Host, or X-Forwarded-For) only reach what the outside world needs: OAuth callbacks, Meta's
+  // deauthorize and data deletion callbacks (signed) and their status pages, public media (platforms download it),
+  // /mcp (API keys) and /health. HARBOR_PUBLIC_API=all turns that gate off.
   const internalToken = opts.internalToken ?? process.env.HARBOR_INTERNAL_TOKEN;
   if (!internalToken && process.env.HARBOR_PUBLIC_API !== 'all') app.use('*', publicGate);
 
@@ -154,6 +164,7 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerReplies(app, deps);
   registerMedia(app, deps);
   registerMcp(app, deps);
+  registerMetaCallbacks(app, deps);
   return app;
 }
 
@@ -162,6 +173,8 @@ const PUBLIC_ROUTES: { methods: string[]; path: RegExp }[] = [
   { methods: ['GET', 'HEAD'], path: /^\/health$/ },
   { methods: ['GET', 'HEAD'], path: /^\/media\/[^/]+\/[^/]+$/ },
   { methods: ['GET'], path: /^\/v1\/channels\/[a-z]+\/callback$/ },
+  { methods: ['POST'], path: /^\/v1\/channels\/(instagram|threads)\/(deauthorize|data-deletion)$/ },
+  { methods: ['GET', 'HEAD'], path: /^\/data-deletion\/[^/]+$/ },
   { methods: ['GET', 'POST', 'DELETE', 'OPTIONS'], path: /^\/mcp$/ },
 ];
 
@@ -204,7 +217,10 @@ export function hasBearerToken(headers: Headers, expected: string): boolean {
   return !!m && timingSafeEqual(digest(m[1]), digest(expected));
 }
 
-/** /v1 behind HARBOR_INTERNAL_TOKEN. The public routes under /v1 (OAuth callbacks) stay open; their state protects them. */
+/**
+ * /v1 behind HARBOR_INTERNAL_TOKEN. The public routes under /v1 stay open: OAuth callbacks (their state protects them)
+ * and Meta's callbacks (Meta's signature does).
+ */
 const internalAuth = (token: string) =>
   createMiddleware<{ Variables: Vars }>(async (c, next) => {
     const path = new URL(c.req.url).pathname;

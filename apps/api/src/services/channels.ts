@@ -13,6 +13,7 @@ import {
 import type { Db } from '../db/client.ts';
 import { iso } from '../lib/http.ts';
 import type { SecretStore } from '../lib/secrets.ts';
+import { releasePersonAvatar } from './brands.ts';
 
 export interface ChannelRow {
   id: string;
@@ -22,6 +23,8 @@ export interface ChannelRow {
   handle: string;
   display_name: string | null;
   avatar_url: string | null;
+  /** Meta's app-scoped user id, when it differs from platform_account_id (Instagram). Not returned by the API. */
+  app_scoped_id?: string | null;
   token_ref: string;
   scopes: string[];
   status: ChannelStatus;
@@ -78,19 +81,29 @@ export async function upsertChannel(db: Db, secrets: SecretStore, brandId: strin
     [brandId, platform, a.platformAccountId],
   );
   const [row] = await db.query<ChannelRow>(
-    `INSERT INTO channels (id, brand_id, platform, platform_account_id, handle, display_name, avatar_url, token_ref, scopes, status, token_expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'connected', $10)
+    `INSERT INTO channels (id, brand_id, platform, platform_account_id, handle, display_name, avatar_url, token_ref, scopes, status, token_expires_at, app_scoped_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'connected', $10, $11)
      ON CONFLICT (brand_id, platform, platform_account_id) DO UPDATE SET
        handle = EXCLUDED.handle, display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url,
        token_ref = EXCLUDED.token_ref, scopes = EXCLUDED.scopes, status = 'connected',
-       token_expires_at = EXCLUDED.token_expires_at, updated_at = now()
+       token_expires_at = EXCLUDED.token_expires_at, app_scoped_id = COALESCE(EXCLUDED.app_scoped_id, channels.app_scoped_id), updated_at = now()
      RETURNING *`,
     [
       existing?.id ?? newId('channel'), brandId, platform, a.platformAccountId, a.handle, a.displayName ?? null, a.avatarUrl ?? null,
-      tokenRef, JSON.stringify(tokens.scopes), tokens.expiresAt ?? null,
+      tokenRef, JSON.stringify(tokens.scopes), tokens.expiresAt ?? null, a.appScopedId ?? null,
     ],
   );
   return toChannel(row!);
+}
+
+/**
+ * Forget a channel: the row (its posts, metrics, replies, approvals and import scans go with it), its stored tokens,
+ * and a person's picture if it came from this account.
+ */
+export async function deleteChannel(db: Db, secrets: SecretStore, row: ChannelRow): Promise<void> {
+  await db.query('DELETE FROM channels WHERE id = $1', [row.id]);
+  await secrets.delete(row.token_ref);
+  await releasePersonAvatar(db, row.brand_id, row.avatar_url);
 }
 
 /**

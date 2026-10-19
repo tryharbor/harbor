@@ -45,10 +45,11 @@ Create a database and copy its connection string (the pooled one is fine). Harbo
    | `HARBOR_TIMEZONE` | your timezone, e.g. `America/Chicago` (best times, posting slots and schedules; Railway runs in UTC) |
    | `RAILWAY_RUN_UID` | `0` (Railway mounts volumes as root; without it, uploads fail) |
    | `X_CLIENT_ID`, `X_CLIENT_SECRET`, `LINKEDIN_*`, `INSTAGRAM_*`, `THREADS_*` | your platform apps |
+   | `HARBOR_CONTACT_EMAIL` | optional: the address shown on Meta data deletion status pages |
 
    Don't set `HARBOR_API_PORT`: Railway sets `PORT`, and `HARBOR_API_PORT` would override it.
 4. **Add the custom domain** (target port `8080`, which is the `PORT` Railway sets) and create the CNAME and `_railway-verify` TXT records it shows at your DNS provider.
-5. **Check it:** `https://api.example.com/health` answers `{"ok":true,"db":"postgres"}`, and `https://api.example.com/v1/brands` answers 401.
+5. **Check it:** `https://api.example.com/health` answers `{"ok":true,"db":"postgres"}`, and `https://api.example.com/v1/brands` answers 401. A POST to `https://api.example.com/v1/channels/instagram/data-deletion` with no body answers 400 (it reached the route and wants Meta's `signed_request`), not 401.
 
 ## 4. GitHub sign-in
 
@@ -93,3 +94,12 @@ Media files aren't in the database. Copy `apps/api/.media` into the volume, or u
 ## 7. Point the platforms at the new address
 
 In each platform's developer app, set the redirect URL to `https://api.example.com/v1/channels/{platform}/callback`: `x`, `linkedin`, `instagram` and `threads`. Accounts you already connected keep working; the new URL is only for connecting.
+
+Instagram and Threads also need Meta's two callbacks, which must be public (they pass the internal token check because Meta signs them):
+
+| Platform | Deauthorize / uninstall callback | Data deletion / delete callback |
+|---|---|---|
+| Instagram (Business login settings) | `https://api.example.com/v1/channels/instagram/deauthorize` | `https://api.example.com/v1/channels/instagram/data-deletion` |
+| Threads (Threads use case settings) | `https://api.example.com/v1/channels/threads/deauthorize` | `https://api.example.com/v1/channels/threads/data-deletion` |
+
+Data deletion answers Meta with a confirmation code and a status page at `https://api.example.com/data-deletion/{code}`. Letting people outside your app's roles connect needs Meta App Review: [meta-app-review.md](meta-app-review.md).

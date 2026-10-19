@@ -19,6 +19,15 @@ Harbor publishes through your own developer apps (decision: `docs/decisions/0001
    | Instagram | `{HARBOR_API_URL}/v1/channels/instagram/callback` |
    | Threads | `{HARBOR_API_URL}/v1/channels/threads/callback` |
 
+   Instagram and Threads also ask for two callbacks Meta calls when someone removes your app or asks for their data to be deleted. Harbor handles both: it checks Meta's signature with the app secret, then deletes every channel connected to that account, its tokens, and the posts, metrics and replies Harbor stored for it.
+
+   | Platform | Deauthorize (uninstall) callback | Data deletion callback |
+   |---|---|---|
+   | Instagram | `{HARBOR_API_URL}/v1/channels/instagram/deauthorize` | `{HARBOR_API_URL}/v1/channels/instagram/data-deletion` |
+   | Threads | `{HARBOR_API_URL}/v1/channels/threads/deauthorize` | `{HARBOR_API_URL}/v1/channels/threads/data-deletion` |
+
+   A data deletion request is answered with a confirmation code and a status page at `{HARBOR_API_URL}/data-deletion/{code}`. Set `HARBOR_CONTACT_EMAIL` to put your address on that page.
+
 ## 1. X
 
 1. Sign in to the X developer console (developer.x.com) and create a project and app.
@@ -47,9 +56,11 @@ Requirements: the Instagram account must be a **professional account** (Business
 
 1. At developers.facebook.com, **Create app**. Choose the use case for managing content on Instagram (API setup with **Instagram login**).
 2. In that use case's settings, find the **Instagram app ID and Instagram app secret**. These are different from the Meta app ID at the top of the dashboard. Copy them into `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`.
-3. **Business login settings:** add the redirect URL from the table.
+3. **Business login settings:** add the redirect URL from the table, and the **Deauthorize callback URL** and **Data deletion request URL** (`…/v1/channels/instagram/deauthorize` and `…/v1/channels/instagram/data-deletion`). Harbor verifies them with `INSTAGRAM_APP_SECRET`.
 4. **Roles:** add your Instagram account as an **Instagram tester**, then accept the invite from the Instagram account (in Instagram: Settings → Apps and websites → Tester invites, or the equivalent on the web).
 5. Keep the app in **development mode**. Permissions Harbor requests: `instagram_business_basic`, `instagram_business_content_publish`, `instagram_business_manage_insights`, `instagram_business_manage_comments` (to read replies).
+
+In development mode only accounts with a role on the app (admins, developers, testers) can connect; anyone else gets "Insufficient developer role". That's all you need for your own accounts. Letting other people connect through your app needs App Review: see [meta-app-review.md](meta-app-review.md).
 
 Limits:
 - Every Instagram post needs an image or video at a **public URL** (Instagram downloads it). Harbor's media library serves uploads from `HARBOR_API_URL`, so your HTTPS tunnel covers this while developing.
@@ -59,11 +70,11 @@ Limits:
 ## 4. Threads
 
 1. In the same Meta developer account, create an app (or add a use case) for **Access the Threads API**.
-2. In the Threads use case settings, copy the **Threads app ID and secret** into `THREADS_APP_ID` / `THREADS_APP_SECRET`. Add the redirect URL from the table as a callback URL (also set the uninstall and delete callbacks to any URL on your domain).
+2. In the Threads use case settings, copy the **Threads app ID and secret** into `THREADS_APP_ID` / `THREADS_APP_SECRET`. Add the redirect URL from the table as a callback URL, the **Uninstall callback URL** `…/v1/channels/threads/deauthorize`, and the **Delete callback URL** `…/v1/channels/threads/data-deletion`. Harbor verifies them with `THREADS_APP_SECRET`.
 3. **Roles:** add your Threads profile as a **Threads tester** and accept the invite in Threads (Settings → Account → Website permissions → Invites).
 4. Permissions: `threads_basic`, `threads_content_publish`, `threads_manage_insights`, `threads_read_replies` (to read replies), `threads_manage_replies` (to post threads as replies to your own post).
 
-Threads: 500 characters per post; a line with `---` in Harbor's composer starts a reply in the thread. Tokens refresh automatically.
+Threads: 500 characters per post; a line with `---` in Harbor's composer starts a reply in the thread. Tokens refresh automatically. As with Instagram, only testers can connect until the app passes App Review.
 
 ## 5. Run it
 

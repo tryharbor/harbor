@@ -5,7 +5,7 @@ import { platformTextLength, type Platform } from '@harbor/core';
 import { publishDraft, rewriteDraft, saveDraft, type PublishState, type RewriteState } from '../actions';
 import type { DraftView } from '../api';
 import { PlatformIcon } from '../platform-icon';
-import { CheckIssues, MediaPicker, type PickedMedia } from './media-picker';
+import { MediaList, listFailures, sameMedia, toItems, type MediaItem } from './media-list';
 import { Select } from './select';
 import { TZ } from '../ui';
 
@@ -29,18 +29,14 @@ export function DraftEditor({
 }) {
   const initial = draft ? draft.parts.map((p) => p.text).join('\n---\n') : '';
   const [body, setBody] = useState(initial);
-  const [media, setMedia] = useState(draft?.parts[0]?.media[0]?.url ?? '');
-  const saved = draft?.parts[0]?.media[0] as (DraftView['parts'][number]['media'][number] & { assetId?: string; variant?: string }) | undefined;
-  const [picked, setPicked] = useState<Pick<PickedMedia, 'assetId' | 'variant' | 'kind'> & { check?: PickedMedia['check'] } | undefined>(
-    saved?.assetId ? { assetId: saved.assetId, variant: (saved.variant ?? 'original') as PickedMedia['variant'], kind: saved.kind } : undefined,
-  );
-  const [picking, setPicking] = useState(false);
+  const savedMedia = useMemo(() => toItems(draft?.parts[0]?.media), [draft]);
+  const [media, setMedia] = useState<MediaItem[]>(savedMedia);
   const [rewrite, rewriteAction, rewriting] = useActionState<RewriteState, FormData>(rewriteDraft, undefined);
   const parts = useMemo(() => body.split(SPLIT).map((t) => t.trim()).filter(Boolean), [body]);
   const limit = LIMIT[platform];
   // The platform's own count: X counts each link as 23 characters.
-  const over = parts.some((p) => platformTextLength(platform, p) > limit);
-  const dirty = body !== initial || media !== (draft?.parts[0]?.media[0]?.url ?? '');
+  const over = parts.some((p) => platformTextLength(platform, p) > limit) || listFailures([platform], media).length > 0;
+  const dirty = body !== initial || !sameMedia(media, savedMedia);
   const handle = channels[0]?.handle ?? brandName.toLowerCase().replace(/\W+/g, '');
   const returnTo = `/studio/${ideaId}`;
 
@@ -72,30 +68,7 @@ export function DraftEditor({
             {parts.length > 1 ? parts.map((p, i) => `${i + 1}: ${platformTextLength(platform, p)}`).join(' · ') : platformTextLength(platform, parts[0] ?? '')} / {limit.toLocaleString('en-US')}
           </span>
         </div>
-        <div className="field">
-          <span className="label">Image or video{platform === 'instagram' ? ' · required' : ''}</span>
-          <input type="hidden" name="mediaUrl" value={media} />
-          <input type="hidden" name="mediaAssetId" value={picked?.assetId ?? ''} />
-          <input type="hidden" name="mediaVariant" value={picked?.variant ?? ''} />
-          <input type="hidden" name="mediaKind" value={picked?.kind ?? ''} />
-          {media ? (
-            <div className="attached">
-              {picked?.kind === 'video' || /\.(mp4|mov)(\?|$)/i.test(media) ? <span className="media-video mono">▶</span> : <img src={media} alt="" />}
-              <span className="stack" style={{ gap: 4, minWidth: 0 }}>
-                <span className="small">{picked ? <>From the library · <span className="mono">{picked.variant}</span> crop</> : <span className="evidence-text">{media}</span>}</span>
-                <CheckIssues check={picked?.check} />
-              </span>
-              <button type="button" className="link-button small" onClick={() => { setMedia(''); setPicked(undefined); }}>Remove</button>
-            </div>
-          ) : null}
-          <div className="row" style={{ gap: 6 }}>
-            <button type="button" className="mono-button" onClick={() => setPicking(true)}>{media ? 'Replace' : 'Choose from library'}</button>
-            {!picked ? <input aria-label="Or paste a media URL" type="url" value={media} onChange={(e) => { setMedia(e.target.value); setPicked(undefined); }} placeholder="or paste a URL" style={{ maxWidth: 260 }} /> : null}
-          </div>
-          {picking ? (
-            <MediaPicker apiUrl={apiUrl} brandId={brandId} platform={platform} onClose={() => setPicking(false)} onPick={(m) => { setMedia(m.url); setPicked(m); setPicking(false); }} />
-          ) : null}
-        </div>
+        <MediaList items={media} onChange={setMedia} platforms={[platform]} apiUrl={apiUrl} brandId={brandId} />
         <div className="row">
           <button type="submit" className={dirty ? 'inverse' : undefined} disabled={!dirty || over || !parts.length}>Save version</button>
           {dirty ? <span className="dim small">Unsaved changes</span> : null}
@@ -134,7 +107,7 @@ export function DraftEditor({
           <span className="label">Versions</span>
           <div className="versions">
             {versions.map((v) => (
-              <button key={v.id} type="button" className="mono-button" onClick={() => { setBody(v.parts.map((p) => p.text).join('\n---\n')); setMedia(v.parts[0]?.media[0]?.url ?? ''); }} title={`Load v${v.version} into the editor`}>
+              <button key={v.id} type="button" className="mono-button" onClick={() => { setBody(v.parts.map((p) => p.text).join('\n---\n')); setMedia(toItems(v.parts[0]?.media)); }} title={`Load v${v.version} into the editor`}>
                 v{v.version} {v.author === 'agent' ? '· Harbor' : '· you'}
               </button>
             ))}
@@ -215,10 +188,11 @@ function PublishBox({ draft, ideaId, platform, brandName, channels, dirty, poste
 
 /** How the post will look. Approximations of each platform's layout, styled with Harbor's tokens. */
 /** The connected account's own picture (what the post will show), else the brand logo, else the initial. */
-function Preview({ platform, handle, name, parts, media, avatar }: { platform: Platform; handle: string; name: string; parts: string[]; media: string; avatar?: string }) {
+function Preview({ platform, handle, name, parts, media, avatar }: { platform: Platform; handle: string; name: string; parts: string[]; media: MediaItem[]; avatar?: string }) {
   const initials = name.slice(0, 1).toUpperCase();
   const Avatar = () => (avatar ? <img className="avatar" src={avatar} alt="" referrerPolicy="no-referrer" /> : <span className="avatar">{initials}</span>);
-  const Media = () => (media ? <div className="preview-media">{/^https?:/.test(media) ? <img src={media} alt="" /> : 'media'}</div> : null);
+  // X lays several images out as a grid; Instagram and Threads swipe through them; LinkedIn shows one.
+  const Media = () => (!media.length ? null : platform === 'x' && media.length > 1 ? <PreviewGrid media={media} /> : platform === 'linkedin' ? <div className="preview-media"><Slide m={media[0]!} /></div> : <Carousel media={media} />);
   if (!parts.length) return <div className="preview dots"><span className="dim small">The {NAME[platform]} preview appears as you write.</span></div>;
 
   if (platform === 'instagram') {
@@ -226,7 +200,7 @@ function Preview({ platform, handle, name, parts, media, avatar }: { platform: P
       <div className="preview">
         <span className="label row" style={{ gap: 6 }}><PlatformIcon platform="instagram" size={11} />Preview · Instagram</span>
         <div className="preview-head"><Avatar /><strong style={{ fontWeight: 500 }}>{handle}</strong></div>
-        {media ? <Media /> : <div className="preview-media">Instagram needs an image or video</div>}
+        {media.length ? <Media /> : <div className="preview-media">Instagram needs an image or video</div>}
         <div className="preview-body small"><strong style={{ fontWeight: 600 }}>{handle}</strong> {parts[0]}</div>
       </div>
     );
@@ -256,4 +230,29 @@ function Preview({ platform, handle, name, parts, media, avatar }: { platform: P
       ))}
     </div>
   );
+}
+
+const Slide = ({ m }: { m: MediaItem }) => (m.kind === 'video' ? <span className="media-video mono">▶ video</span> : /^https?:/.test(m.url) ? <img src={m.url} alt={m.alt ?? ''} /> : <>media</>);
+
+/** One slide at a time, with a 1/N counter and the dots that tell a carousel apart from a single image. */
+function Carousel({ media }: { media: MediaItem[] }) {
+  const [at, setAt] = useState(0);
+  const i = Math.min(at, media.length - 1);
+  return (
+    <div className="preview-carousel">
+      <div className="preview-media">
+        <Slide m={media[i]!} />
+        {media.length > 1 ? <span className="carousel-count">{i + 1}/{media.length}</span> : null}
+      </div>
+      {media.length > 1 ? (
+        <div className="carousel-dots">
+          {media.map((_, n) => <button key={n} type="button" className={n === i ? 'on' : undefined} aria-label={`Show item ${n + 1} of ${media.length}`} aria-current={n === i} onClick={() => setAt(n)} />)}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PreviewGrid({ media }: { media: MediaItem[] }) {
+  return <div className={`preview-grid n${media.length}`}>{media.slice(0, 4).map((m, n) => <div key={n}><Slide m={m} /></div>)}</div>;
 }

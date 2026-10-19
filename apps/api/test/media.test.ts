@@ -10,6 +10,7 @@ import { LocalDiskStore } from '../src/lib/media-store.ts';
 import { proposeDraft } from '../src/services/approvals.ts';
 import { cropRect, imageForIdea, isPrivateAddress } from '../src/services/media.ts';
 import { featureLifts, type LearningPost } from '../src/services/voice-learning.ts';
+import { tick } from '../src/worker.ts';
 import { RICH_MEMORY, sender } from './helpers.ts';
 
 let db: Db;
@@ -19,6 +20,7 @@ let dir: string;
 let brandId: string;
 let otherBrandId: string;
 let ig: { id: string };
+let xChannel: { id: string };
 const send = sender(() => app);
 const json = async (method: string, path: string, body?: unknown, status?: number) => {
   const res = await send(method, path, body);
@@ -68,7 +70,7 @@ beforeAll(async () => {
   brandId = (await json('POST', '/v1/brands', { name: 'Harbor', memory: RICH_MEMORY }, 201)).id;
   otherBrandId = (await json('POST', '/v1/brands', { name: 'Tidewater' }, 201)).id;
   ig = await json('POST', '/v1/sandbox/channels', { brandId, platform: 'instagram', handle: 'harborhq' }, 201);
-  await json('POST', '/v1/sandbox/channels', { brandId, platform: 'x', handle: 'harborhq' }, 201);
+  xChannel = await json('POST', '/v1/sandbox/channels', { brandId, platform: 'x', handle: 'harborhq' }, 201);
 });
 afterAll(async () => {
   vi.unstubAllEnvs();
@@ -345,6 +347,51 @@ describe('drafts, approvals and posts', () => {
     expect(again.status).toBe(201);
     expect(again.body.id).not.toBe(wideImage.id);
     wideImage = again.body;
+  });
+});
+
+describe('carousels', () => {
+  let slides: any[];
+  beforeAll(async () => {
+    slides = [];
+    for (const color of ['#1f6feb', '#2da44e', '#bf8700']) slides.push((await upload(brandId, await png(1080, 1350, color), `slide-${color.slice(1)}.png`, 'image/png')).body);
+  });
+  const refs = (n = slides.length) => slides.slice(0, n).map((s) => ({ assetId: s.id }));
+
+  it('keeps the order of several library items on a draft, each with the platform’s crop', async () => {
+    const reversed = [...refs()].reverse();
+    const d = await json('POST', '/v1/drafts', { brandId, platform: 'instagram', parts: [{ text: 'Three steps.', media: reversed }] }, 201);
+    expect(d.parts[0].media.map((m: any) => m.assetId)).toEqual(reversed.map((r) => r.assetId));
+    expect(d.parts[0].media.every((m: any) => m.variant === 'portrait')).toBe(true);
+  });
+
+  it('approving with a media list (and edited text) saves every item, in order, as a new version', async () => {
+    const d = await json('POST', '/v1/drafts', { brandId, platform: 'instagram', parts: [{ text: 'One look.', media: refs(1) }] }, 201);
+    const approval = await proposeDraft(deps, { draftId: d.id, proposedFor: new Date(Date.now() + 3 * DAY).toISOString(), source: 'ui' });
+    const { approval: done, post } = await json('POST', `/v1/approvals/${approval.id}/approve`, { parts: [{ text: 'Three looks.' }], media: refs() }, 200);
+    expect(done.draft.parts[0]).toMatchObject({ text: 'Three looks.' });
+    expect(done.draft.parts[0].media.map((m: any) => m.assetId)).toEqual(slides.map((s) => s.id));
+    expect(post.parts[0].media).toHaveLength(3);
+    await json('DELETE', `/v1/posts/${post.id}`, undefined, 204);
+  });
+
+  it('publishes an Instagram carousel in sandbox', async () => {
+    const post = await json('POST', '/v1/posts', { channelId: ig.id, parts: [{ text: 'Swipe for the steps.', media: refs() }] }, 201);
+    expect(post.status).toBe('pending');
+    expect(post.parts[0].media.map((m: any) => m.assetId)).toEqual(slides.map((s) => s.id));
+    await db.query("UPDATE posts SET next_check_at = now() - interval '1 second' WHERE id = $1", [post.id]);
+    await tick(deps.publishDeps());
+    expect((await json('GET', `/v1/posts/${post.id}`, undefined, 200)).status).toBe('published');
+  });
+
+  it('refuses more items than the platform takes', async () => {
+    const url = (i: number) => ({ kind: 'image', url: `https://cdn.example/${i}.jpg` });
+    const eleven = Array.from({ length: 11 }, (_, i) => url(i));
+    const ig11 = await json('POST', '/v1/posts', { channelId: ig.id, parts: [{ text: 'Too many.', media: eleven }] }, 400);
+    expect(ig11.error.message).toMatch(/Instagram allows 10 images per post, got 11/);
+    const x5 = await json('POST', '/v1/drafts', { brandId, platform: 'x', parts: [{ text: 'Too many.', media: eleven.slice(0, 5) }] }, 201);
+    const refused = await json('POST', '/v1/posts', { channelId: xChannel.id, draftId: x5.id }, 400);
+    expect(refused.error.message).toMatch(/X allows 4 images per post, got 5/);
   });
 });
 

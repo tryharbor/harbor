@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import type { Channel } from '@harbor/core';
 import { createPost } from '../actions';
+import { ComposeMedia } from '../components/compose-media';
 import { PostOrSchedule } from '../components/post-or-schedule';
 import { TzInput } from '../components/tz-input';
-import { getBrands, getChannels, getIdeas, loadAll, type BrandView, type IdeaView } from '../api';
+import { API_BROWSER_URL, getBrands, getChannels, getIdeas, loadAll, type BrandView, type IdeaView } from '../api';
 import { Flash, LoadError, PageHeader, PlatformTag, Upcoming } from '../ui';
 
 export const dynamic = 'force-dynamic';
@@ -68,10 +69,7 @@ export default async function ComposePage({ searchParams }: { searchParams: Prom
                   <textarea id="body" name="body" required defaultValue={idea ? `${idea.title}\n\n${idea.angle}`.trim() : ''} />
                   <span className="muted small">{LIMITS}</span>
                 </div>
-                <div className="field">
-                  <label htmlFor="mediaUrl">Image or video URL (public; required for Instagram)</label>
-                  <input id="mediaUrl" name="mediaUrl" type="url" placeholder="https://…" />
-                </div>
+                <ComposeMedia apiUrl={API_BROWSER_URL} channels={connected.map((c) => ({ id: c.id, platform: c.platform, brandId: c.brandId }))} />
                 <PostOrSchedule />
               </form>
             )}

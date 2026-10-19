@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import type { IdeaStatus, Platform } from '@harbor/core';
 import { ApiError, api, getBrand, type BrandVoice, type MemoryListKey, type RunInfo } from './api';
+import { mediaFrom, type MediaField } from './media-form';
 
 // ---- Helpers ----
 
@@ -23,17 +24,6 @@ const returnTo = (form: FormData, fallback: string) => {
   return r.startsWith('/') && !r.startsWith('//') ? r : fallback;
 };
 const refresh = () => revalidatePath('/', 'layout');
-type MediaField = { kind: 'image' | 'video'; url?: string; assetId?: string; variant?: string };
-/** Media for part 1: a library asset (mediaAssetId + its variant URL) or a pasted URL. */
-const mediaFrom = (form: FormData): MediaField | undefined => {
-  const url = text(form, 'mediaUrl');
-  if (!url) return undefined;
-  const kind = text(form, 'mediaKind') === 'video' || /\.(mp4|mov)(\?|$)/i.test(url) ? 'video' : 'image';
-  const assetId = text(form, 'mediaAssetId') || undefined;
-  // Library media: the API fills the public URL from the asset (the URL here may be the browser's local one).
-  if (assetId) return { kind, assetId, variant: text(form, 'mediaVariant') || undefined } as MediaField;
-  return { kind, url };
-};
 const shortId = () => Math.random().toString(36).slice(2, 10);
 /**
  * A datetime-local value ("2026-10-20T09:00") is the viewer's wall clock. `tz` is their getTimezoneOffset() in
@@ -374,8 +364,7 @@ export async function saveDraft(form: FormData) {
   const ideaId = text(form, 'ideaId');
   const back = returnTo(form, `/studio/${ideaId}`);
   const parts = blocks(text(form, 'body')).map((t) => ({ text: t, media: [] as MediaField[] }));
-  const media = mediaFrom(form);
-  if (media && parts[0]) parts[0].media.push(media);
+  if (parts[0]) parts[0].media = mediaFrom(form);
   if (!parts.length) go(back, { error: 'The draft is empty.' });
   try {
     await api('/v1/drafts', { method: 'POST', body: JSON.stringify({ brandId: text(form, 'brandId'), ideaId: ideaId || undefined, platform: text(form, 'platform'), parts, author: 'human' }) });
@@ -429,13 +418,12 @@ export async function publishDraft(_prev: PublishState, form: FormData): Promise
 
 /**
  * The quick composer: one textarea, where a line containing only `---` starts the next part of a thread.
- * An optional image/video URL attaches to the first part. One post is created per selected channel.
+ * Optional media (several make a carousel) attaches to the first part. One post is created per selected channel.
  */
 export async function createPost(form: FormData) {
   const back = returnTo(form, '/compose');
   const parts = blocks(text(form, 'body')).map((t) => ({ text: t, media: [] as MediaField[] }));
-  const media = mediaFrom(form);
-  if (media && parts[0]) parts[0].media.push(media);
+  if (parts[0]) parts[0].media = mediaFrom(form);
   if (parts.length === 0) go(back, { error: 'Write something first.' });
 
   // `intent` is 'now' (confirmed in the form) or 'schedule', like the Studio publish box: a time typed in the

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { ApiError, api, type AgentRunDetail, type ApiKey, type Trigger } from './api';
+import { mediaFrom } from './media-form';
 
 const go = (path: string, params: Record<string, string> = {}): never => {
   const q = new URLSearchParams(params);
@@ -56,8 +57,9 @@ export async function approve(form: FormData) {
   const original = text(form, 'original');
   const edited = text(form, 'text');
   const parts = edited && edited !== original ? edited.split(/^\s*---\s*$/m).map((t) => ({ text: t.trim() })).filter((p) => p.text) : undefined;
-  const assetId = text(form, 'mediaAssetId');
-  const media = assetId ? [{ assetId, variant: text(form, 'mediaVariant') || undefined }] : undefined;
+  // The card sends `media` (the whole ordered list) only when it changed or the text did, so a plain approve
+  // doesn't make a new version, and edited text keeps the post's media.
+  const media = form.has('media') ? mediaFrom(form) : undefined;
   try {
     await api(`/v1/approvals/${id}/approve`, { method: 'POST', body: JSON.stringify({ scheduledFor, parts, media }) });
   } catch (err) {

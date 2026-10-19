@@ -6,13 +6,18 @@ import { fitMedia, listMedia } from '../media-actions';
 import type { MediaAsset, MediaCheck, MediaVariant } from '../api';
 import { MediaUploader } from './media-uploader';
 
-export type PickedMedia = { assetId: string; variant: MediaVariant; url: string; kind: 'image' | 'video'; alt?: string; check: MediaCheck };
+export type PickedMedia = { assetId: string; variant?: MediaVariant; url: string; kind: 'image' | 'video'; alt?: string; check?: MediaCheck };
 
 /**
- * Pick from the brand's library (or upload into it). The pick comes back already cropped for the platform
- * (its preferred variant) with the platform's media check, so problems show before scheduling.
+ * Pick from the brand's library (or upload into it). With a platform, the pick comes back already cropped for it
+ * (its preferred variant) with the platform's media check, so problems show before scheduling. Without one (a post
+ * to several platforms), the pick has no variant and the API gives each platform its own crop.
+ *
+ * `selected` (asset ids, in order) numbers the tiles already in the post, for a picker that stays open while
+ * several are added (picking a numbered tile again hands it back, to take it out); `full` stops new picks once
+ * the platform's limit is reached.
  */
-export function MediaPicker({ apiUrl, brandId, platform, onPick, onClose }: { apiUrl: string; brandId: string; platform: Platform; onPick: (m: PickedMedia) => void; onClose: () => void }) {
+export function MediaPicker({ apiUrl, brandId, platform, onPick, onClose, selected, full }: { apiUrl: string; brandId: string; platform?: Platform; onPick: (m: PickedMedia) => void; onClose: () => void; selected?: string[]; full?: boolean }) {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [q, setQ] = useState('');
   const [error, setError] = useState<string>();
@@ -27,6 +32,7 @@ export function MediaPicker({ apiUrl, brandId, platform, onPick, onClose }: { ap
   useEffect(() => { load(''); }, [brandId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pick = (a: MediaAsset) => startPick(async () => {
+    if (!platform || selected?.includes(a.id)) return onPick({ assetId: a.id, url: a.kind === 'image' ? (a.variants.square ?? a.url) : a.url, kind: a.kind, alt: a.alt });
     const fit = await fitMedia(a.id, platform);
     if ('error' in fit) return setError(fit.error);
     onPick({ assetId: a.id, variant: fit.variant, url: fit.url, kind: a.kind, alt: a.alt, check: fit.check });
@@ -36,8 +42,8 @@ export function MediaPicker({ apiUrl, brandId, platform, onPick, onClose }: { ap
     <div className="picker-backdrop" onClick={onClose}>
       <div className="picker" role="dialog" aria-label="Media library" onClick={(e) => e.stopPropagation()}>
         <div className="spread">
-          <span className="label">Media library</span>
-          <button type="button" className="link-button" onClick={onClose}>Close</button>
+          <span className="label">Media library{selected?.length ? ` · ${selected.length} in this post` : ''}</span>
+          <button type="button" className="link-button" onClick={onClose}>{selected?.length ? 'Done' : 'Close'}</button>
         </div>
         <div className="row" style={{ gap: 6 }}>
           <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); load(); } }} placeholder="Search alt text, names, tags" />
@@ -45,9 +51,11 @@ export function MediaPicker({ apiUrl, brandId, platform, onPick, onClose }: { ap
         </div>
         <MediaUploader apiUrl={apiUrl} brandId={brandId} compact onUploaded={() => load()} />
         {error ? <p className="error small" role="alert">{error}</p> : null}
+        {full ? <p className="small muted" role="status" style={{ margin: 0 }}>That’s as many as this post can take. Remove one to add another.</p> : null}
         <div className="media-grid small-tiles" aria-busy={loading || picking}>
           {assets.map((a) => (
-            <button key={a.id} type="button" className="media-tile" onClick={() => pick(a)} disabled={picking} title={a.alt ?? a.originalName}>
+            <button key={a.id} type="button" className="media-tile" onClick={() => pick(a)} disabled={picking || (full && !selected?.includes(a.id))} title={a.alt ?? a.originalName}>
+              {selected?.includes(a.id) ? <span className="media-order mono" aria-label={`Item ${selected.indexOf(a.id) + 1} in this post`}>{selected.indexOf(a.id) + 1}</span> : null}
               <span className="media-thumb">{a.kind === 'image' ? <img src={a.variants.square ?? a.url} alt={a.alt ?? ''} loading="lazy" /> : <span className="media-video mono">▶ video</span>}</span>
               <span className="media-meta"><span className="evidence-text small">{a.alt || a.originalName || 'No alt text'}</span></span>
             </button>

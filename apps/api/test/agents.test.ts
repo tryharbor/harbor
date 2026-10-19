@@ -232,6 +232,10 @@ describe('approvals', () => {
   });
 
   it('approving schedules a post at the proposed slot through the posts path', async () => {
+    // Fill in the simulated model's [writer's notes] on this one draft (as a person would), so it can be approved as is.
+    const [first] = await pending();
+    const filled = first.draft.parts.map((p: any) => ({ ...p, text: p.text.replace(/\[[^\]]*\]/g, 'Filled in.') }));
+    await db.query('UPDATE drafts SET parts = $2 WHERE id = $1', [first.draft.id, JSON.stringify(filled)]);
     const [a] = await pending();
     const { approval, post } = await json('POST', `/v1/approvals/${a.id}/approve`, {}, 200);
     expect(approval).toMatchObject({ id: a.id, status: 'approved', postId: post.id, decidedAt: expect.any(String) });

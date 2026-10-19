@@ -630,6 +630,27 @@ mark { background: var(--yellow-soft); color: inherit; padding: 0 1px; }
 .picker { width: min(760px, 100%); max-height: 88vh; overflow-y: auto; display: grid; gap: 12px; padding: 20px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--r-panel); box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2); }
 .attached { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px; background: var(--sunken); }
 .attached img, .attached .media-video { width: 64px; height: 64px; object-fit: cover; display: block; }
+/* A post's ordered media (carousels): number, thumbnail, label, move / remove. */
+.media-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.media-row { display: grid; grid-template-columns: 16px 56px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 8px; background: var(--sunken); }
+.media-row img, .media-row .media-video { width: 56px; height: 56px; min-height: 0; object-fit: cover; display: block; }
+.media-row-actions { display: flex; gap: 4px; }
+.square-button { width: 30px; height: 30px; padding: 0; justify-content: center; font-size: 13px; }
+.media-strip { display: flex; gap: 4px; overflow-x: auto; }
+.media-strip img, .media-strip .media-video { width: 64px; height: 64px; min-height: 0; flex: none; object-fit: cover; display: block; }
+.media-order { position: absolute; top: 10px; left: 10px; z-index: 1; min-width: 22px; height: 22px; padding: 0 5px; display: grid; place-items: center; background: var(--signal); color: #0a0a0a; font-size: 12px; }
+/* Live preview: a carousel shows one slide, a counter and the slide dots; X shows up to four as a grid. */
+.preview-carousel { display: grid; gap: 8px; }
+.preview-carousel .preview-media { position: relative; }
+.carousel-count { position: absolute; top: 8px; right: 8px; padding: 2px 7px; background: rgba(10, 10, 10, 0.65); color: #fff; font-family: var(--font-mono); font-size: 11px; }
+.carousel-dots { display: flex; justify-content: center; gap: 5px; }
+.carousel-dots button { width: 7px; height: 7px; min-height: 0; padding: 0; border: 0; background: var(--line-strong); }
+.carousel-dots button.on { background: var(--signal); }
+.preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.preview-grid > * { aspect-ratio: 16 / 9; background: var(--raised); overflow: hidden; display: grid; place-items: center; color: var(--dim); font-size: 12px; }
+.preview-grid.n1 { grid-template-columns: 1fr; }
+.preview-grid.n3 > :first-child { grid-row: span 2; aspect-ratio: auto; }
+.preview-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 /* ---- Onboarding: voice picks, strength meter ---- */
 .personalities { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }

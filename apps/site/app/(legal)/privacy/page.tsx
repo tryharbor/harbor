@@ -18,6 +18,7 @@ const SECTIONS = [
   { id: 'platforms', title: 'Data from the platforms' },
   { id: 'delete', title: 'Deleting your data' },
   { id: 'sharing', title: 'Who we share data with' },
+  { id: 'authorities', title: 'Requests from public authorities' },
   { id: 'rights', title: 'Your rights' },
   { id: 'changes', title: 'Changes and contact' },
 ];
@@ -115,6 +116,17 @@ export default function PrivacyPage() {
         </tbody>
       </table>
       <p>Harbor Cloud doesn’t use an AI model provider yet: drafting runs on Harbor’s own built-in model, so your content doesn’t leave our infrastructure for it. If that changes, we’ll name the provider here first and say whether it can train on your data. We don’t use marketing email, analytics or advertising providers. We share data with authorities only when the law requires it.</p>
+
+      <h2 id="authorities">Requests from public authorities</h2>
+      <p>If a government agency, court or other public authority asks Harbor Labs LLC for data about a Harbor user, including data we receive from Instagram, Threads or other platforms, we follow these rules:</p>
+      <ul>
+        <li><strong>We check that it’s lawful.</strong> We only respond to requests made through a valid legal process that applies to us, and we review each one, with legal advice where needed, before answering.</li>
+        <li><strong>We challenge unlawful requests.</strong> If a request is unlawful, overbroad or lacks a valid legal basis, we push back, ask for it to be narrowed, or challenge it, and we don’t disclose anything until that’s resolved.</li>
+        <li><strong>We disclose the minimum.</strong> When we must respond, we share only the specific data the request legally requires, and nothing else.</li>
+        <li><strong>We keep a record.</strong> We document every request: who made it, what was asked, the legal basis, how we responded and why.</li>
+        <li><strong>We tell you when we can.</strong> Unless the law forbids it, we notify the affected user before disclosing, so they can object.</li>
+      </ul>
+      <p>We haven’t received any such requests so far.</p>
 
       <h2 id="rights">Your rights</h2>
       <p>Wherever you live, you can ask us what we hold about you, ask for a copy, ask us to correct it, or ask us to delete it. Email us and we’ll answer within 30 days. If you’re in the EU or UK, you can also complain to your data protection authority.</p>

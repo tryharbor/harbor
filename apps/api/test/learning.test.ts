@@ -406,9 +406,72 @@ describe('replies', () => {
     expect((await json('GET', `/v1/brands/${b}/conversation`, undefined, 200)).themes.length).toBeGreaterThan(0);
 
     const liPost = await insertHistoricalPost(db, { brandId: b, channelId: li.id, platform: 'linkedin', parts: text('LinkedIn post'), publishedAt: new Date(Date.now() - 2 * DAY) });
-    expect(await json('POST', `/v1/posts/${liPost}/replies/refresh`, undefined, 200)).toEqual({ data: [], themes: [], supported: false });
+    expect(await json('POST', `/v1/posts/${liPost}/replies/refresh`, undefined, 200)).toEqual({ data: [], themes: [], supported: false, actions: { respond: false, hide: false, remove: false } });
     const { data: platforms } = await json('GET', '/v1/platforms', undefined, 200);
     expect(Object.fromEntries(platforms.map((p: any) => [p.platform, p.reportsReplies]))).toEqual({ x: true, linkedin: false, instagram: true, threads: true });
+  });
+});
+
+describe('managing replies', () => {
+  let b: string;
+  let postId: string;
+  let replies: any[];
+
+  beforeAll(async () => {
+    b = (await brand('Moderated')).id;
+    const ig = await channel(b, 'instagram', 'moderated');
+    // Sandbox comments depend on the post; take the first of a few that has at least three.
+    for (let i = 0; i < 8 && !postId; i++) {
+      const id = await insertHistoricalPost(db, { brandId: b, channelId: ig.id, platform: 'instagram', parts: text(`Plan from what worked, take ${i}: how many posts before it compares?`), publishedAt: new Date(Date.now() - (8 + i) * DAY), key: `moderated-${i}` });
+      const res = await json('POST', `/v1/posts/${id}/replies/refresh`, undefined, 200);
+      if (res.data.length >= 3) [postId, replies] = [id, res.data];
+    }
+  });
+
+  it('says what Harbor can do with Instagram comments', async () => {
+    expect(postId).toBeDefined();
+    expect((await json('GET', `/v1/posts/${postId}/replies`, undefined, 200)).actions).toEqual({ respond: true, hide: true, remove: true });
+  });
+
+  it('answers a comment as the account and keeps the answer on it', async () => {
+    const r = replies[0];
+    const res = await json('POST', `/v1/replies/${r.id}/respond`, { text: '  About 10 posts, then it compares.  ' }, 200);
+    const after = res.data.find((x: any) => x.id === r.id);
+    expect(after.answers).toEqual([{ platformReplyId: expect.stringMatching(/^sbxr_/), text: 'About 10 posts, then it compares.', at: expect.any(String) }]);
+    expect((await json('POST', `/v1/replies/${r.id}/respond`, { text: '   ' }, 400)).error.message).toMatch(/Write a reply first/);
+    expect((await json('POST', `/v1/replies/${r.id}/respond`, { text: 'Nope #fail-reply' }, 400)).error.message).toMatch(/simulated rejection/);
+  });
+
+  it('hides a comment and shows it again, and a fetch keeps what Harbor set', async () => {
+    const r = replies[1];
+    expect((await json('POST', `/v1/replies/${r.id}/hide`, { hidden: true }, 200)).data.find((x: any) => x.id === r.id).hidden).toBe(true);
+    // The sandbox doesn't report hidden state, so the stored one stands.
+    expect((await json('POST', `/v1/posts/${postId}/replies/refresh`, undefined, 200)).data.find((x: any) => x.id === r.id).hidden).toBe(true);
+    expect((await json('POST', `/v1/replies/${r.id}/hide`, { hidden: false }, 200)).data.find((x: any) => x.id === r.id).hidden).toBeUndefined();
+    await json('POST', `/v1/replies/${r.id}/hide`, {}, 400);
+  });
+
+  it('deletes a comment, drops its text, and a later fetch does not bring it back', async () => {
+    const r = replies[2];
+    const res = await json('DELETE', `/v1/replies/${r.id}`, undefined, 200);
+    expect(res.data.map((x: any) => x.id)).not.toContain(r.id);
+    const again = await json('POST', `/v1/posts/${postId}/replies/refresh`, undefined, 200);
+    expect(again.data.map((x: any) => x.id)).not.toContain(r.id);
+    expect(again.data).toHaveLength(replies.length - 1);
+    const [row] = await db.query<{ text: string; removed_at: Date | null }>('SELECT text, removed_at FROM post_replies WHERE id = $1', [r.id]);
+    expect(row).toMatchObject({ text: '', removed_at: expect.any(Date) });
+    await json('DELETE', `/v1/replies/${r.id}`, undefined, 404);
+    const conv = await json('GET', `/v1/brands/${b}/conversation`, undefined, 200);
+    expect(conv.total).toBe(replies.length - 1);
+  });
+
+  it('refuses to manage comments where the platform does not allow it', async () => {
+    const x = await channel(b, 'x', 'moderated');
+    const id = await insertHistoricalPost(db, { brandId: b, channelId: x.id, platform: 'x', parts: text('Growth curves beat totals, take 9.'), publishedAt: new Date(Date.now() - 12 * DAY), key: 'moderated-x' });
+    const { data } = await json('POST', `/v1/posts/${id}/replies/refresh`, undefined, 200);
+    if (!data.length) return;
+    expect((await json('POST', `/v1/replies/${data[0].id}/respond`, { text: 'Thanks!' }, 400)).error.message).toMatch(/can't answer replies on X/);
+    expect((await json('DELETE', `/v1/replies/${data[0].id}`, undefined, 400)).error.message).toMatch(/can't delete replies on X/);
   });
 });
 

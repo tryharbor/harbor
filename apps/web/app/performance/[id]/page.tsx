@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { NormalizedMetrics } from '@harbor/core';
 import { removePost, resolvePost } from '../../actions';
-import { getPost, getReplies, loadAll, type PostDetail, type ReplyView, type Theme } from '../../api';
+import { getPost, getReplies, loadAll, type PostDetail, type PostReplies } from '../../api';
 import { CurveChart } from '../../components/curve-chart';
 import { Replies } from '../../components/replies';
 import { SaveToMemory } from '../../components/save-to-memory';
@@ -21,12 +21,13 @@ const METRICS: { key: keyof NormalizedMetrics; label: string }[] = [
   { key: 'linkClicks', label: 'Link clicks' },
 ];
 
-export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PostPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ notice?: string; error?: string }> }) {
   const { id } = await params;
+  const flash = await searchParams;
   const res = await loadAll<[PostDetail]>([getPost(id)]);
   if (!res.ok) return (<><Link href="/performance">← Performance</Link><LoadError message={res.error} /></>);
   const [post] = res.data;
-  const extra = await loadAll<[{ data: ReplyView[]; themes: Theme[]; supported: boolean }]>([
+  const extra = await loadAll<[PostReplies]>([
     post.status === 'published' ? getReplies(post.id) : Promise.resolve({ data: [], themes: [], supported: false }),
   ]);
   const replies = extra.ok ? extra.data[0] : { data: [], themes: [], supported: false };
@@ -109,7 +110,7 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {post.status === 'published' ? (
-        <Replies brandId={post.brandId} postId={post.id} replies={replies.data} themes={replies.themes} supported={replies.supported} platformName={PLATFORM_NAME[post.channel.platform]} returnTo={here} />
+        <Replies brandId={post.brandId} postId={post.id} replies={replies.data} themes={replies.themes} supported={replies.supported} actions={replies.actions} accountHandle={post.channel.handle} platformName={PLATFORM_NAME[post.channel.platform]} returnTo={here} flash={flash} />
       ) : null}
 
       {post.snapshots.length ? (

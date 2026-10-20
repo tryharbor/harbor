@@ -588,6 +588,16 @@ span.check.ok { display: inline-flex; color: var(--good); }
 .theme { display: grid; gap: 8px; align-content: start; padding: 14px; border: 1px solid var(--line); background: var(--sunken); }
 .replies { list-style: none; margin: 0; padding: 0; display: grid; }
 .replies > li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 0; border-top: 1px solid var(--line); font-size: 14px; }
+/* Managing a comment (Instagram): Reply, Hide and Delete in a row; Reply and Delete open in place below. */
+.reply-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; margin-top: 4px; }
+.reply-actions button, .reply-actions .button { padding: 4px 10px; }
+.reply-action[open] { flex-basis: 100%; display: grid; gap: 8px; }
+.reply-action[open] > summary { width: fit-content; background: var(--raised); }
+.reply-answer { margin: 4px 0 0; padding: 8px 10px; background: var(--sunken); }
+.replies > li.is-hidden > div > p:first-of-type { color: var(--dim); }
+.replies .chip { margin-left: 8px; }
+button.danger { border-color: var(--bad); color: var(--bad); }
+button.danger:hover { background: var(--bad-soft); }
 
 .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 @media (max-width: 900px) { .compare { grid-template-columns: 1fr; } }

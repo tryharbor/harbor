@@ -185,7 +185,7 @@ export class InstagramProvider extends MetaGraphProvider {
   async fetchReplies(ctx: ProviderContext, platformPostId: string, opts: { limit?: number } = {}): Promise<Reply[]> {
     const { data } = await this.request({
       url: `${API}/${encodeURIComponent(platformPostId)}/comments`,
-      query: { fields: 'id,text,username,from,timestamp,like_count', limit: String(Math.min(100, opts.limit ?? 50)), access_token: ctx.accessToken },
+      query: { fields: 'id,text,username,from,timestamp,like_count,hidden', limit: String(Math.min(100, opts.limit ?? 50)), access_token: ctx.accessToken },
     });
     const list = asRecord(data).data;
     // Instagram names the commenter in from.username; the top-level username field is often left out.
@@ -199,7 +199,32 @@ export class InstagramProvider extends MetaGraphProvider {
         text: String(r.text),
         createdAt: isoTime(r.timestamp),
         ...(optionalCount(r.like_count) !== undefined ? { likes: optionalCount(r.like_count) } : {}),
+        ...(typeof r.hidden === 'boolean' ? { hidden: r.hidden } : {}),
       }));
+  }
+
+  // ---- Managing comments on the account's own posts (instagram_business_manage_comments) ----
+
+  /** Reply to a comment as the account. */
+  async respondToReply(ctx: ProviderContext, platformReplyId: string, text: string): Promise<{ platformReplyId: string }> {
+    const { data } = await this.request({
+      method: 'POST',
+      url: `${API}/${encodeURIComponent(platformReplyId)}/replies`,
+      form: { message: text, access_token: ctx.accessToken },
+    });
+    const id = asRecord(data).id;
+    if (!id) throw new BadRequest('instagram', 'Instagram accepted the reply but returned no id; check the post before replying again.');
+    return { platformReplyId: String(id) };
+  }
+
+  /** Hide a comment (everyone but its author stops seeing it), or show it again. */
+  async setReplyHidden(ctx: ProviderContext, platformReplyId: string, hidden: boolean): Promise<void> {
+    await this.request({ method: 'POST', url: `${API}/${encodeURIComponent(platformReplyId)}`, form: { hide: String(hidden), access_token: ctx.accessToken } });
+  }
+
+  /** Delete a comment on the account's post. */
+  async deleteReply(ctx: ProviderContext, platformReplyId: string): Promise<void> {
+    await this.request({ method: 'DELETE', url: `${API}/${encodeURIComponent(platformReplyId)}`, query: { access_token: ctx.accessToken } });
   }
 
   /** The account's recent media with captions, each with its insights (or the like and comment counts when insights fail). */

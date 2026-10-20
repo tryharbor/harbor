@@ -94,6 +94,8 @@ export interface Reply {
   /** ISO timestamp. */
   createdAt: string;
   likes?: number;
+  /** Hidden on the platform by the account (Instagram); absent where the platform doesn't say. */
+  hidden?: boolean;
 }
 
 /** One post from the account's own history (import past posts). */
@@ -141,6 +143,14 @@ export interface PlatformProvider {
   fetchReplies?(ctx: ProviderContext, platformPostId: string, opts: { limit?: number }): Promise<Reply[]>;
   /** The account's own recent posts, newest first. */
   listRecentPosts?(ctx: ProviderContext, opts: { limit: number }): Promise<PastPost[]>;
+
+  // Managing replies on the account's own posts (Instagram). Each is present only where the platform allows it.
+  /** Answer a reply as the account; returns the answer's id. */
+  respondToReply?(ctx: ProviderContext, platformReplyId: string, text: string): Promise<{ platformReplyId: string }>;
+  /** Hide a reply on the platform, or show it again. */
+  setReplyHidden?(ctx: ProviderContext, platformReplyId: string, hidden: boolean): Promise<void>;
+  /** Delete a reply from the platform. */
+  deleteReply?(ctx: ProviderContext, platformReplyId: string): Promise<void>;
 }
 
 // ---- Typed provider failures ----

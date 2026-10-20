@@ -434,7 +434,11 @@ export interface MemoryProposal { id: string; brandId: string; brandName: string
 export type ProposalCounts = { pending: number; applied: number; rejected: number };
 
 export type ReplyKind = 'question' | 'objection' | 'praise' | 'request' | 'other';
-export interface ReplyView { id: string; postId: string; author: { handle: string; displayName?: string }; text: string; createdAt: string; likes?: number; kind: ReplyKind; themeId?: string }
+export interface ReplyAnswer { platformReplyId: string; text: string; at: string }
+export interface ReplyView { id: string; postId: string; author: { handle: string; displayName?: string }; text: string; createdAt: string; likes?: number; kind: ReplyKind; themeId?: string; hidden?: boolean; answers?: ReplyAnswer[] }
+/** What Harbor can do with replies on a post's platform, besides reading them. */
+export interface ReplyActions { respond: boolean; hide: boolean; remove: boolean }
+export type PostReplies = { data: ReplyView[]; themes: Theme[]; supported: boolean; actions?: ReplyActions };
 export interface Theme { id: string; label: string; kind: ReplyKind; keyword?: string; count: number; posts: string[]; sample: ReplyView[] }
 export interface Conversation { themes: Theme[]; total: number; byKind: Record<ReplyKind, number> }
 
@@ -446,7 +450,7 @@ export interface ImportScan { scanId: string; channelId: string; supported: bool
 
 export const getMemoryProposals = (params: { status?: string; brandId?: string } = {}) =>
   api<{ data: MemoryProposal[]; counts: ProposalCounts }>(`/v1/memory-proposals${qs(params)}`);
-export const getReplies = (postId: string) => api<{ data: ReplyView[]; themes: Theme[]; supported: boolean }>(`/v1/posts/${postId}/replies`);
+export const getReplies = (postId: string) => api<PostReplies>(`/v1/posts/${postId}/replies`);
 export const getConversation = (brandId: string, days?: string) => api<Conversation>(`/v1/brands/${brandId}/conversation${qs({ days })}`);
 
 // ---- Media library (docs/design/media-library.md) ----

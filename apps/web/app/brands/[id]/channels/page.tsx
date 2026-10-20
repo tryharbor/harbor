@@ -52,7 +52,8 @@ export default async function ChannelsPage({ params, searchParams }: { params: P
                   {c.tokenExpiresAt ? <span className="dim small">Access until {when(c.tokenExpiresAt, { dateStyle: 'medium' })}</span> : null}
                   {c.status === 'connected' ? <ImportPosts channelId={c.id} brandId={id} supported={sandbox || p.platform === 'instagram' || p.platform === 'threads' || (p.platform === 'x' && !!p.reportsReplies)} /> : null}
                   <div className="row">
-                    {c.status !== 'connected' && !sandbox ? <a className="button primary" href={connectUrl(p.platform)}>Reconnect</a> : null}
+                    {/* Connected accounts can sign in again too (to review what Harbor can access); their posts and stats stay. */}
+                    {!sandbox ? <a className={`button${c.status !== 'connected' ? ' primary' : ''}`} href={connectUrl(p.platform)} title={`Sign in to ${p.name} again and review what Harbor can access. This account's posts and stats stay in Harbor.`}>Reconnect</a> : null}
                     <form action={disconnectChannel}>
                       <input type="hidden" name="brandId" value={id} />
                       <input type="hidden" name="channelId" value={c.id} />

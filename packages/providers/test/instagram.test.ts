@@ -168,7 +168,7 @@ describe('InstagramProvider', () => {
           { id: 'c2', text: 'Thanks all!', username: 'harbor', timestamp: '2026-10-14T10:00:00+0000' },
           { id: 'c3', text: '', username: 'ben', timestamp: '2026-10-14T10:05:00+0000' },
           // What Instagram sends now: the commenter only under from.
-          { id: 'c4', text: 'How many posts before it works?', from: { id: '29', username: 'dwkoza' }, timestamp: '2026-10-19T03:19:36+0000', like_count: 0 },
+          { id: 'c4', text: 'How many posts before it works?', from: { id: '29', username: 'dwkoza' }, timestamp: '2026-10-19T03:19:36+0000', like_count: 0, hidden: true },
           { id: 'c5', text: 'Our own reply', from: { id: '1', username: 'harbor' }, timestamp: '2026-10-19T03:20:00+0000' },
         ],
       }),
@@ -178,11 +178,34 @@ describe('InstagramProvider', () => {
     const replies = await p.fetchReplies(ctx, 'm9', { limit: 20 });
     expect(replies).toEqual([
       { platformReplyId: 'c1', author: { handle: 'ana' }, text: 'How do you pick the beans?', createdAt: '2026-10-14T09:30:00.000Z', likes: 3 },
-      { platformReplyId: 'c4', author: { handle: 'dwkoza' }, text: 'How many posts before it works?', createdAt: '2026-10-19T03:19:36.000Z', likes: 0 },
+      { platformReplyId: 'c4', author: { handle: 'dwkoza' }, text: 'How many posts before it works?', createdAt: '2026-10-19T03:19:36.000Z', likes: 0, hidden: true },
     ]);
-    expect(f.calls[0]!.url.searchParams.get('fields')).toBe('id,text,username,from,timestamp,like_count');
+    expect(f.calls[0]!.url.searchParams.get('fields')).toBe('id,text,username,from,timestamp,like_count,hidden');
     expect(f.calls[0]!.url.searchParams.get('limit')).toBe('20');
     expect(f.calls[0]!.url.searchParams.get('access_token')).toBe('tok');
+  });
+
+  it('replies to, hides, shows and deletes a comment on the account\'s post', async () => {
+    const f = fakeFetch({
+      [`POST ${G}/c4/replies`]: json(200, { id: 'c9' }),
+      [`POST ${G}/c4`]: json(200, { success: true }),
+      [`DELETE ${G}/c4`]: json(200, { success: true }),
+    });
+    const p = new InstagramProvider(app('instagram'), f.impl);
+    expect(await p.respondToReply(ctx, 'c4', 'About 10, then it compares.')).toEqual({ platformReplyId: 'c9' });
+    expect(f.calls[0]!.body).toEqual({ message: 'About 10, then it compares.', access_token: 'tok' });
+    await p.setReplyHidden(ctx, 'c4', true);
+    await p.setReplyHidden(ctx, 'c4', false);
+    expect(f.calls[1]!.body).toEqual({ hide: 'true', access_token: 'tok' });
+    expect(f.calls[2]!.body).toEqual({ hide: 'false', access_token: 'tok' });
+    await p.deleteReply(ctx, 'c4');
+    expect(f.calls[3]!.method).toBe('DELETE');
+    expect(f.calls[3]!.url.searchParams.get('access_token')).toBe('tok');
+  });
+
+  it('turns a refused comment action into a clear error', async () => {
+    const f = fakeFetch({ [`DELETE ${G}/c4`]: json(400, { error: { message: 'Unsupported delete request.', code: 100 } }) });
+    await expect(new InstagramProvider(app('instagram'), f.impl).deleteReply(ctx, 'c4')).rejects.toThrow(/Unsupported delete request/);
   });
 
   it('lists recent media with captions and insights, falling back to counts', async () => {

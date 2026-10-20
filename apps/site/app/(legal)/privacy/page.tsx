@@ -37,7 +37,7 @@ const STORED = [
 
 export default function PrivacyPage() {
   return (
-    <LegalPage eyebrow="Legal" title="Privacy" updated="2026-10-18" sections={SECTIONS}>
+    <LegalPage eyebrow="Legal" title="Privacy" updated="2026-10-20" sections={SECTIONS}>
       <h2 id="short">The short version</h2>
       <ul>
         <li><strong>This website</strong> has no analytics, no tracking and no cookies of ours.</li>
@@ -85,7 +85,7 @@ export default function PrivacyPage() {
         <li><strong>Basic profile</strong> (account id, username, name, picture): to show which account a post goes to.</li>
         <li><strong>Content publishing:</strong> to publish posts, carousels, Reels and threads you have approved. Never anything you haven’t.</li>
         <li><strong>Insights:</strong> to read each post’s metrics five times over its first week and compare it with your other posts.</li>
-        <li><strong>Comments and replies:</strong> to read replies to your posts and group them into themes; on Threads, also to post the replies that make up a thread you wrote.</li>
+        <li><strong>Comments and replies:</strong> to read replies to your posts and group them into themes; on Instagram, also to reply to, hide or delete a comment on your own post when you choose to; on Threads, also to post the replies that make up a thread you wrote.</li>
       </ul>
       <h3>X</h3>
       <p>Your account’s basic profile, posting (including images), and reading your own posts’ metrics. Reading replies and importing past posts is off unless the person running Harbor turns it on.</p>

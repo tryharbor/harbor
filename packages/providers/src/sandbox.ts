@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import {
+  BadRequest,
   HarborError,
   PLATFORM_METRICS,
   PLATFORMS,
@@ -97,6 +98,10 @@ export class SandboxProvider implements PlatformProvider {
   readonly fetchReplies?: (ctx: ProviderContext, platformPostId: string, opts: { limit?: number }) => Promise<Reply[]>;
   /** Present only where the real platform lists past posts (not LinkedIn). */
   readonly listRecentPosts?: (ctx: ProviderContext, opts: { limit: number }) => Promise<PastPost[]>;
+  /** Present only where the real provider manages replies (Instagram). */
+  readonly respondToReply?: (ctx: ProviderContext, platformReplyId: string, text: string) => Promise<{ platformReplyId: string }>;
+  readonly setReplyHidden?: (ctx: ProviderContext, platformReplyId: string, hidden: boolean) => Promise<void>;
+  readonly deleteReply?: (ctx: ProviderContext, platformReplyId: string) => Promise<void>;
 
   private readonly real: PlatformProvider;
   private readonly now: () => number;
@@ -137,6 +142,14 @@ export class SandboxProvider implements PlatformProvider {
         return sandboxHistory(platform, ctx.account.platformAccountId, this.now(), opts.limit, examples);
       };
     }
+    if (typeof this.real.respondToReply === 'function') {
+      this.respondToReply = async (_ctx, _id, text) => {
+        if (text.includes('#fail-reply')) throw new BadRequest(platform, `Sandbox ${this.name}: simulated rejection (#fail-reply).`);
+        return { platformReplyId: `sbxr_${randomBytes(4).toString('hex')}` };
+      };
+    }
+    if (typeof this.real.setReplyHidden === 'function') this.setReplyHidden = async () => {};
+    if (typeof this.real.deleteReply === 'function') this.deleteReply = async () => {};
   }
 
   maxLength(settings?: JsonObject): number {

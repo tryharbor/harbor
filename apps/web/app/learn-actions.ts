@@ -7,7 +7,9 @@ import { ApiError, api, type AgentRunDetail, type ImportScan, type MemoryPreview
 
 const go = (path: string, params: Record<string, string> = {}): never => {
   const q = new URLSearchParams(params);
-  return redirect(q.size ? `${path}${path.includes('?') ? '&' : '?'}${q}` : path);
+  // A #section stays at the end, after any query.
+  const [base, hash] = path.split('#') as [string, string | undefined];
+  return redirect(`${q.size ? `${base}${base.includes('?') ? '&' : '?'}${q}` : base}${hash ? `#${hash}` : ''}`);
 };
 // Form submissions send line breaks as \r\n; store plain \n so lengths match what the platform counts.
 const text = (form: FormData, key: string) => String(form.get(key) ?? '').replace(/\r\n?/g, '\n').trim();
@@ -99,10 +101,50 @@ export async function refreshReplies(form: FormData) {
   try {
     await api(`/v1/posts/${postId}/replies/refresh`, { method: 'POST' });
   } catch (err) {
-    go(returnTo(form, `/performance/${postId}`), { error: message(err, 'Could not fetch replies.') });
+    go(`${returnTo(form, `/performance/${postId}`)}#replies`, { error: message(err, 'Could not fetch replies.') });
   }
   revalidatePath(`/performance/${postId}`);
-  go(returnTo(form, `/performance/${postId}`), { notice: 'Replies refreshed.' });
+  go(`${returnTo(form, `/performance/${postId}`)}#replies`, { notice: 'Replies refreshed.' });
+}
+
+/** Answer a reply as the post's account (Instagram). */
+export async function respondToReply(form: FormData) {
+  const postId = text(form, 'postId');
+  const back = `${returnTo(form, `/performance/${postId}`)}#replies`;
+  try {
+    await api(`/v1/replies/${text(form, 'replyId')}/respond`, { method: 'POST', body: JSON.stringify({ text: text(form, 'text') }) });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not post the reply.') });
+  }
+  revalidatePath(`/performance/${postId}`);
+  go(back, { notice: 'Reply posted.' });
+}
+
+/** Hide a reply on its platform, or show it again. */
+export async function hideReply(form: FormData) {
+  const postId = text(form, 'postId');
+  const back = `${returnTo(form, `/performance/${postId}`)}#replies`;
+  const hidden = text(form, 'hidden') === 'true';
+  try {
+    await api(`/v1/replies/${text(form, 'replyId')}/hide`, { method: 'POST', body: JSON.stringify({ hidden }) });
+  } catch (err) {
+    go(back, { error: message(err, hidden ? 'Could not hide the comment.' : 'Could not show the comment again.') });
+  }
+  revalidatePath(`/performance/${postId}`);
+  go(back, { notice: hidden ? 'Comment hidden.' : 'Comment shown again.' });
+}
+
+/** Delete a reply from its platform (the form asks for a second click first). */
+export async function deleteReply(form: FormData) {
+  const postId = text(form, 'postId');
+  const back = `${returnTo(form, `/performance/${postId}`)}#replies`;
+  try {
+    await api(`/v1/replies/${text(form, 'replyId')}`, { method: 'DELETE' });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not delete the comment.') });
+  }
+  revalidatePath(`/performance/${postId}`);
+  go(back, { notice: 'Comment deleted.' });
 }
 
 // ---- Import past posts ----

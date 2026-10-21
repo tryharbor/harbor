@@ -48,7 +48,7 @@ function ReplyControls({ r, postId, returnTo, actions, accountHandle, platformNa
           <summary className="button mono-button" title={`Delete this comment from ${platformName}.`}>Delete</summary>
           <form action={deleteReply} className="stack" style={{ gap: 6 }}>
             <Hidden />
-            <span className="small">Delete this comment from {platformName}? This can’t be undone.</span>
+            <span className="small">Delete @{r.author.handle}’s comment “{r.text.length > 80 ? `${r.text.slice(0, 80)}…` : r.text}” from {platformName}? This can’t be undone.</span>
             <span><button type="submit" className="danger">Delete comment</button></span>
           </form>
         </details>
@@ -58,7 +58,7 @@ function ReplyControls({ r, postId, returnTo, actions, accountHandle, platformNa
 }
 
 /** Replies on one post: themes first (what people keep saying), then every reply, each savable to Brand Memory and, where the platform allows, answerable, hideable and deletable. */
-export function Replies({ brandId, postId, replies, themes, supported, actions = NONE, accountHandle, platformName, returnTo, flash = {} }: { brandId: string; postId: string; replies: ReplyView[]; themes: Theme[]; supported: boolean; actions?: ReplyActions; accountHandle: string; platformName: string; returnTo: string; flash?: { notice?: string; error?: string } }) {
+export function Replies({ brandId, postId, replies, themes, supported, actions = NONE, accountHandle, platformName, returnTo, flash = {} }: { brandId: string; postId: string; replies: ReplyView[]; themes: Theme[]; supported: boolean; actions?: ReplyActions; accountHandle: string; platformName: string; returnTo: string; flash?: { notice?: string; error?: string; at?: string } }) {
   const manage = actions.respond || actions.hide || actions.remove;
   return (
     <section className="stack" id="replies">
@@ -94,7 +94,8 @@ export function Replies({ brandId, postId, replies, themes, supported, actions =
               ))}
             </div>
           ) : null}
-          <ul className="replies">
+          {/* Keyed by the last action, so every open Reply box and Delete confirmation closes once something changes. */}
+          <ul className="replies" key={flash.at ?? 'list'}>
             {replies.map((r) => (
               <li key={r.id} className={r.hidden ? 'is-hidden' : undefined}>
                 <KindMark kind={r.kind} />

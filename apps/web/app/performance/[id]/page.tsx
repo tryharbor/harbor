@@ -21,7 +21,7 @@ const METRICS: { key: keyof NormalizedMetrics; label: string }[] = [
   { key: 'linkClicks', label: 'Link clicks' },
 ];
 
-export default async function PostPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ notice?: string; error?: string }> }) {
+export default async function PostPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ notice?: string; error?: string; at?: string }> }) {
   const { id } = await params;
   const flash = await searchParams;
   const res = await loadAll<[PostDetail]>([getPost(id)]);

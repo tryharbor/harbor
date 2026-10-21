@@ -104,7 +104,7 @@ export async function refreshReplies(form: FormData) {
     go(`${returnTo(form, `/performance/${postId}`)}#replies`, { error: message(err, 'Could not fetch replies.') });
   }
   revalidatePath(`/performance/${postId}`);
-  go(`${returnTo(form, `/performance/${postId}`)}#replies`, { notice: 'Replies refreshed.' });
+  go(`${returnTo(form, `/performance/${postId}`)}#replies`, { notice: 'Replies refreshed.', at: String(Date.now()) });
 }
 
 /** Answer a reply as the post's account (Instagram). */
@@ -117,7 +117,7 @@ export async function respondToReply(form: FormData) {
     go(back, { error: message(err, 'Could not post the reply.') });
   }
   revalidatePath(`/performance/${postId}`);
-  go(back, { notice: 'Reply posted.' });
+  go(back, { notice: 'Reply posted.', at: String(Date.now()) });
 }
 
 /** Hide a reply on its platform, or show it again. */
@@ -131,7 +131,7 @@ export async function hideReply(form: FormData) {
     go(back, { error: message(err, hidden ? 'Could not hide the comment.' : 'Could not show the comment again.') });
   }
   revalidatePath(`/performance/${postId}`);
-  go(back, { notice: hidden ? 'Comment hidden.' : 'Comment shown again.' });
+  go(back, { notice: hidden ? 'Comment hidden.' : 'Comment shown again.', at: String(Date.now()) });
 }
 
 /** Delete a reply from its platform (the form asks for a second click first). */
@@ -144,7 +144,7 @@ export async function deleteReply(form: FormData) {
     go(back, { error: message(err, 'Could not delete the comment.') });
   }
   revalidatePath(`/performance/${postId}`);
-  go(back, { notice: 'Comment deleted.' });
+  go(back, { notice: 'Comment deleted.', at: String(Date.now()) });
 }
 
 // ---- Import past posts ----

@@ -18,6 +18,10 @@ import { Marked } from 'marked';
  * structured data, so search engines and assistants can quote the answers.
  *
  * Read at build time only (every blog route is static).
+ *
+ * A post dated in the future stays out of every listing, the feed, the sitemap and its own URL until a build on or
+ * after that date (in BLOG_TIMEZONE, default America/Chicago). So posts can be written ahead and go live with the
+ * first deploy on their day. BLOG_SHOW_SCHEDULED=1 includes them, for local previews.
  */
 
 export type PostMeta = { slug: string; title: string; date: string; updated?: string; description: string; author: string; tags: string[] };
@@ -104,7 +108,11 @@ function load(file: string): Post {
   };
 }
 
-/** Every post, newest first. */
+/** Today where the posts are published, as YYYY-MM-DD. */
+const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: process.env.BLOG_TIMEZONE || 'America/Chicago' }).format(new Date());
+const isLive = (p: PostMeta) => process.env.BLOG_SHOW_SCHEDULED === '1' || p.date <= today();
+
+/** Every published post (dated today or earlier), newest first. */
 export function getPosts(): Post[] {
   let files: string[] = [];
   try {
@@ -112,7 +120,8 @@ export function getPosts(): Post[] {
   } catch {
     return [];
   }
-  return files.map(load).sort((a, b) => b.date.localeCompare(a.date) || a.slug.localeCompare(b.slug));
+  // Every file is still parsed, so a broken scheduled post fails the build before its day, not on it.
+  return files.map(load).filter(isLive).sort((a, b) => b.date.localeCompare(a.date) || a.slug.localeCompare(b.slug));
 }
 
 export function getPost(slug: string): Post | undefined {

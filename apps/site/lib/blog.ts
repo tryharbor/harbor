@@ -19,9 +19,10 @@ import { Marked } from 'marked';
  *
  * Read at build time only (every blog route is static).
  *
- * A post dated in the future stays out of every listing, the feed, the sitemap and its own URL until a build on or
- * after that date (in BLOG_TIMEZONE, default America/Chicago). So posts can be written ahead and go live with the
- * first deploy on their day. BLOG_SHOW_SCHEDULED=1 includes them, for local previews.
+ * A post dated in the future stays out of every listing, the feed, the sitemap and its own URL until its date (in
+ * BLOG_TIMEZONE, default America/Chicago). The blog routes revalidate hourly, so posts can be written ahead and appear
+ * on their day without a deploy. BLOG_SHOW_SCHEDULED=1 includes them, for local previews; BLOG_TODAY=YYYY-MM-DD
+ * pretends it's another day, for testing.
  */
 
 export type PostMeta = { slug: string; title: string; date: string; updated?: string; description: string; author: string; tags: string[] };
@@ -109,7 +110,7 @@ function load(file: string): Post {
 }
 
 /** Today where the posts are published, as YYYY-MM-DD. */
-const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: process.env.BLOG_TIMEZONE || 'America/Chicago' }).format(new Date());
+const today = () => process.env.BLOG_TODAY || new Intl.DateTimeFormat('en-CA', { timeZone: process.env.BLOG_TIMEZONE || 'America/Chicago' }).format(new Date());
 const isLive = (p: PostMeta) => process.env.BLOG_SHOW_SCHEDULED === '1' || p.date <= today();
 
 /** Every published post (dated today or earlier), newest first. */

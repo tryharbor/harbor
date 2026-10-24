@@ -6,6 +6,9 @@ import { formatDate, getPosts } from '../../lib/blog';
 import './blog.css';
 import { pageMeta } from '../../lib/seo';
 
+// Rebuilt at most hourly, so a post written ahead appears on its date without a deploy (see lib/blog.ts).
+export const revalidate = 3600;
+
 export const metadata: Metadata = pageMeta('/blog', {
   title: 'Blog',
   description: 'Notes from building Harbor in public: the decisions behind it, how it works and what we got wrong.',

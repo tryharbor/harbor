@@ -7,7 +7,10 @@ import { formatDate, getPost, getPosts } from '../../../lib/blog';
 import '../blog.css';
 import { JsonLd, blogPosting, faqPage } from '../../../lib/jsonld';
 
-export const dynamicParams = false;
+// Rebuilt at most hourly, so a post written ahead appears on its date without a deploy (see lib/blog.ts).
+export const revalidate = 3600;
+// Posts that weren't live at build time (dated later) render on their day; anything else is a 404.
+export const dynamicParams = true;
 
 export function generateStaticParams() {
   return getPosts().map((p) => ({ slug: p.slug }));

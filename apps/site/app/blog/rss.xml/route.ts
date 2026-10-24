@@ -2,6 +2,8 @@ import { getPosts } from '../../../lib/blog';
 import { SITE } from '../../../lib/site';
 
 export const dynamic = 'force-static';
+// Rebuilt at most hourly, so a post written ahead appears on its date without a deploy (see lib/blog.ts).
+export const revalidate = 3600;
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 const cdata = (s: string) => `<![CDATA[${s.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`;

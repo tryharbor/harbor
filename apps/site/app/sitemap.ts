@@ -5,6 +5,8 @@ import { FEATURES, SITE } from '../lib/site';
 import { USE_CASES } from '../lib/use-cases';
 
 export const dynamic = 'force-static';
+// Rebuilt at most hourly, so a post written ahead appears on its date without a deploy (see lib/blog.ts).
+export const revalidate = 3600;
 
 /** Every public page. Product pages come from FEATURES; blog posts from content/blog. */
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -3,9 +3,9 @@
 export const SITE = {
   name: 'Harbor',
   url: 'https://useharbor.io',
-  tagline: 'The content strategist for builders',
+  tagline: 'Build it, sell it, see it pay',
   description:
-    'Harbor learns what works for each of your brands, plans the week, drafts it in your voice and waits for your OK.',
+    'Describe your business once. Harbor builds your website or app, writes your posts, and shows you the money coming in.',
   /** The code repo. Only the Terms page links it (the license); it isn't part of the positioning. */
   github: 'https://github.com/tryharbor/harbor',
   x: 'https://x.com/tryharbor',

@@ -50,7 +50,7 @@ export function Window({ title, children, className, style }: { title?: string; 
   );
 }
 
-export function CtaBand({ title = 'Plan next week in an afternoon.', lede = 'Get early access to Harbor Cloud. Nothing posts until you say so.' }: { title?: ReactNode; lede?: ReactNode }) {
+export function CtaBand({ title = 'Your business, up and running.', lede = 'Get early access. We’ll email you when your plan is ready.' }: { title?: ReactNode; lede?: ReactNode }) {
   return (
     <section className="section tight">
       <div className="container">
@@ -60,7 +60,7 @@ export function CtaBand({ title = 'Plan next week in an afternoon.', lede = 'Get
             <h2 className="h2" style={{ maxWidth: '18ch' }}>{title}</h2>
             <p className="lede" style={{ margin: 0 }}>{lede}</p>
             <div className="row">
-              <Link className="btn primary" href={SITE.start}>Get started</Link>
+              <Link className="btn primary" href={SITE.start}>Get early access</Link>
             </div>
           </div>
         </Reveal>

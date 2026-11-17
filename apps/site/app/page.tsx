@@ -1,165 +1,135 @@
 import Link from 'next/link';
-import { LoopTabs } from '../components/loop-tabs';
-import { PlatformIcon } from '../components/platform-icon';
-import { ApprovalsPreview } from '../components/previews/approvals';
+import type { Metadata } from 'next';
+import { BusinessPreview } from '../components/previews/business';
 import { Reveal } from '../components/reveal';
 import { CtaBand, SectionHead, Window } from '../components/ui';
-import { FEATURES, PLATFORMS, PLATFORM_NAME, SITE } from '../lib/site';
-import { PRICING } from '../lib/pricing';
 import { JsonLd, softwareApplication } from '../lib/jsonld';
-import type { Metadata } from 'next';
+import { PRICING } from '../lib/pricing';
 import { pageMeta } from '../lib/seo';
-
-const BRANDS = [
-  { name: 'Harbor', kind: 'SaaS', voice: 'Personal · data-led · candid', best: 'Tue 9am on X', median: '2.9K', change: '+22%' },
-  { name: 'Tidewater Coffee', kind: 'Small-batch roaster', voice: 'Warm · story-led · playful', best: 'Sun 7pm on Instagram', median: '3.2K', change: '+26%' },
-  { name: 'Fieldnotes', kind: 'Newsletter', voice: 'Calm · considered · polished', best: 'Wed 8am on LinkedIn', median: '1.4K', change: 'flat' },
-];
+import { SITE } from '../lib/site';
+import './home.css';
 
 export const metadata: Metadata = pageMeta('/', { description: SITE.description });
+
+/** Real businesses and the real thing Harbor makes for them (docs/marketing/copy-guide.md, rule 4). */
+const EXAMPLES = [
+  { what: 'A booking page for a dog groomer', kind: 'Website' },
+  { what: 'An order form for a coffee roaster', kind: 'Website' },
+  { what: 'A members area for a yoga coach', kind: 'App' },
+  { what: 'A client portal for a bookkeeper', kind: 'App' },
+  { what: 'A quote request page for a landscaper', kind: 'Website' },
+  { what: 'A course with paid sign-up for a baker', kind: 'App' },
+];
+
+const VERBS = [
+  { verb: 'Build.', color: 'pink', title: 'Your website, or the product itself.', body: 'Tell Harbor about your business and get a website that gets you booked. When the product is software, describe it in plain words and watch it come together.' },
+  { verb: 'Sell.', color: 'violet', title: 'Posts that sound like you.', body: 'Ask for this week’s posts and pick the ones you like. They already know your offer, your customers and your prices.' },
+  { verb: 'Get paid.', color: 'yellow', title: 'Money coming in, at a glance.', body: 'Take payments in your app and see what came in this month next to everything else. No spreadsheet.' },
+] as const;
+
+const FAQ = [
+  { q: 'Do I need to know how to code?', a: 'No. You describe what you want in plain words and see it working as you go. If you ever want the code, it’s yours.' },
+  { q: 'Website or app: which do I need?', a: 'If you sell a service or a few products, start with a website: it’s ready in minutes. If the product is software, or you need accounts, members or your own features, build an app. You can do both.' },
+  { q: 'Does Harbor post for me?', a: 'Harbor writes the posts and you choose. Nothing goes out until you’ve picked it.' },
+  { q: 'Which AI does it use?', a: 'Your pick of Claude, ChatGPT or Gemini. Use Harbor’s, or bring your own account.' },
+];
 
 export default function Home() {
   return (
     <>
       <JsonLd data={softwareApplication} />
+
       {/* Hero */}
       <section className="section hero" style={{ paddingBottom: 0 }}>
         <div className="container stack" style={{ gap: 28 }}>
-          <Reveal><span className="eyebrow"><span className="pixels" />For builders with more than one brand</span></Reveal>
-          <Reveal delay={60}><h1 className="display" style={{ maxWidth: '12ch' }}>The content strategist for builders.</h1></Reveal>
+          <Reveal><span className="eyebrow"><span className="pixels" />For people starting something</span></Reveal>
+          <Reveal delay={60}><h1 className="display" style={{ maxWidth: '11ch' }}>Build it. Sell it. See it pay.</h1></Reveal>
           <Reveal delay={120}>
             <p className="lede" style={{ margin: 0, maxWidth: '50ch' }}>
-              Harbor remembers how each of your brands sounds, plans the week from what actually worked, drafts it for every platform and waits for your OK.
+              Describe your business once. Harbor builds your website or app, writes your posts, and shows you the money coming in.
             </p>
           </Reveal>
           <Reveal delay={180}>
             <div className="row">
-              <Link className="btn primary" href={SITE.start}>Get started</Link>
-              <Link className="btn" href="/product">See how it works</Link>
+              <Link className="btn primary" href={SITE.start}>Get early access</Link>
+              <Link className="btn" href="/pricing">See pricing</Link>
             </div>
           </Reveal>
         </div>
         <div className="container" style={{ marginTop: 'clamp(48px, 7vw, 88px)' }}>
           <Reveal delay={240}>
             <div className="hero-stage gridlines">
-              <Window title="Approvals · 3 waiting" className="hero-window"><ApprovalsPreview /></Window>
-              <div className="float-chip c-pink" style={{ top: '14%', left: '2%' }}><span className="swatch" />Voice: personal, data-led</div>
-              <div className="float-chip c-violet" style={{ top: '46%', right: '1%', animationDelay: '-2s' }}><span className="swatch" />Best slot: Tue 9am</div>
-              <div className="float-chip c-yellow" style={{ bottom: '12%', left: '4%', animationDelay: '-4s' }}><span className="swatch" />↑ 2.4× your median</div>
+              <Window title="Tidewater Coffee" className="hero-window"><BusinessPreview /></Window>
             </div>
           </Reveal>
         </div>
       </section>
 
-      {/* Platforms */}
-      <section className="section tight" style={{ paddingTop: 'clamp(40px, 6vw, 72px)' }}>
-        <div className="container stack" style={{ gap: 20 }}>
-          <span className="label" style={{ textAlign: 'center' }}>Publishes directly to · no middleman</span>
-          <div className="marquee" aria-label="X, LinkedIn, Instagram and Threads">
-            <div className="marquee-track">
-              {[0, 1, 2, 3].flatMap((r) => PLATFORMS.map((p) => (
-                <span key={`${r}${p}`} className="row" style={{ gap: 12, fontSize: 28, letterSpacing: '-0.03em', color: 'var(--muted)' }} aria-hidden={r > 0}>
-                  <PlatformIcon platform={p} size={26} />{PLATFORM_NAME[p]}
-                </span>
-              )))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Facts */}
-      <section className="container">
-        <Reveal>
-          <div className="stats">
-            <div><strong>5</strong><span className="label">checkpoints per post · 1h 6h 24h 3d 7d</span></div>
-            <div><strong>4</strong><span className="label">platforms, published direct</span></div>
-            <div><strong>0</strong><span className="label">posts sent without your OK</span></div>
-            <div><strong>1</strong><span className="label">approvals inbox for every brand</span></div>
-          </div>
-        </Reveal>
-      </section>
-
-      {/* The loop */}
+      {/* Examples */}
       <section className="section">
-        <div className="container stack" style={{ gap: 48 }}>
-          <SectionHead
-            eyebrow="How it works"
-            title="Not a scheduler. A strategist that learns."
-            lede="Most social tools stop once the post is out. Harbor starts there: every result feeds the next plan, for each brand you run."
-          />
-          <LoopTabs />
-        </div>
-      </section>
-
-      {/* Multi-brand */}
-      <section className="section rule">
-        <div className="container stack" style={{ gap: 48 }}>
-          <SectionHead
-            eyebrow="Built for more than one brand"
-            title="Every brand sounds like itself."
-            lede="A product, a side project, your own name. Each brand has its own voice, best times and baseline, so a win on one never skews the other."
-          />
-          <div className="cards">
-            {BRANDS.map((b, i) => (
-              <Reveal key={b.name} delay={i * 80} className="card brand-card">
-                <div className="row" style={{ justifyContent: 'space-between' }}>
-                  <strong style={{ fontWeight: 500, fontSize: 20, letterSpacing: '-0.02em' }}>{b.name}</strong>
-                  <span className="tag">{b.kind}</span>
-                </div>
-                <dl className="kv">
-                  <div><dt className="label">Voice</dt><dd>{b.voice}</dd></div>
-                  <div><dt className="label">Best time</dt><dd>{b.best}</dd></div>
-                  <div><dt className="label">Median at 24h</dt><dd><span className="mono">{b.median}</span> <span className="dim small">{b.change} vs last week</span></dd></div>
-                </dl>
+        <div className="container stack" style={{ gap: 40 }}>
+          <SectionHead eyebrow="What people make" title="Whatever your business runs on." lede="A page that gets you booked, or the app your customers sign in to. Here’s the kind of thing Harbor builds." />
+          <div className="examples">
+            {EXAMPLES.map((e, i) => (
+              <Reveal key={e.what} delay={i * 50} className="example">
+                <span className="tag">{e.kind}</span>
+                <strong>{e.what}</strong>
               </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features */}
+      {/* Build, sell, get paid */}
       <section className="section rule">
         <div className="container stack" style={{ gap: 48 }}>
-          <SectionHead eyebrow="The platform" title="Five pieces, one loop." />
+          <SectionHead eyebrow="One place" title="Everything after the idea." lede="Most tools stop when your site goes live. That’s where the work starts: finding customers and getting paid. Harbor does all three." />
           <div className="cards">
-            {FEATURES.map((f, i) => (
-              <Reveal key={f.slug} delay={i * 60}>
-                <Link href={f.href} className={`card feature-card c-${f.color}`} style={{ height: '100%' }}>
-                  <span className="mono small ink-c">{String(i + 1).padStart(2, '0')}</span>
-                  <strong style={{ fontWeight: 500, fontSize: 22, letterSpacing: '-0.02em' }}>{f.name}</strong>
-                  <span className="muted">{f.short}</span>
-                  <span className="link-arrow" style={{ marginTop: 'auto' }}>Learn more →</span>
-                </Link>
+            {VERBS.map((v, i) => (
+              <Reveal key={v.verb} delay={i * 80} className={`card verb-card c-${v.color}`}>
+                <span className="verb ink-c">{v.verb}</span>
+                <strong style={{ fontWeight: 500, fontSize: 20, letterSpacing: '-0.02em' }}>{v.title}</strong>
+                <span className="muted">{v.body}</span>
               </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Developers */}
+      {/* Website or app */}
+      <section className="section rule">
+        <div className="container stack" style={{ gap: 40 }}>
+          <SectionHead eyebrow="Website or app" title="Start with what you need today." />
+          <Reveal>
+            <div className="choose">
+              <div>
+                <span className="label">Website</span>
+                <span className="line">Get online and get booked.</span>
+                <span className="muted">For service businesses and small shops. Pick from three designs, change any word, and you’re live, with a contact form that sends you every enquiry.</span>
+              </div>
+              <div>
+                <span className="label">App</span>
+                <span className="line">Build the product itself.</span>
+                <span className="muted">For when the product is software. Customer accounts, payments and your own features, built from your description and yours to keep.</span>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* What it replaces */}
       <section className="section rule">
         <div className="container split">
-          <SectionHead
-            eyebrow="For agents, too"
-            title="Let Claude work in Harbor."
-            lede="Harbor ships an MCP server. Any agent can read Brand Memory, check best times, draft and propose posts. Proposals land in Approvals like everything else."
-          />
+          <SectionHead eyebrow="Fewer tools" title="One place instead of five." lede="A new business usually means a website builder, someone to build the app, a social scheduler, an AI writer and a spreadsheet for the money. And you typing the same details into each." />
           <Reveal delay={120}>
-            <div className="terminal">
-              <div className="window-bar" style={{ background: 'var(--raised)', color: 'var(--dim)', borderColor: 'var(--line)' }}><i /><i /><i /><span className="grow">terminal</span><span style={{ width: 39 }} /></div>
-              <pre>{`$ claude mcp add --transport http harbor \\
-    https://your-harbor/mcp \\
-    --header "Authorization: Bearer hbr_…"
-
-> Plan next week for Tidewater Coffee
-
-  ✓ get_brand_memory   Tidewater Coffee
-  ✓ best_times         Sun 7pm, Tue 9am, Thu 1pm
-  ✓ suggest_ideas      3 ideas from last week's winners
-  ✓ draft_idea         Instagram, Threads
-  ✓ propose_post       3 posts → waiting in Approvals`}</pre>
+            <div className="replaces">
+              <span>Website builder</span>
+              <span>App developer</span>
+              <span>Social scheduler</span>
+              <span>AI writer</span>
+              <span>Money spreadsheet</span>
+              <span className="into">Harbor</span>
             </div>
-            <div className="row" style={{ marginTop: 16 }}><Link className="link-arrow" href="/developers">MCP tools and API →</Link></div>
           </Reveal>
         </div>
       </section>
@@ -167,7 +137,7 @@ export default function Home() {
       {/* Pricing teaser */}
       <section className="section rule">
         <div className="container stack" style={{ gap: 40 }}>
-          <SectionHead eyebrow="Pricing" title="One price for the whole business." lede="Harbor is opening soon at early pricing." />
+          <SectionHead eyebrow="Pricing" title="One price for the whole business." lede="Opening soon at early pricing." />
           <div className="cards">
             {PRICING.map((p, i) => (
               <Reveal key={p.name} delay={i * 60} className="card">
@@ -181,7 +151,24 @@ export default function Home() {
         </div>
       </section>
 
-      <CtaBand />
+      {/* FAQ */}
+      <section className="section rule">
+        <div className="container split" style={{ alignItems: 'start' }}>
+          <SectionHead eyebrow="Questions" title="The short answers." />
+          <Reveal delay={100}>
+            <div className="home-faq">
+              {FAQ.map((f) => (
+                <details key={f.q} name="home-faq">
+                  <summary>{f.q}</summary>
+                  <p>{f.a}</p>
+                </details>
+              ))}
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <CtaBand title="Your business, up and running." lede="Get early access. We’ll email you when your plan is ready." />
     </>
   );
 }

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { Reveal } from '../../../components/reveal';
 import { CtaBand } from '../../../components/ui';
 import { formatDate } from '../../../lib/blog';
-import { KIND_LABEL, TRADES, getGuide, getGuides } from '../../../lib/guides';
+import { KIND_LABEL, TRADES, TRADE_CTA, getGuide, getGuides } from '../../../lib/guides';
 import { JsonLd, breadcrumbs, faqPage } from '../../../lib/jsonld';
 import { SITE } from '../../../lib/site';
 import '../../blog/blog.css';
@@ -77,7 +77,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
         </section>
       ) : null}
 
-      <CtaBand title="Get your cleaning business online." lede="Describe your business and Harbor builds the website, writes your first posts, and shows you the money coming in." />
+      <CtaBand title={TRADE_CTA[g.trade] ?? TRADE_CTA.general} lede="Describe your business and Harbor builds the website, writes your first posts, and shows you the money coming in." />
     </>
   );
 }

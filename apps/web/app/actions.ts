@@ -304,14 +304,15 @@ export async function removeModelKey(form: FormData) {
 
 // ---- Build: Website mode ----
 
-const buildBack = (form: FormData) => `/build?brand=${encodeURIComponent(text(form, 'brandId'))}`;
+/** Back to the website page, on the panel tab the form came from. */
+const buildBack = (form: FormData) => `/build/site?brand=${encodeURIComponent(text(form, 'brandId'))}&tab=${encodeURIComponent(text(form, 'tab') || 'design')}`;
 
 export async function createWebsite(form: FormData) {
   const back = buildBack(form);
   try {
     await api(`/v1/brands/${text(form, 'brandId')}/site`, { method: 'POST', body: JSON.stringify({ direction: text(form, 'direction') || 'bold' }) });
   } catch (err) {
-    go(back, { error: message(err, 'Could not write the website.') });
+    go(`/build?brand=${encodeURIComponent(text(form, 'brandId'))}`, { error: message(err, 'Could not write the website.') });
   }
   go(back, { notice: 'Your website is ready to look over. Pick a direction, edit anything, then publish.' });
 }
@@ -377,7 +378,7 @@ export async function siteAction(form: FormData) {
   } catch (err) {
     go(back, { error: message(err, 'That didn’t work.') });
   }
-  go(back, { notice: notices[what]! });
+  go(what === 'delete' ? `/build?brand=${encodeURIComponent(text(form, 'brandId'))}` : back, { notice: notices[what]! });
 }
 
 // ---- Build: Full app ----
@@ -388,7 +389,7 @@ export async function createProject(form: FormData) {
   try {
     id = (await api<{ id: string }>(`/v1/brands/${brandId}/projects`, { method: 'POST', body: JSON.stringify({ name: text(form, 'name') }) })).id;
   } catch (err) {
-    go(`/build?brand=${brandId}&mode=app`, { error: message(err, 'Could not create the app.') });
+    go(`/build?brand=${brandId}`, { error: message(err, 'Could not create the app.') });
   }
   go(`/build/apps/${id}`, { notice: 'Your app is set up with the starter. Tell Harbor what to build first.' });
 }
@@ -441,7 +442,7 @@ export async function deleteProject(form: FormData) {
   } catch (err) {
     go(`/build/apps/${text(form, 'projectId')}`, { error: message(err, 'Could not delete the app.') });
   }
-  go(`/build?brand=${brandId}&mode=app`, { notice: 'App deleted.' });
+  go(`/build?brand=${brandId}`, { notice: 'App deleted.' });
 }
 
 // ---- Money ----

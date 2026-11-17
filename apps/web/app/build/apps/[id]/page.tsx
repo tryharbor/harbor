@@ -84,7 +84,7 @@ export default async function AppProject({ params, searchParams }: { params: Pro
       <AutoRefresh active={running} />
       <aside className="ide-chat">
         <header className="ide-head">
-          <Link href={`/build?brand=${project.brandId}&mode=app`} className="ide-back" aria-label="Back to apps">←</Link>
+          <Link href={`/build?brand=${project.brandId}`} className="ide-back" aria-label="Back to apps">←</Link>
           <strong className="ide-name">{project.name}</strong>
           <details className="ide-menu">
             <summary aria-label="App settings">⋯</summary>

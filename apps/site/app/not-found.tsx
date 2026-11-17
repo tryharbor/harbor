@@ -12,7 +12,7 @@ const LINKS = [
   { href: '/', label: 'Home', note: 'What Harbor is' },
   { href: '/product', label: 'Product', note: 'How the pieces fit' },
   { href: '/developers', label: 'Developers', note: 'MCP server and API' },
-  { href: '/pricing', label: 'Pricing', note: 'Plans per brand' },
+  { href: '/pricing', label: 'Pricing', note: 'Plans per business' },
   { href: '/blog', label: 'Blog', note: 'Notes from the build' },
 ];
 

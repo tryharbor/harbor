@@ -36,7 +36,7 @@ export const website = {
   inLanguage: 'en',
 };
 
-/** The product: Harbor Cloud, priced per brand. */
+/** The product: Harbor, priced per business. */
 export const softwareApplication = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -63,7 +63,7 @@ export const softwareApplication = {
     name: p.name,
     price: p.price.replace('$', ''),
     priceCurrency: 'USD',
-    description: p.brands,
+    description: `${p.summary} ${p.limit}`,
     url: `${SITE.url}/pricing`,
     ...(p.per ? { priceSpecification: { '@type': 'UnitPriceSpecification', price: p.price.replace('$', ''), priceCurrency: 'USD', unitCode: 'MON', referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: 'MON' } } } : {}),
   })),

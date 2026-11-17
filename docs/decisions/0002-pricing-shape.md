@@ -2,6 +2,11 @@
 
 Date: 2026-10-15. Status: accepted (prices themselves still to be tested with design partners).
 
+**Update 2026-11-17:** with the startup-OS pivot the unit is the **business**, not the brand, and the free path is no
+longer self-hosting (open source is out of the positioning). Same prices and counts: Starter $19 (2 businesses),
+Builder $49 (6), Agency $149 (25). Plans add a monthly app-build allowance ($5, $25, $75 at list price; an owner's own
+AI key doesn't count against it). Stripe products: docs/setup/stripe-plans.md.
+
 ## Decision
 
 - Harbor follows the Sanity / Postiz shape, not Jasper's: start free, cheap self-serve plans, no sales call.

@@ -17,7 +17,7 @@ export function llmsTxt(): string {
 Harbor is software for builders who run more than one brand: a product, a side project, their own name or clients. It is a content strategist, not just a scheduler: it keeps a memory per brand, plans each week from what actually performed, drafts posts for each platform, publishes directly to X, LinkedIn, Instagram and Threads, and measures every post against the brand's own median. AI agents in Harbor propose posts; a person approves every post before it is published.
 
 Key facts:
-- Harbor Cloud (opening soon, early pricing): ${PRICING.map((p) => `${p.name} ${p.price}${p.per} (${p.brands.replace(/\.$/, '').replace(/^./, (c) => c.toLowerCase())})`).join('; ')}. Priced per brand, not per seat.
+- Harbor (opening soon, early pricing): ${PRICING.map((p) => `${p.name} ${p.price}${p.per} (${p.limit.replace(/\.$/, '').replace(/^./, (c: string) => c.toLowerCase())})`).join('; ')}. Priced per business, not per seat; plans include monthly app builds, and your own AI key works on any plan.
 - Platforms: X, LinkedIn, Instagram and Threads, published directly through each platform's own API.
 - Measurement: each post is measured at 1 hour, 6 hours, 24 hours, 3 days and 7 days, and compared with the brand's median for the same platform at the same age. 1.3x or more is "outperformed", under 0.7x "underperformed", fewer than 3 comparable posts "inconclusive".
 - Agents: weekly plan, repurpose a winner, voice check, weekly digest and voice refresh. Automations run them on a schedule or when a post outperforms. Agents never publish on their own.

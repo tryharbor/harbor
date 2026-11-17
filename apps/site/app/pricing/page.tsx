@@ -10,15 +10,16 @@ import { JsonLd, faqPage } from '../../lib/jsonld';
 
 /** The FAQ below as plain text, for structured data. Keep in step with the visible answers. */
 const FAQ_LD = [
-  { q: 'What counts as a brand?', a: 'A brand is one thing you post for: your product, a side project, your own name, a client. Each brand has its own Brand Memory, connected accounts and baseline. One brand can post to all four platforms.' },
-  { q: 'Do I need my own platform developer apps?', a: 'No. Harbor Cloud connects through Harbor’s own apps: you click Connect and sign in to each platform.' },
-  { q: 'What does X cost?', a: 'X’s API is pay-per-use: about $0.015 per post, about $0.20 for a post with a link, and $0.005 per metrics read. Harbor reads each post 5 times, so a post costs about 4 cents to publish and track, or about 22 cents with a link. LinkedIn, Instagram and Threads don’t charge for API use.' },
-  { q: 'Will Harbor ever post without asking?', a: 'No. Agents, automations and MCP clients can draft and propose, and every proposal waits in Approvals until a person approves it.' },
+  { q: 'What counts as a business?', a: 'A business is one thing you run: your shop, your coaching practice, your app, or a client’s business. Each one has its own Business Memory, website, apps, marketing and money, so nothing mixes between them.' },
+  { q: 'What are app builds?', a: 'When you ask Harbor to build or change an app, an AI writes the code. Each plan includes a monthly amount of that AI time at the provider’s list price. A small change costs cents and most first apps cost under a dollar. Every build stops at a cap you set, $5 by default.' },
+  { q: 'Can I use my own AI key?', a: 'Yes. Pick Anthropic (Claude), OpenAI or Google (Gemini) on any plan. With your own key, the provider bills you directly and builds don’t use your plan’s allowance.' },
+  { q: 'Do I need to know how to code?', a: 'No. You describe what you want in plain words and see it working in a live preview. The code is still real and yours, with every version kept.' },
+  { q: 'Will Harbor ever post without asking?', a: 'No. The assistant and agents draft and propose, and every post waits in Approvals until a person approves it.' },
 ];
 
 export const metadata: Metadata = pageMeta('/pricing', {
   title: 'Pricing',
-  description: 'Harbor Cloud is priced per brand: Starter $19 for 2 brands, Builder $49 for 6, Agency $149 for 25. Early pricing.',
+  description: 'One price for your website, apps, marketing and money. Starter $19 for 2 businesses, Builder $49 for 6, Agency $149 for 25. Early pricing.',
   alternates: { canonical: '/pricing' },
 });
 
@@ -26,37 +27,47 @@ type Cell = string | boolean;
 const COLUMNS = ['Starter', 'Builder', 'Agency'] as const;
 const ROWS: { group: string; rows: { label: string; cells: [Cell, Cell, Cell]; note?: string }[] }[] = [
   {
-    group: 'Brands and platforms',
+    group: 'Your businesses',
     rows: [
-      { label: 'Brands', cells: ['2', '6', '25'] },
-      { label: 'X, LinkedIn, Instagram, Threads', cells: [true, true, true] },
-      { label: 'Brand Memory per brand', cells: [true, true, true] },
-      { label: 'Media library and platform crops', cells: [true, true, true] },
+      { label: 'Businesses', cells: ['2', '6', '25'] },
+      { label: 'Business Memory: offer, customers, pricing, brand', cells: [true, true, true] },
+      { label: 'Branding: colours, fonts, style', cells: [true, true, true] },
     ],
   },
   {
-    group: 'Agents',
+    group: 'Build',
     rows: [
-      { label: 'Weekly plan, digest, voice refresh', cells: [true, true, true] },
-      { label: 'Approvals inbox', cells: [true, true, true] },
+      { label: 'Website: three designs, written for you, hosted', cells: [true, true, true] },
+      { label: 'Contact form and customer messages', cells: [true, true, true] },
+      { label: 'Full apps: sign-in, database, payments', cells: ['Try it', true, true] },
+      { label: 'App builds each month', cells: ['$5', '$25', '$75'], note: 'AI build time at the provider’s list price. Most first apps cost under $1. With your own AI key, builds don’t count.' },
+      { label: 'Live preview and every version kept', cells: [true, true, true] },
+    ],
+  },
+  {
+    group: 'Market',
+    rows: [
+      { label: 'AI assistant with post options to pick from', cells: [true, true, true] },
+      { label: 'X, LinkedIn, Instagram, Threads', cells: [true, true, true] },
+      { label: 'Approvals inbox: nothing posts without you', cells: [true, true, true] },
       { label: 'Automations', cells: [false, true, true] },
-      { label: 'MCP server and API keys', cells: [false, true, true] },
-      { label: 'AI and metrics limits', cells: ['Standard', 'Higher', 'Higher'], note: 'Plans have monthly limits on AI runs, X reads and snapshot retention.' },
+    ],
+  },
+  {
+    group: 'Money',
+    rows: [
+      { label: 'Revenue from Stripe, plus what you add by hand', cells: [true, true, true] },
+      { label: 'Every business side by side', cells: [false, false, true] },
     ],
   },
   {
     group: 'Included',
     rows: [
+      { label: 'Pick Anthropic, OpenAI or Google', cells: [true, true, true] },
+      { label: 'Use your own AI key', cells: [true, true, true] },
+      { label: 'API access for your own tools and agents', cells: [false, true, true] },
       { label: 'Hosting and backups', cells: [true, true, true] },
-      { label: 'Connect accounts in a click', cells: [true, true, true] },
-      { label: 'X API costs', cells: ['Within limits', 'Within limits', 'Within limits'] },
-      { label: 'Cross-brand reporting', cells: [true, true, true] },
       { label: 'Client review links', cells: [false, false, 'Coming'] },
-    ],
-  },
-  {
-    group: 'Support',
-    rows: [
       { label: 'Support', cells: ['Email', 'Priority email', 'Priority email'] },
     ],
   },
@@ -81,8 +92,8 @@ export default function PricingPage() {
       <JsonLd data={faqPage(FAQ_LD)} />
       <PageHero
         eyebrow="Pricing"
-        title="Priced per brand, not per seat."
-        lede="Early pricing. Harbor Cloud is opening soon."
+        title="One price for the whole business."
+        lede="Your website, your app, your marketing and your money, in one place. Early pricing: Harbor is opening soon."
       />
 
       {/* Plans */}
@@ -95,10 +106,10 @@ export default function PricingPage() {
               <Reveal key={p.name} delay={i * 70} className={`pr-plan${featured ? ' featured' : ''}`}>
                 <div className="row" style={{ justifyContent: 'space-between' }}>
                   <span className="label">{p.name}</span>
-                  {featured ? <span className="tag pr-tag"><span className="pixels" style={{ width: 15, height: 4 }} aria-hidden="true" />Recommended</span> : <span className="tag">Cloud · soon</span>}
+                  {featured ? <span className="tag pr-tag"><span className="pixels" style={{ width: 15, height: 4 }} aria-hidden="true" />Recommended</span> : <span className="tag">Opening soon</span>}
                 </div>
                 <strong className="pr-price">{p.price}<span>{p.per}</span></strong>
-                <p className="muted" style={{ margin: 0 }}>{p.brands}</p>
+                <p style={{ margin: 0 }}><strong>{p.summary}</strong> <span className="muted">{p.limit}</span></p>
                 {external
                   ? <a className={`btn${featured ? ' primary' : ''}`} href={p.href}>{p.cta}</a>
                   : <Link className={`btn${featured ? ' primary' : ''}`} href={p.href}>{p.cta}</Link>}
@@ -111,7 +122,7 @@ export default function PricingPage() {
         </div>
         <Reveal delay={200}>
           <p className="dim small pr-note">
-            Cloud prices are early and may change before Cloud opens. Early access means we’ll email you when your plan is ready; nothing is charged until then.
+            Prices are early and may change before Harbor opens. Early access means we’ll email you when your plan is ready; nothing is charged until then.
           </p>
         </Reveal>
       </section>
@@ -119,7 +130,7 @@ export default function PricingPage() {
       {/* Comparison */}
       <section className="section">
         <div className="container stack" style={{ gap: 40 }}>
-          <SectionHead eyebrow="Compare" title="What each plan includes." lede="The same Harbor on every plan. Plans differ in how many brands they hold and how much the agents can do each month." />
+          <SectionHead eyebrow="Compare" title="What each plan includes." lede="The same Harbor on every plan. Plans differ in how many businesses they hold and how much building the AI does each month." />
           <Reveal>
             <div className="pr-table-wrap" role="region" aria-label="Plan comparison" tabIndex={0}>
               <table className="pr-table">
@@ -143,19 +154,19 @@ export default function PricingPage() {
               </table>
             </div>
           </Reveal>
-          <p className="dim small" style={{ margin: 0 }}>Cloud columns describe what we plan to offer when Cloud opens.</p>
+          <p className="dim small" style={{ margin: 0 }}>Columns describe what each plan includes when Harbor opens.</p>
         </div>
       </section>
 
-      {/* Why per brand */}
+      {/* Why one place */}
       <section className="section rule">
         <div className="container stack" style={{ gap: 48 }}>
-          <SectionHead eyebrow="Why per brand" title="You count brands, not seats." lede="A solo founder with a product, a side project and a personal account is one person with three brands. Harbor’s price follows the thing that actually grows." />
+          <SectionHead eyebrow="Why one place" title="Stop juggling five tools." lede="A new business usually means a website builder, a social scheduler, a spreadsheet for money and a developer for anything custom. Harbor is one place, and every part already knows your business." />
           <div className="cards">
             {[
-              { n: '01', t: 'Brands are the unit builders think in', d: 'Seats don’t matter when you work alone. The number of things you post for does. Each brand in Harbor has its own Brand Memory, baseline and best times, so that’s what a plan counts.' },
-              { n: '02', t: 'No sales call', d: 'Pick a cheap self-serve plan and start. Tools priced per seat for marketing departments are built for a different buyer.' },
-              { n: '03', t: 'Why there’s no free tier yet', d: 'Every active user costs real money: model tokens for agents and drafts, X’s pay-per-read API, storage for metric snapshots. For now, a free tier would come out of pocket.' },
+              { n: '01', t: 'Priced per business, not per seat', d: 'Most founders work alone or with one or two people. What grows is the number of things you run, so that’s what a plan counts.' },
+              { n: '02', t: 'Start from what you already told it', d: 'Describe the business once. The website, the app, the posts and the money view all start from it, so you never fill in the same details twice.' },
+              { n: '03', t: 'Why there’s no free plan yet', d: 'Every business on Harbor costs real money to run: AI to write and build, hosting for sites and apps, platform fees. For now, a free plan would come out of pocket.' },
             ].map((c, i) => (
               <Reveal key={c.n} delay={i * 80} className="card">
                 <span className="mono small" style={{ color: 'var(--pink)' }}>{c.n}</span>
@@ -174,16 +185,28 @@ export default function PricingPage() {
           <Reveal delay={100}>
             <div className="pr-faq">
               <details name="pricing-faq" open>
-                <summary>What counts as a brand?</summary>
+                <summary>What counts as a business?</summary>
                 <div>
-                  <p>A brand is one thing you post for: your product, a side project, your own name, a client. In Harbor each brand has its own Brand Memory (voice, audiences, offers, knowledge), its own connected accounts and its own baseline, so one brand’s results never skew another’s.</p>
-                  <p>One brand can post to all four platforms. Your product’s X and LinkedIn accounts are one brand, not two.</p>
+                  <p>A business is one thing you run: your shop, your coaching practice, your app, or a client’s business. Each one has its own Business Memory, website, apps, marketing and money, so nothing mixes between them.</p>
                 </div>
               </details>
               <details name="pricing-faq">
-                <summary>Do I need my own platform developer apps?</summary>
+                <summary>What are app builds?</summary>
                 <div>
-                  <p><strong>No.</strong> Harbor Cloud connects through Harbor’s own apps, so you click Connect and sign in to each platform. Nothing to register, no developer console.</p>
+                  <p>When you ask Harbor to build or change an app, an AI writes the code. Each plan includes a monthly amount of that AI time, counted at the provider’s list price. A small change costs cents; most first apps cost under a dollar.</p>
+                  <p>Every build stops at a cap you set ($5 by default), so nothing runs away. Websites don’t use builds.</p>
+                </div>
+              </details>
+              <details name="pricing-faq">
+                <summary>Can I use my own AI key?</summary>
+                <div>
+                  <p><strong>Yes.</strong> Pick Anthropic (Claude), OpenAI or Google (Gemini) on any plan. With your own key, the provider bills you directly and builds don’t use your plan’s allowance.</p>
+                </div>
+              </details>
+              <details name="pricing-faq">
+                <summary>Do I need to know how to code?</summary>
+                <div>
+                  <p>No. You describe what you want in plain words and see it working in a live preview. The code is still real and yours, with every version kept, so you can go back to any earlier one.</p>
                 </div>
               </details>
               <details name="pricing-faq">
@@ -193,14 +216,13 @@ export default function PricingPage() {
                   <dl className="pr-costs">
                     {XCOST.map((c) => <div key={c.what}><dt>{c.what}</dt><dd className="mono">{c.cost}</dd></div>)}
                   </dl>
-                  <p>So a post without a link costs about four cents all in, and one with a link about 22 cents. Reading replies and importing past posts are billed reads too, so they’re off by default. X’s pricing changes, so treat these as rough.</p>
-                  <p>X usage is covered up to your plan’s limits. LinkedIn, Instagram and Threads don’t charge for API use.</p>
+                  <p>So a post without a link costs about four cents all in, and one with a link about 22 cents. X usage is covered up to your plan’s limits. LinkedIn, Instagram and Threads don’t charge for API use.</p>
                 </div>
               </details>
               <details name="pricing-faq">
                 <summary>Will Harbor ever post without asking?</summary>
                 <div>
-                  <p>No. Agents, automations and MCP clients can draft and propose, and every proposal waits in Approvals until a person approves it. That’s the same on every plan. <Link href="/blog/how-harbors-approvals-inbox-works">How the approvals inbox works</Link>.</p>
+                  <p>No. The assistant and agents draft and propose, and every post waits in Approvals until a person approves it. That’s the same on every plan. <Link href="/blog/how-harbors-approvals-inbox-works">How the approvals inbox works</Link>.</p>
                 </div>
               </details>
             </div>

@@ -167,13 +167,13 @@ export default function Home() {
       {/* Pricing teaser */}
       <section className="section rule">
         <div className="container stack" style={{ gap: 40 }}>
-          <SectionHead eyebrow="Pricing" title="Priced per brand, not per seat." lede="Harbor Cloud is opening soon at early pricing." />
+          <SectionHead eyebrow="Pricing" title="One price for the whole business." lede="Harbor is opening soon at early pricing." />
           <div className="cards">
             {PRICING.map((p, i) => (
               <Reveal key={p.name} delay={i * 60} className="card">
                 <span className="label">{p.name}</span>
                 <strong style={{ fontSize: 40, fontWeight: 400, letterSpacing: '-0.04em' }}>{p.price}<span className="small dim" style={{ letterSpacing: 0 }}>{p.per}</span></strong>
-                <span className="muted small">{p.brands}</span>
+                <span className="muted small">{p.summary} {p.limit}</span>
               </Reveal>
             ))}
           </div>

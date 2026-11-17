@@ -8,7 +8,8 @@
     "dev": "next dev --port 4802",
     "build": "next build",
     "start": "next start --port 4802",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "indexnow": "node scripts/indexnow.mjs"
   },
   "dependencies": {
     "marked": "18.0.14",

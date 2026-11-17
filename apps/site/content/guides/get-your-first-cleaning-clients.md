@@ -1,7 +1,7 @@
 ---
 title: How to get your first 10 cleaning clients
 description: A four-week plan for a new house cleaning business, from telling the people you know to showing up on Google, with messages you can copy.
-answer: Start with people who already trust you, ask every happy client for a referral and a review, and set up a free Google Business Profile in week one. Add door hangers or yard signs in the streets you want to work, and a small Nextdoor ad (under $5 a day). Spend your effort on referrals and local search before spending money on ads.
+answer: Start with people who already trust you, ask every client for a referral and a review, and set up a free Google Business Profile in week one. Add door hangers or yard signs in the streets you want to work, and a small Nextdoor ad (under $5 a day). Spend your effort on referrals and local search before spending money on ads.
 trade: cleaning
 kind: customers
 published: 2026-11-17
@@ -25,7 +25,7 @@ This is free, and it's how most people searching "cleaners near me" will find yo
 - **Hide your home address.** Google lets service businesses that visit customers remove their address and show the area they serve instead.
 - **List your service areas.** You can list up to 20, and Google asks you to keep them within about two hours' drive of where you're based.
 - **Add photos of your work and a clear list of services:** standard clean, deep clean, move-out clean.
-- **Ask for reviews.** Ask every happy client to leave one; your first five reviews matter more than anything else on the page.
+- **Ask for reviews.** Ask every client to leave one, with a direct link or a QR code. Google doesn't allow discounts or gifts in exchange for reviews, so keep reviews and offers separate.
 
 ## Week 2: be seen on the streets you want
 
@@ -52,6 +52,11 @@ The goal isn't ten one-off cleans; it's ten clients who book you every week or t
 - **Real estate agents and property managers** often need move-out cleans at short notice. Introduce yourself with your prices and availability.
 - **Local Facebook groups:** many neighborhoods have one. Read the rules first; some only allow business posts on certain days.
 
+## Google's rules worth knowing
+
+- **Use your real business name** on your Google Business Profile. Google doesn't allow extra service words in the name ("Sparkle Cleaning Services Best Maids Austin"), and profiles that add them can be suspended.
+- **Ask for reviews, never pay for them.** Google encourages asking customers to leave a review through a link or QR code, but offering discounts, gifts or free services in exchange for reviews is strictly prohibited. Keep your first-visit offers and your review requests separate.
+
 ## FAQ
 
 ### Do I need a website to get my first clients?
@@ -73,3 +78,6 @@ Work it out from your schedule. For example, two cleans a day, five days a week,
 - Advertise with Nextdoor Ads ("for less than $5/day"). business.nextdoor.com.
 - Yard signs and business cards, Vistaprint. vistaprint.com, prices seen November 17, 2026.
 - How to get cleaning clients (start with people you know, door hangers, rank on Google early), Quo. quo.com, undated.
+- Guidelines for representing your business (business name), Google Business Profile Help. support.google.com.
+- Tips to get more reviews, Google Business Profile Help. support.google.com.
+- Incentivized or biased reviews, Google Maps contribution policy. support.google.com.

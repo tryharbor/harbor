@@ -10,6 +10,9 @@ updated: 2026-11-17
 
 Starting a cleaning business is one of the cheapest ways to work for yourself: no premises, little equipment, and customers in every neighborhood. Here are the steps in order, with what each one costs.
 
+
+The same steps apply to any local service business; [how to start a service business](/guides/how-to-start-a-service-business) covers them for every trade.
+
 ## 1. Decide what you'll clean, and where
 
 Start with **residential cleaning**: homes are easier to win than offices, and clients book again and again. Offer three things clearly:
@@ -53,13 +56,38 @@ As a self-employed person you pay **self-employment tax of 15.3%** on your net e
 
 ## 8. Get your first clients
 
-Tell everyone you know, set up a free **Google Business Profile** (you can hide your home address and list the areas you serve), and ask every happy client for a review and a referral.
+Tell everyone you know, set up a free **Google Business Profile** (you can hide your home address and list the areas you serve), and ask every client for a review and a referral.
 
 [A four-week plan for your first 10 clients →](/guides/get-your-first-cleaning-clients)
 
 ## 9. Get a simple website
 
 You don't need one for your first few clients, but you will once people start searching for your business name. Keep it simple: what you clean, your areas, your prices or "from" prices, "insured and bonded", and a way to get in touch. Harbor can write one from a description of your business, with a contact form that sends every enquiry to you.
+
+## Check whether you charge sales tax
+
+Some states tax cleaning services, including homes. Check yours before you set prices, because the tax goes on top of your price:
+
+| State | Residential cleaning |
+|---|---|
+| Texas | Taxable. A narrow exemption for someone working as a household's own employee |
+| New York | Taxable, unless the cleaner is the household's employee |
+| Ohio | Taxable (homes, offices and other buildings) once your sales of the service reach $5,000 a year |
+| Pennsylvania | Taxable, residential and commercial |
+| Iowa | Not taxable (Iowa taxes non-residential cleaning only) |
+
+If your state taxes cleaning, register for a sales tax permit with your state revenue department before your first job.
+
+## Hiring help
+
+When you're ready for a second pair of hands, decide first whether they're an **employee or a contractor**. The IRS looks at three things: who controls how the work is done, who controls the money side (tools, expenses, how they're paid), and the type of relationship. Someone you train, schedule and equip is usually an employee.
+
+- **Contractors:** for payments made in 2026, you file a Form 1099-NEC once you've paid someone **$2,000** or more in the year. The threshold was $600 before 2026 (IRS Publication 15).
+- **Employees:** workers' compensation insurance is mandatory for most employers in every state except Texas (NAIC). Payroll taxes and withholding apply too.
+
+## Keep business money and records separate
+
+The IRS advises keeping your business bank account separate from your personal one (Publication 583), and the SBA says the same. It makes your income, costs and taxes far easier to see. Keep receipts and records for **at least three years**, and four years for anything to do with employment taxes (IRS).
 
 ## FAQ
 
@@ -93,3 +121,13 @@ Homes are a good place to start: you can win them through referrals and local se
 - Payment fees: Stripe (stripe.com/pricing); Square (squareup.com).
 - Self-employment tax (irs.gov, reviewed October 30, 2026) and estimated taxes FAQ (irs.gov, updated October 2, 2026), IRS.
 - Manage your service areas, Google Business Profile Help. support.google.com.
+- Cleaning services (Pub. 94-111, 10/2006), Texas Comptroller. comptroller.texas.gov.
+- Hiring household help (updated August 10, 2026) and TSB-M-91(4)S, New York Department of Taxation and Finance. tax.ny.gov.
+- Information release ST 2002-04 (building maintenance and janitorial), Ohio Department of Taxation, updated September 2015. tax.ohio.gov.
+- Cleaning businesses, Pennsylvania Business One-Stop Hub, revised April 4, 2025. hub.business.pa.gov.
+- Taxable services, Iowa Department of Revenue. revenue.iowa.gov.
+- Independent contractor (self-employed) or employee?, IRS. irs.gov, reviewed May 19, 2026.
+- Publication 15 (2026), Employer's Tax Guide (Form 1099-NEC threshold), IRS. irs.gov.
+- Workers' compensation insurance, National Association of Insurance Commissioners. content.naic.org, updated January 21, 2026.
+- Publication 583, Starting a business and keeping records, IRS (12/2024); open a business bank account, SBA. irs.gov; sba.gov.
+- How long should I keep records?, IRS. irs.gov, reviewed June 30, 2026.

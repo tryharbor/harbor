@@ -4,6 +4,7 @@ import { BusinessPreview } from '../components/previews/business';
 import { Reveal } from '../components/reveal';
 import { CtaBand, SectionHead, Window } from '../components/ui';
 import { JsonLd, softwareApplication } from '../lib/jsonld';
+import { getGuides } from '../lib/guides';
 import { PRICING } from '../lib/pricing';
 import { pageMeta } from '../lib/seo';
 import { SITE } from '../lib/site';
@@ -131,6 +132,25 @@ export default function Home() {
               <span className="into">Harbor</span>
             </div>
           </Reveal>
+        </div>
+      </section>
+
+      {/* Guides */}
+      <section className="section rule">
+        <div className="container stack" style={{ gap: 40 }}>
+          <SectionHead eyebrow="Guides" title="Starting out? Start here." lede="What it really costs, what to charge, and how to find your first customers, with every number sourced and kept up to date." />
+          <div className="cards">
+            {getGuides().filter((g) => g.kind === 'start' || g.kind === 'general').map((g, i) => (
+              <Reveal key={g.slug} delay={i * 60}>
+                <Link href={`/guides/${g.slug}`} className="card" style={{ height: '100%' }}>
+                  <strong style={{ fontWeight: 500, fontSize: 20, letterSpacing: '-0.02em', lineHeight: 1.25 }}>{g.title}</strong>
+                  <span className="muted small">{g.description}</span>
+                  <span className="link-arrow" style={{ marginTop: 'auto' }}>Read the guide →</span>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+          <Link className="link-arrow" href="/guides">All guides →</Link>
         </div>
       </section>
 

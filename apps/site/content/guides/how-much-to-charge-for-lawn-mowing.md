@@ -71,6 +71,14 @@ The going rate for a lawn that size is $41–$61. So you can charge $50 and keep
 
 The less you drive between lawns, the more you earn per hour at the same price. The National Association of Landscape Professionals advises building **route density** with referral credits and marketing to the neighborhoods you already work in, rather than blanket discounts. One well-placed street can hold several clients.
 
+## Add sales tax where it applies
+
+Mowing is a taxable service in several states, so the tax goes on top of your price. Texas (unless you work alone and earned $5,000 or less in the last four quarters), New York, Ohio (once your sales reach $5,000 a year), Pennsylvania, Iowa, South Dakota and Washington all tax lawn care. Quote "plus tax" where it applies, and register for a sales tax permit first.
+
+## Price the season, not just the mow
+
+Cleanups are where the season pays (see the extras table above). Fall is the busiest time for yard cleanups, with early spring second (LawnStarter, November 2026). Mowing is seasonal in most of the country, available mainly in spring, summer and fall (BLS), so book cleanups early and offer them to every mowing client before the season ends.
+
 ## FAQ
 
 ### How much should I charge to mow a quarter-acre lawn?
@@ -95,3 +103,6 @@ Stripe charges 2.9% + 30¢ online and 2.7% + 5¢ in person. Square's free plan c
 - Route density: practices to avoid, National Association of Landscape Professionals. blog.landscapeprofessionals.org, August 3, 2021.
 - Certification standards for pesticide applicators, U.S. EPA. epa.gov, updated March 6, 2026.
 - Pricing, Stripe (stripe.com/pricing); payment fees, Square (squareup.com).
+- Taxable lawn care: Texas Comptroller (Pub. 94-112); New York Department of Taxation and Finance; Ohio Department of Taxation (ST 2002-04); 61 Pa. Code §55.6; Iowa Department of Revenue; South Dakota Department of Revenue; Washington Department of Revenue.
+- Yard cleanup prices, LawnStarter. lawnstarter.com, updated November 3, 2026.
+- Grounds maintenance workers (seasonal work), Occupational Outlook Handbook, BLS. bls.gov, modified September 14, 2026.

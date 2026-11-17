@@ -15,6 +15,7 @@ import { extractFaq, parseFrontmatter } from './blog';
  *   kind: cost                     (start | cost | price | customers | general)
  *   published: 2026-11-17
  *   updated: 2026-11-17            (when the facts were last checked)
+ *   author: Derek                  (optional; Derek by default)
  *   ---
  *
  * A "## FAQ" section becomes FAQPage data, as on the blog. End with "## Sources": every figure has one.
@@ -29,7 +30,7 @@ export const KIND_LABEL: Record<Kind, string> = { start: 'Start', cost: 'Costs',
 
 export type Guide = {
   slug: string; title: string; description: string; answer: string; trade: string; kind: Kind;
-  published: string; updated: string; html: string; minutes: number; faq: { q: string; a: string }[];
+  published: string; updated: string; author: string; html: string; minutes: number; faq: { q: string; a: string }[];
 };
 
 const DIR = join(process.cwd(), 'content', 'guides');
@@ -58,6 +59,7 @@ function load(file: string): Guide {
   const words = body.split(/\s+/).filter(Boolean).length;
   return {
     slug, kind, trade, published, updated,
+    author: typeof data.author === 'string' && data.author ? data.author : 'Derek',
     title: need('title'), description: need('description'), answer: need('answer'),
     html: marked.parse(body, { async: false }),
     minutes: Math.max(1, Math.round(words / 230)),
@@ -75,7 +77,9 @@ export function getGuides(): Guide[] {
   } catch {
     return [];
   }
-  return files.map(load).sort((a, b) => a.trade.localeCompare(b.trade) || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || a.slug.localeCompare(b.slug));
+  // The all-trades guides first, then each trade.
+  const rank = (t: string) => (t === 'general' ? 0 : 1);
+  return files.map(load).sort((a, b) => rank(a.trade) - rank(b.trade) || a.trade.localeCompare(b.trade) || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind) || a.slug.localeCompare(b.slug));
 }
 
 export const getGuide = (slug: string) => getGuides().find((g) => g.slug === slug);

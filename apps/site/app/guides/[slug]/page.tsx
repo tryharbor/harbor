@@ -36,7 +36,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
   return (
     <>
-      <JsonLd data={{ '@context': 'https://schema.org', '@type': 'Article', headline: g.title, description: g.description, url, mainEntityOfPage: url, datePublished: g.published, dateModified: g.updated, author: { '@type': 'Organization', name: 'Harbor', url: SITE.url }, publisher: { '@type': 'Organization', name: 'Harbor', url: SITE.url } }} />
+      <JsonLd data={{ '@context': 'https://schema.org', '@type': 'Article', headline: g.title, description: g.description, url, mainEntityOfPage: url, datePublished: g.published, dateModified: g.updated, author: { '@type': 'Person', name: g.author, jobTitle: 'Founder', worksFor: { '@type': 'Organization', name: 'Harbor', url: SITE.url } }, publisher: { '@type': 'Organization', name: 'Harbor', url: SITE.url } }} />
       <JsonLd data={breadcrumbs([['Guides', '/guides'], [g.title, `/guides/${g.slug}`]])} />
       {g.faq.length ? <JsonLd data={faqPage(g.faq)} /> : null}
       <article className="section blog-article">
@@ -47,6 +47,12 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
               <span className="eyebrow"><span className="pixels" />{TRADES[g.trade]} · {KIND_LABEL[g.kind]}<span aria-hidden="true">·</span>Updated <time dateTime={g.updated}>{formatDate(g.updated)}</time><span aria-hidden="true">·</span>{g.minutes} min read</span>
             </Reveal>
             <Reveal delay={80}><h1 className="h1 blog-h1">{g.title}</h1></Reveal>
+            <Reveal delay={100}>
+              <div className="row blog-byline">
+                <span className="blog-avatar" aria-hidden="true">{g.author.slice(0, 1)}</span>
+                <span><strong>{g.author}</strong><span className="dim">, founder of Harbor · facts checked <time dateTime={g.updated}>{formatDate(g.updated)}</time></span></span>
+              </div>
+            </Reveal>
           </header>
           <Reveal delay={120}>
             <div className="guide-answer">

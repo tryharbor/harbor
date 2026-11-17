@@ -58,6 +58,14 @@ Thumbtack's figures show recurring visits priced a little lower than one-time cl
 
 Raise prices for new clients once your calendar is mostly full, and tell existing clients a month ahead. Deep and move-out cleans take far longer than standard ones, and HomeGuide notes that a deep clean is often priced at up to double a standard clean, so don't quote them at the same rate.
 
+## Add sales tax where it applies
+
+In some states, house cleaning is a taxable service, so the tax is added to your price rather than taken out of it. Texas, New York, Ohio (once your cleaning sales reach $5,000 a year) and Pennsylvania all tax residential cleaning; Iowa taxes only non-residential cleaning. Quote "plus tax" where it applies, and register for a sales tax permit first.
+
+## Add-ons: price them, don't throw them in
+
+Inside the oven, inside the fridge, interior windows, inside cabinets and laundry all take real time. Care.com notes these are usually charged on top of a standard clean. Thumbtack's national figures for a clean that includes one of them run about $176–$279 in total, against $146–$202 for a standard clean. List your add-ons with a price each, so clients can choose and you're paid for the extra time.
+
 ## FAQ
 
 ### How much should I charge for a 3-bedroom house?
@@ -82,3 +90,5 @@ Stripe charges 2.9% + 30¢ online and 2.7% + 5¢ in person. Square's free plan c
 - Pricing, Stripe (stripe.com/pricing); payment fees, Square (squareup.com).
 - Self-employment tax, IRS. irs.gov, reviewed October 30, 2026.
 - Estimated taxes FAQ, IRS (irs.gov, updated October 2, 2026), and 2026 Form 1040-ES.
+- Taxable services: Texas Comptroller (Pub. 94-111); New York Department of Taxation and Finance; Ohio Department of Taxation (ST 2002-04); Pennsylvania Business One-Stop Hub; Iowa Department of Revenue.
+- Deep cleaning cost (add-ons), Care.com. care.com, updated August 10, 2026.

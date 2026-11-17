@@ -25,7 +25,7 @@ It's free, and it's how people searching "lawn mowing near me" find you.
 - **Hide your home address.** Google lets businesses that go to their customers show a service area instead.
 - **List your service areas** by city or zip code, up to 20. Google doesn't allow a radius, and asks you to stay within about two hours' drive of your base. Keep it far tighter than that, for your route's sake.
 - **Add before-and-after photos** of real lawns, and list your services: mowing, edging, cleanups, leaf removal.
-- **Ask for reviews** from every happy client.
+- **Ask every client for a review,** with a direct link or QR code. Google doesn't allow rewards for reviews.
 
 ## Week 2: let your work advertise itself
 
@@ -49,6 +49,11 @@ Run a small **Nextdoor ad** for the same neighborhoods. Nextdoor ads start at un
 - **Offer the extras early:** a spring or fall cleanup, aeration and leaf removal. They pay more than a mow and keep clients with you all year.
 - **Plan for winter.** Mowing is seasonal in most of the country. Some lawn care workers move to snow removal in winter (BLS), and fall leaf cleanups carry you into the cold months.
 
+## Google's rules worth knowing
+
+- **Use your real business name** on your Google Business Profile. Google doesn't allow extra service words in the name ("Green Cut Lawn Care Mowing Experts Dallas"), and profiles that add them can be suspended.
+- **Ask for reviews, never pay for them.** Google encourages asking customers to leave a review through a link or QR code, but offering discounts, gifts or free services in exchange for reviews is strictly prohibited. Keep your first-visit offers and your review requests separate.
+
 ## FAQ
 
 ### Should I go door to door?
@@ -70,3 +75,6 @@ Not for the first few lawns. Once people start searching for your business name,
 - Advertise with Nextdoor ("for less than $5/day", 30 days billed upfront, neighborhood targeting). business.nextdoor.com.
 - Yard signs and business cards, Vistaprint. vistaprint.com, prices seen November 17, 2026.
 - Grounds maintenance workers (seasonal work, snow removal in winter), Occupational Outlook Handbook, U.S. Bureau of Labor Statistics. bls.gov.
+- Guidelines for representing your business (business name), Google Business Profile Help. support.google.com.
+- Tips to get more reviews, Google Business Profile Help. support.google.com.
+- Incentivized or biased reviews, Google Maps contribution policy. support.google.com.

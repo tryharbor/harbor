@@ -10,6 +10,9 @@ updated: 2026-11-17
 
 Lawn care is one of the most straightforward businesses to start: the work is visible, clients book every week of the season, and you can begin with equipment that fits in a car or truck. Here are the steps in order.
 
+
+The same steps apply to any local service business; [how to start a service business](/guides/how-to-start-a-service-business) covers them for every trade.
+
 ## 1. Choose your services and your area
 
 Start with **mowing, trimming and edging**: the weekly work that brings clients back. Then add the jobs that pay more per visit, like spring and fall **cleanups**, **leaf removal** and **aeration**. Leave chemical weed control and fertilizing until you've checked the licensing rules in step 4.
@@ -62,6 +65,33 @@ Tell everyone you know, set up a free **Google Business Profile**, leave a yard 
 
 Once people start searching for your business name, a simple website makes you look established. List your services, the areas you cover, your "from" prices and a way to request a quote. Harbor can write one from a description of your business, with a form that sends every request to you.
 
+## Check whether you charge sales tax
+
+Many states tax lawn care, including mowing at homes. Check yours before you set prices, because the tax goes on top:
+
+| State | Lawn mowing and care |
+|---|---|
+| Texas | Taxable. Exempt if you work alone with no employees and have gross receipts of $5,000 or less in the last four quarters |
+| New York | Taxable at a home, unless the worker is the homeowner's employee |
+| Ohio | Taxable once your sales of the service reach $5,000 a year |
+| Pennsylvania | Mowing, fertilizing and edging taxable; landscaping and seeding new lawns not |
+| Iowa | Taxable on homes and businesses (snow removal isn't) |
+| South Dakota | Taxable, including mowing and trimming |
+| Washington | Taxable for homeowners and businesses |
+
+If your state taxes lawn care, get a sales tax permit from your state revenue department before your first paid job.
+
+## Hiring help
+
+When you're ready for a second pair of hands, decide first whether they're an **employee or a contractor**. The IRS looks at three things: who controls how the work is done, who controls the money side (tools, expenses, how they're paid), and the type of relationship. Someone you train, schedule and equip is usually an employee.
+
+- **Contractors:** for payments made in 2026, you file a Form 1099-NEC once you've paid someone **$2,000** or more in the year. The threshold was $600 before 2026 (IRS Publication 15).
+- **Employees:** workers' compensation insurance is mandatory for most employers in every state except Texas (NAIC). Payroll taxes and withholding apply too.
+
+## Keep business money and records separate
+
+The IRS advises keeping your business bank account separate from your personal one (Publication 583), and the SBA says the same. It makes your income, costs and taxes far easier to see. Keep receipts and records for **at least three years**, and four years for anything to do with employment taxes (IRS).
+
 ## FAQ
 
 ### How much does it cost to start a lawn care business?
@@ -93,3 +123,15 @@ Fall cleanups and leaf removal carry the work into late autumn, and some lawn ca
 - Self-employment tax, IRS. irs.gov, reviewed October 30, 2026.
 - Grounds maintenance workers, Occupational Outlook Handbook, U.S. Bureau of Labor Statistics. bls.gov.
 - Manage your service areas, Google Business Profile Help. support.google.com.
+- Landscaping and lawn care (Pub. 94-112, 03/2022), Texas Comptroller. comptroller.texas.gov.
+- Hiring household help, New York Department of Taxation and Finance. tax.ny.gov, updated August 10, 2026.
+- Information release ST 2002-04, Ohio Department of Taxation, updated September 2015. tax.ohio.gov.
+- 61 Pa. Code §55.6 (lawn care services), Pennsylvania (via the Legal Information Institute, law.cornell.edu).
+- Landscaping, lawn care and snow removal, Iowa Department of Revenue. revenue.iowa.gov.
+- Landscaping and lawn care tax fact, South Dakota Department of Revenue, June 2024. dor.sd.gov.
+- Landscaping, horticultural and trail grooming services, Washington Department of Revenue. dor.wa.gov.
+- Independent contractor (self-employed) or employee?, IRS. irs.gov, reviewed May 19, 2026.
+- Publication 15 (2026), Employer's Tax Guide (Form 1099-NEC threshold), IRS. irs.gov.
+- Workers' compensation insurance, National Association of Insurance Commissioners. content.naic.org, updated January 21, 2026.
+- Publication 583, Starting a business and keeping records, IRS (12/2024); open a business bank account, SBA. irs.gov; sba.gov.
+- How long should I keep records?, IRS. irs.gov, reviewed June 30, 2026.

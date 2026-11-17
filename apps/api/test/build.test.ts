@@ -178,7 +178,7 @@ describe('/v1/projects', () => {
     const project = await res.json();
     expect(project).toMatchObject({ id: expect.stringMatching(/^prj_/), name: 'Order tracker', budgetCents: 500, spentCents: 0 });
     const files = (await (await send('GET', `/v1/projects/${project.id}/files`)).json()).data.map((f: { path: string }) => f.path);
-    expect(files).toEqual(['app.js', 'index.html', 'README.md', 'styles.css']);
+    expect(files).toEqual(['.gitignore', 'config.js', 'content/home.html', 'lib/auth.js', 'lib/db.js', 'lib/pages.js', 'lib/payments.js', 'package.json', 'public/styles.css', 'README.md', 'server.js']);
     const [start] = (await (await send('GET', `/v1/projects/${project.id}/history`)).json()).data;
     expect(start.message).toBe('Start from the Harbor starter');
 
@@ -190,15 +190,18 @@ describe('/v1/projects', () => {
     expect(run).toMatchObject({ status: 'succeeded', model: 'simulated-v1', costCents: 0, commitSha: expect.stringMatching(/^[0-9a-f]{40}$/) });
     expect(run.steps.map((s: BuildStep) => s.kind)).toContain('action');
 
+    // A server app has no index.html: the static preview says to run it live.
     const preview = await send('GET', `/v1/projects/${project.id}/preview/index.html`);
     expect(preview.headers.get('content-security-policy')).toBe('sandbox allow-scripts allow-forms allow-modals');
     expect(preview.headers.get('content-type')).toBe('text/html; charset=utf-8');
-    expect(await preview.text()).toContain('A page to track coffee orders');
-    expect((await send('GET', `/v1/projects/${project.id}/preview/styles.css`)).headers.get('content-type')).toBe('text/css; charset=utf-8');
+    expect(await preview.text()).toContain('Run live');
+    const home = async () => (await send('GET', `/v1/projects/${project.id}/preview/content/home.html`)).text();
+    expect(await home()).toContain('A page to track coffee orders');
+    expect((await send('GET', `/v1/projects/${project.id}/preview/public/styles.css`)).headers.get('content-type')).toBe('text/css; charset=utf-8');
     expect((await send('GET', `/v1/projects/${project.id}/preview/..%2F..%2Fsecrets`)).status).toBe(400);
 
     expect((await send('POST', `/v1/projects/${project.id}/restore`, { sha: start.sha })).status).toBe(200);
-    expect(await (await send('GET', `/v1/projects/${project.id}/preview/`)).text()).not.toContain('track coffee orders');
+    expect(await home()).not.toContain('track coffee orders');
   });
 
   it('runs one build at a time, and deletes the project with its files', async () => {

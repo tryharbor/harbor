@@ -82,7 +82,9 @@ each content feature) can override it. Harbor ships a recommended pick per job a
 2. **Keys: both.** Harbor's provider keys by default, billed through plans; owners can plug in their own key.
 3. **Hosting: Harbor-managed.** Harbor holds the repositories and hosting; owners never see GitHub and can export their
    code at any time.
-4. **First starter: a web app with sign-in, a database and Stripe payments.**
+4. **First starter: a web app with sign-in, a database and Stripe payments.** Built in `apps/api/starter` (plain Node,
+   no packages: SQLite from Node, scrypt passwords, Stripe Checkout at the price in Business Memory; the database stays
+   in the sandbox's `data/`).
 
 5. **Sandbox: Vercel Sandbox** (chosen 2026-11-16 over E2B, Daytona, Modal and Cloudflare). Firecracker microVMs (a
    dedicated kernel per sandbox, the right isolation for AI-written code); billed for active CPU, so a dev server sitting

@@ -95,9 +95,9 @@ async function act(ctx: BuildContext, a: Action): Promise<string> {
 }
 
 const SYSTEM = (ctx: BuildContext) => `You are Harbor's app builder. You build small, working web apps for a small business, in the project's files.
-Work in small steps. Write complete files, never fragments. Keep it basic: plain HTML, CSS and JavaScript unless the project already uses something else.
-Link the project's own files with relative paths (styles.css, app.js), never root paths (/styles.css): the preview serves the project under a sub-path.
-${ctx.canRun ? 'You can run shell commands in the project folder with "run" (Node and npm are installed; only package registries are reachable). For a server app, give package.json a "dev" script that listens on process.env.PORT (3000) and host 0.0.0.0: Harbor runs it for the owner\'s live preview. A plain index.html needs no server. Save anything the app stores while running (orders, sign-ups) under data/ (e.g. data/orders.json): it stays in the sandbox, out of the project files.' : 'You cannot run commands here; write files only. The owner sees a live static preview of index.html.'}
+Work in small steps. Write complete files, never fragments. Keep it basic: plain HTML, CSS and JavaScript unless the project already uses something else. If the project has a README.md, read it first and follow how the app is laid out; prefer what Node has built in over adding packages.
+In a static site (no server), link the project's own files with relative paths (styles.css, not /styles.css): the static preview serves it under a sub-path. A server app serves its own paths.
+${ctx.canRun ? 'You can run shell commands in the project folder with "run" (Node and npm are installed; only package registries are reachable). For a server app, give package.json a "dev" script that listens on process.env.PORT (3000) and host 0.0.0.0: Harbor runs it for the owner\'s live preview. A plain index.html needs no server. Save anything the app stores while running (orders, sign-ups) in its database, or under data/: it stays in the sandbox, out of the project files.' : 'You cannot run commands here; write files only. The owner sees a live static preview of index.html.'}
 Use the business's real facts, offer and brand colours from the brief; invent no facts, prices or testimonials (use clearly marked placeholders).
 Answer with JSON only: {"message": a one-sentence progress note for a non-technical owner, "actions": [...]}.
 Actions: write_file {path, content}, read_file {path}, list_files {}, delete_file {path}, run {command}, done {} (last, when the request is met; the message is then your summary for the owner).
@@ -196,15 +196,17 @@ export async function runSimulatedBuilder(ctx: BuildContext): Promise<BuildOutco
   const did = (tool: Tool, path: string) => ctx.onStep({ at: now(), kind: 'action', tool, path, text: path });
   await say('Reading the project.');
   await did('list_files', '.');
-  const files = await ctx.workspace.list();
-  let html = files.some((f) => f.path === 'index.html') ? await ctx.workspace.read('index.html') : '';
-  if (!html.includes('<main')) throw new HarborError('CONFLICT', 'index.html has no <main> to add to.');
-  await did('read_file', 'index.html');
+  const files = new Set((await ctx.workspace.list()).map((f) => f.path));
+  // The starter's home page content, or an older project's index.html.
+  const target = files.has('content/home.html') ? 'content/home.html' : 'index.html';
+  let html = files.has(target) ? await ctx.workspace.read(target) : '';
+  if (target === 'index.html' && !html.includes('<main')) throw new HarborError('CONFLICT', 'index.html has no <main> to add to.');
+  await did('read_file', target);
   const n = (html.match(/data-request=/g) ?? []).length + 1;
-  const section = `\n    <section class="card" data-request="${n}">\n      <h2>${esc(ctx.request.slice(0, 120))}</h2>\n      <p>Simulated build: a real model would build this here. Switch models in Settings → AI model.</p>\n    </section>\n  `;
-  html = html.replace('</main>', `${section}</main>`);
+  const section = `\n    <section class="card" data-request="${n}">\n      <h2>${esc(ctx.request.slice(0, 120))}</h2>\n      <p>Simulated build: a real model would build this here. Switch models in Settings → AI model.</p>\n    </section>\n`;
+  html = target === 'index.html' ? html.replace('</main>', `${section}  </main>`) : html + section;
   await say(`Adding a section for “${ctx.request.slice(0, 80)}”.`);
-  await did('write_file', 'index.html');
-  await ctx.workspace.write('index.html', html);
+  await did('write_file', target);
+  await ctx.workspace.write(target, html);
   return { status: 'succeeded', summary: `Added a section for “${ctx.request.slice(0, 80)}” to the page. (Simulated: switch to a real model to build it for real.)`, inputTokens: 0, outputTokens: 0, costCents: 0, model: 'simulated-v1' };
 }

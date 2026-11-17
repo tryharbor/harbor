@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { sandboxesFromEnv } from '../src/build/sandbox.ts';
-import { LIST_COMMAND, REMOTE_ROOT, boxName, parseListing, vercelCredentialsFromEnv, vercelSandboxes, type RemoteBox, type RemoteBoxes } from '../src/build/vercel-sandbox.ts';
+import { INSTALL_IF_NEEDED, LIST_COMMAND, REMOTE_ROOT, stopServer, boxName, parseListing, vercelCredentialsFromEnv, vercelSandboxes, type RemoteBox, type RemoteBoxes } from '../src/build/vercel-sandbox.ts';
 import { Workspace } from '../src/build/workspace.ts';
 
 /**
@@ -31,7 +31,11 @@ class FakeBox implements RemoteBox {
       for (const m of command.matchAll(/'([^']*)'/g)) this.files.delete(m[1]!);
       return { exitCode: 0, stdout: '', stderr: '' };
     }
-    if (command.startsWith('mkdir -p') || command.startsWith('test -d node_modules')) return { exitCode: 0, stdout: '', stderr: '' };
+    if (command.startsWith('mkdir -p') || command === INSTALL_IF_NEEDED) return { exitCode: 0, stdout: '', stderr: '' };
+    if (command === stopServer()) {
+      this.serverUp = false;
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
     if (command.startsWith('curl')) return { exitCode: 0, stdout: this.serverUp ? 'up' : '', stderr: '' };
     return this.onRun(command, this) ?? { exitCode: 0, stdout: `ran ${command}`, stderr: '' };
   }
@@ -203,12 +207,19 @@ describe('a project on Vercel Sandbox', () => {
 
     await ws.write('package.json', JSON.stringify({ scripts: { dev: 'node server.js' } }));
     expect(await sb.preview()).toBe('https://sb-3000.vercel.run');
-    expect(box.started).toEqual(['npm run dev > /tmp/harbor-dev.log 2>&1']);
+    expect(box.started).toEqual(['echo $$ > /tmp/harbor-dev.pgid; exec setsid npm run dev > /tmp/harbor-dev.log 2>&1']);
     expect(box.files.has('package.json')).toBe(true);
 
-    // Already running: not started twice.
+    // Already running and nothing changed: not started twice.
     expect(await sb.preview()).toBe('https://sb-3000.vercel.run');
     expect(box.started.length).toBe(1);
+
+    // A file changed (a build ran): the server restarts so the preview shows it.
+    await ws.write('server.js', 'v2');
+    expect(await sb.preview()).toBe('https://sb-3000.vercel.run');
+    expect(box.commands).toContain(stopServer());
+    expect(box.started.length).toBe(2);
+    expect(box.files.get('server.js')?.toString()).toBe('v2');
   });
 
   it('leaves what the running app saved in the sandbox: never copied back, never deleted', async () => {

@@ -12,6 +12,11 @@ const TYPES: Record<string, string> = {
   ico: 'image/x-icon', txt: 'text/plain; charset=utf-8', md: 'text/plain; charset=utf-8', woff2: 'font/woff2',
 };
 
+const SERVER_APP_PAGE = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<body style="margin:0;display:grid;place-items:center;min-height:100vh;font:15px/1.5 Inter,-apple-system,system-ui,sans-serif;color:#444;background:#fafafa">
+<div style="max-width:360px;text-align:center"><p style="font-weight:600;color:#18181a;margin:0 0 6px">This app runs on its own server.</p>
+<p style="margin:0">Press <strong>Run live</strong> above to start it and use it here.</p></div></body>`;
+
 /**
  * Full app projects. The static preview serves the project's own files with a sandbox CSP: the page can run its scripts
  * and forms but gets a unique origin, so AI-written code can never read Harbor's cookies or pages.
@@ -74,8 +79,13 @@ export function registerProjects(app: App, deps: AppDeps) {
     const project = await loadProject(db, c.req.param('id'));
     const rest = decodeURIComponent(c.req.path.split('/preview/')[1] ?? '') || 'index.html';
     const ws = await workspaceFor(deps, project.id);
-    const bytes = await ws.readBytes(rest.endsWith('/') ? `${rest}index.html` : rest);
-    const ext = rest.split('.').pop()?.toLowerCase() ?? '';
+    const path = rest.endsWith('/') ? `${rest}index.html` : rest;
+    const bytes = await ws.readBytes(path).catch(async (err) => {
+      // A server app (the starter) has no index.html: say how to see it instead of a 404.
+      if (path !== 'index.html' || !(await ws.read('package.json').then(() => true, () => false))) throw err;
+      return Buffer.from(SERVER_APP_PAGE);
+    });
+    const ext = path.split('.').pop()?.toLowerCase() ?? '';
     return c.body(new Uint8Array(bytes), 200, {
       'content-type': TYPES[ext] ?? 'application/octet-stream',
       'content-security-policy': 'sandbox allow-scripts allow-forms allow-modals',

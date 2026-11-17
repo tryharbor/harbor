@@ -41,8 +41,8 @@ export const REMOTE_ROOT = '/vercel/app';
 /** Dependencies and build output: never synced either way. */
 const SKIP_DIRS = ['node_modules', '.git', '.next', 'dist', '.cache', '.vercel', 'build', '.turbo'];
 const MAX_PULL = 300;
-/** Package registries: what a starter needs to install dependencies. Everything else is blocked. */
-export const ALLOWED_HOSTS = ['registry.npmjs.org', '*.npmjs.org', 'registry.yarnpkg.com', 'pypi.org', 'files.pythonhosted.org'];
+/** Package registries, plus Stripe's API for the starter's payments. Everything else is blocked. */
+export const ALLOWED_HOSTS = ['registry.npmjs.org', '*.npmjs.org', 'registry.yarnpkg.com', 'pypi.org', 'files.pythonhosted.org', 'api.stripe.com'];
 
 export const boxName = (projectId: string) => `harbor-${projectId.replace(/[^a-z0-9]/g, '-')}`;
 const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
@@ -80,6 +80,14 @@ async function localHashes(ws: Workspace): Promise<Map<string, { hash: string; b
 export const DATA_DIR = 'data';
 const isData = (p: string) => p === DATA_DIR || p.startsWith(`${DATA_DIR}/`);
 
+/**
+ * The dev server runs in a process group of its own (setsid), whose id is kept in /tmp/harbor-dev.pgid, so stopping it
+ * stops npm and the app together. Anything still listening on the preview port goes too (servers started before).
+ */
+export const startServer = (script: string) => `echo $$ > /tmp/harbor-dev.pgid; exec setsid npm run ${script} > /tmp/harbor-dev.log 2>&1`;
+export const INSTALL_IF_NEEDED = `test -d node_modules || node -e "const p=JSON.parse(require('fs').readFileSync('package.json','utf8'));process.exit(Object.keys({...p.dependencies,...p.devDependencies}).length?1:0)" || npm install --no-audit --no-fund`;
+export const stopServer = () => `test -f /tmp/harbor-dev.pgid && kill -TERM -- -$(cat /tmp/harbor-dev.pgid) 2>/dev/null; rm -f /tmp/harbor-dev.pgid; pkill -f 'npm run (dev|start)' 2>/dev/null; lsof -t -iTCP:${PREVIEW_PORT} -sTCP:LISTEN | xargs -r kill 2>/dev/null; sleep 1; true`;
+
 /** One project's sandbox: the remote box plus what Harbor last knew was in it. */
 class VercelProjectSandbox implements Sandbox {
   /** Remote path → hash, as Harbor left it after the last sync; undefined until first listed. */
@@ -99,7 +107,7 @@ class VercelProjectSandbox implements Sandbox {
   }
 
   /** Make the sandbox match Harbor's files, leaving the app's own data alone. */
-  async push(): Promise<void> {
+  async push(): Promise<number> {
     const local = await localHashes(this.ws);
     const current = await this.list();
     // Anything that changed in the sandbox since Harbor last synced was written by the running app (or was there before
@@ -113,6 +121,7 @@ class VercelProjectSandbox implements Sandbox {
     if (gone.length) await this.box.run(`rm -f -- ${gone.map((p) => q(p)).join(' ')}`, { cwd: REMOTE_ROOT, timeoutMs: 60_000 });
     this.remote = new Map([...local].map(([p, f]) => [p, f.hash]));
     for (const [p, h] of current) if (!local.has(p) && !gone.includes(p)) this.remote.set(p, h);
+    return changed.length + gone.length;
   }
 
   /** Bring back what a command changed (never the app's data). Returns notes for the agent. */
@@ -170,14 +179,20 @@ class VercelProjectSandbox implements Sandbox {
     const script = pkg.scripts?.dev ? 'dev' : pkg.scripts?.start ? 'start' : undefined;
     if (!script) return undefined;
     this.box = await this.boxes.connect(this.name); // resumes a stopped sandbox, with fresh routes
-    await this.push();
+    const changed = await this.push();
     const env = { PORT: String(PREVIEW_PORT), HOST: '0.0.0.0', NPM_CONFIG_UPDATE_NOTIFIER: 'false' };
     const isUp = async () => (await this.box.run(`curl -s -o /dev/null -m 2 http://127.0.0.1:${PREVIEW_PORT}/ && echo up`, { cwd: REMOTE_ROOT, timeoutMs: 10_000 })).stdout.includes('up');
-    if (!(await isUp())) {
-      const install = await this.box.run('test -d node_modules || npm install --no-audit --no-fund', { cwd: REMOTE_ROOT, timeoutMs: 300_000, env });
+    let up = await isUp();
+    // Files changed since it started (a build, a restore): restart it so the preview shows the current version.
+    if (up && changed > 0) {
+      await this.box.run(stopServer(), { cwd: REMOTE_ROOT, timeoutMs: 20_000 });
+      up = false;
+    }
+    if (!up) {
+      // Install only when the app lists packages and they aren't there yet (the starter has none).
+      const install = await this.box.run(INSTALL_IF_NEEDED, { cwd: REMOTE_ROOT, timeoutMs: 300_000, env });
       if (install.exitCode !== 0) throw new HarborError('UPSTREAM_ERROR', `Installing the app's packages failed: ${install.stderr.slice(-300)}`);
-      await this.box.start(`npm run ${script} > /tmp/harbor-dev.log 2>&1`, { cwd: REMOTE_ROOT, env });
-      let up = false;
+      await this.box.start(startServer(script), { cwd: REMOTE_ROOT, env });
       for (let i = 0; i < 45 && !up; i++) {
         await new Promise((r) => setTimeout(r, 2000));
         up = await isUp();

@@ -218,7 +218,8 @@ export function vercelCredentialsFromEnv(env: Record<string, string | undefined>
   const teamId = env.VERCEL_TEAM_ID?.trim();
   const projectId = env.VERCEL_PROJECT_ID?.trim();
   if (token && teamId && projectId) return { token, teamId, projectId };
-  if (token || teamId || projectId) throw new Error('Vercel Sandbox needs all three of VERCEL_TOKEN, VERCEL_TEAM_ID and VERCEL_PROJECT_ID.');
+  // The team and project alone (no token yet) just means "not connected"; a token without them is a mistake.
+  if (token) throw new Error('Vercel Sandbox needs VERCEL_TEAM_ID and VERCEL_PROJECT_ID along with VERCEL_TOKEN.');
   return env.VERCEL_OIDC_TOKEN?.trim() ? 'oidc' : undefined;
 }
 

@@ -383,6 +383,19 @@ export async function siteAction(form: FormData) {
 
 // ---- Build: Full app ----
 
+/** Start the app's dev server in its sandbox and show the live preview (its address rides in the URL). */
+export async function runLive(form: FormData) {
+  const id = text(form, 'projectId');
+  let url: string | null = null;
+  try {
+    url = (await api<{ url: string | null }>(`/v1/projects/${id}/live`, { method: 'POST' })).url;
+  } catch (err) {
+    go(`/build/apps/${id}`, { error: message(err, 'Could not start the app.') });
+  }
+  if (!url) go(`/build/apps/${id}`, { notice: 'This app has no server to run yet, so the preview shows its files.' });
+  go(`/build/apps/${id}`, { live: url! });
+}
+
 export async function createProject(form: FormData) {
   const brandId = text(form, 'brandId');
   let id = '';

@@ -97,7 +97,7 @@ async function act(ctx: BuildContext, a: Action): Promise<string> {
 const SYSTEM = (ctx: BuildContext) => `You are Harbor's app builder. You build small, working web apps for a small business, in the project's files.
 Work in small steps. Write complete files, never fragments. Keep it basic: plain HTML, CSS and JavaScript unless the project already uses something else.
 Link the project's own files with relative paths (styles.css, app.js), never root paths (/styles.css): the preview serves the project under a sub-path.
-${ctx.canRun ? 'You can run shell commands in the project folder with "run".' : 'You cannot run commands here; write files only. The owner sees a live static preview of index.html.'}
+${ctx.canRun ? 'You can run shell commands in the project folder with "run" (Node and npm are installed; only package registries are reachable). For a server app, give package.json a "dev" script that listens on process.env.PORT (3000) and host 0.0.0.0: Harbor runs it for the owner\'s live preview. A plain index.html needs no server.' : 'You cannot run commands here; write files only. The owner sees a live static preview of index.html.'}
 Use the business's real facts, offer and brand colours from the brief; invent no facts, prices or testimonials (use clearly marked placeholders).
 Answer with JSON only: {"message": a one-sentence progress note for a non-technical owner, "actions": [...]}.
 Actions: write_file {path, content}, read_file {path}, list_files {}, delete_file {path}, run {command}, done {} (last, when the request is met; the message is then your summary for the owner).

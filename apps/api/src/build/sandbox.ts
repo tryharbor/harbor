@@ -1,11 +1,12 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { HarborError } from '@harbor/core';
+import { realVercelBoxes, vercelCredentialsFromEnv, vercelSandboxes } from './vercel-sandbox.ts';
 
 /**
  * Where a Full app project's code runs. Harbor never runs project code on its own machine: commands go to a sandbox,
  * one per project, with the project's folder mounted as its only writable path. The interface lets the provider change
- * (Docker on a developer's machine now; a hosted sandbox service in production) without touching the agent.
+ * (Vercel Sandbox, hosted; or Docker on a developer's machine) without touching the agent.
  */
 
 export interface ExecResult { exitCode: number; stdout: string; stderr: string; timedOut: boolean }
@@ -19,11 +20,13 @@ export interface Sandbox {
 }
 
 export interface SandboxProvider {
-  readonly kind: 'none' | 'docker';
+  readonly kind: 'none' | 'docker' | 'vercel';
   /** False when this machine can't run sandboxes (no Docker); commands then fail with a clear message. */
   available(): Promise<boolean>;
   /** The project's sandbox, started if needed. */
   forProject(projectId: string, workspaceRoot: string): Promise<Sandbox>;
+  /** Stop and remove the project's sandbox for good (the project is being deleted). */
+  release?(projectId: string): Promise<void>;
 }
 
 const OUTPUT_LIMIT = 20_000;
@@ -86,6 +89,9 @@ export function dockerSandboxes(docker: DockerRunner = realDocker): SandboxProvi
     async available() {
       return (await docker(['version', '--format', '{{.Server.Version}}'], { timeoutMs: 10_000 })).exitCode === 0;
     },
+    async release(projectId) {
+      await docker(['rm', '-f', containerName(projectId)], { timeoutMs: 30_000 });
+    },
     async forProject(projectId, workspaceRoot) {
       const name = containerName(projectId);
       const running = await docker(['inspect', '-f', '{{.State.Running}}', name], { timeoutMs: 10_000 });
@@ -112,8 +118,17 @@ export function dockerSandboxes(docker: DockerRunner = realDocker): SandboxProvi
   };
 }
 
-/** Docker when this machine has it (HARBOR_SANDBOX=docker forces it, =none turns sandboxes off). */
+/**
+ * HARBOR_SANDBOX picks where project code runs: "vercel" (Vercel Sandbox, the hosted default once its credentials are
+ * set), "docker" (a local container), or "none". Unset: Vercel when VERCEL_TOKEN/TEAM_ID/PROJECT_ID or VERCEL_OIDC_TOKEN
+ * is set, else Docker (which reports itself unavailable when Docker isn't installed: builds then work with files only).
+ */
 export function sandboxesFromEnv(env: Record<string, string | undefined> = process.env): SandboxProvider {
-  const v = (env.HARBOR_SANDBOX ?? 'docker').trim().toLowerCase();
-  return v === 'none' ? noSandbox : dockerSandboxes();
+  const v = (env.HARBOR_SANDBOX ?? '').trim().toLowerCase();
+  if (v === 'none') return noSandbox;
+  if (v === 'docker') return dockerSandboxes();
+  const creds = vercelCredentialsFromEnv(env);
+  if (v === 'vercel' && !creds) throw new Error('HARBOR_SANDBOX=vercel needs VERCEL_TOKEN, VERCEL_TEAM_ID and VERCEL_PROJECT_ID (or VERCEL_OIDC_TOKEN).');
+  if (v && v !== 'vercel') throw new Error(`HARBOR_SANDBOX must be "vercel", "docker" or "none", got "${env.HARBOR_SANDBOX}".`);
+  return creds ? vercelSandboxes(realVercelBoxes(creds)) : dockerSandboxes();
 }

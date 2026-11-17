@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { deleteProject, restoreVersion, setBuildCap, startBuild, stopBuild } from '../../../actions';
+import { deleteProject, restoreVersion, runLive, setBuildCap, startBuild, stopBuild } from '../../../actions';
 import { getMode, getProject, getProjectFile, getProjectFiles, getProjectHistory, loadAll, type BuildRun, type Mode, type ProjectView } from '../../../api';
 import { previewToken } from '../../../auth';
 import { AutoRefresh } from '../../../components/auto-refresh';
@@ -16,6 +16,15 @@ export const dynamic = 'force-dynamic';
 const money = (cents: number) => (cents > 0 && cents < 1 ? '<$0.01' : `$${(cents / 100).toFixed(2)}`);
 const TOOL_WORD: Record<string, string> = { write_file: 'Wrote', read_file: 'Read', list_files: 'Looked at files', delete_file: 'Deleted', run: 'Ran', done: 'Done' };
 const FAILED: Partial<Record<BuildRun['status'], string>> = { failed: 'Didn’t finish', budget: 'Paused at the cost cap', stopped: 'Stopped', steps: 'Paused at the step limit' };
+/** Only a Vercel Sandbox address is ever framed as the live preview (it arrives in the URL, so check it). */
+const liveUrl = (v?: string) => {
+  try {
+    const u = new URL(v ?? '');
+    return u.protocol === 'https:' && u.hostname.endsWith('.vercel.run') ? u.origin : undefined;
+  } catch {
+    return undefined;
+  }
+};
 const IDEAS = ['A page where customers pick a product and a delivery day', 'A simple order form that emails me', 'A members-only page with a sign-up form'];
 
 function Steps({ run }: { run: BuildRun }) {
@@ -61,7 +70,7 @@ function Run({ run, projectId }: { run: BuildRun; projectId: string }) {
   );
 }
 
-export default async function AppProject({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; file?: string; notice?: string; error?: string }> }) {
+export default async function AppProject({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; file?: string; live?: string; notice?: string; error?: string }> }) {
   const { id } = await params;
   const s = await searchParams;
   const tab = s.tab === 'files' || s.tab === 'history' ? s.tab : 'preview';
@@ -78,6 +87,8 @@ export default async function AppProject({ params, searchParams }: { params: Pro
   const lastSha = [...runs].reverse().find((r) => r.commitSha)?.commitSha ?? '';
   const preview = `/p/${previewToken(project.id)}/index.html`;
   const tabHref = (t: string) => `/build/apps/${project.id}?tab=${t}`;
+  const live = tab === 'preview' ? liveUrl(s.live) : undefined;
+  const canLive = sandbox.kind === 'vercel' && sandbox.available;
 
   return (
     <div className="ide">
@@ -143,17 +154,29 @@ export default async function AppProject({ params, searchParams }: { params: Pro
           </nav>
           {tab === 'preview' ? (
             <>
-              <span className="ide-url" title={sandbox.available ? undefined : 'No sandbox on this machine: the preview shows the files as a static site. Commands and a live dev server need a sandbox.'}>
-                {sandbox.available ? 'Live' : 'Static preview'} · index.html
-              </span>
-              <a className="button mono-button" href={preview} target="_blank" rel="noreferrer">Open ↗</a>
+              {live ? (
+                <span className="ide-url" title="Your app, running in its sandbox">Live · {live.replace(/^https:\/\//, '')}</span>
+              ) : (
+                <span className="ide-url" title={canLive ? 'The files as a static site. Run live starts the app itself in its sandbox.' : 'No sandbox connected: the preview shows the files as a static site. Commands and a live dev server need a sandbox.'}>
+                  Static preview · index.html
+                </span>
+              )}
+              {canLive && !running ? (
+                live ? <Link className="button mono-button" href={tabHref('preview')}>Static</Link> : (
+                  <form action={runLive}>
+                    <input type="hidden" name="projectId" value={project.id} />
+                    <SubmitButton className="mono-button" pending="Starting…">Run live</SubmitButton>
+                  </form>
+                )
+              ) : null}
+              <a className="button mono-button" href={live ?? preview} target="_blank" rel="noreferrer">Open ↗</a>
             </>
           ) : <span className="ide-url">{tab === 'files' ? `${files.length} files` : `${commits.length} versions`}</span>}
         </div>
         <div className="ide-body">
           {tab === 'preview' ? (
             // Isolation comes from the response's CSP sandbox header (a unique origin): the app can't reach Harbor.
-            <iframe key={lastSha} src={`${preview}?v=${lastSha}`} title="App preview" />
+            live ? <iframe key={live} src={live} title="Live app preview" /> : <iframe key={lastSha} src={`${preview}?v=${lastSha}`} title="App preview" />
           ) : null}
           {tab === 'files' ? (
             <div className="ide-files">

@@ -86,14 +86,14 @@ export class Workspace {
     return readFile(abs);
   }
 
-  async write(path: string, content: string): Promise<void> {
-    if (Buffer.byteLength(content) > MAX_FILE_BYTES) throw new HarborError('INVALID_REQUEST', `${path} is too big (limit 512 KB).`);
+  async write(path: string, content: string | Buffer): Promise<void> {
+    if ((typeof content === 'string' ? Buffer.byteLength(content) : content.length) > MAX_FILE_BYTES) throw new HarborError('INVALID_REQUEST', `${path} is too big (limit 512 KB).`);
     const abs = await this.resolve(path);
     const existing = await lstat(abs).catch(() => undefined);
     if (existing && !existing.isFile()) throw new HarborError('INVALID_REQUEST', `${path} isn't a regular file.`);
     await mkdir(dirname(abs), { recursive: true });
     await this.resolve(path); // re-check after creating folders
-    await writeFile(abs, content, 'utf8');
+    await writeFile(abs, content);
   }
 
   async remove(path: string): Promise<void> {

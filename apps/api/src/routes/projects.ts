@@ -3,7 +3,7 @@ import type { App, AppDeps } from '../app.ts';
 import { body, check } from '../lib/http.ts';
 import { loadBrand } from '../services/brands.ts';
 import {
-  createProject, deleteProject, history, listProjects, listRuns, loadProject, restore, startBuild, stopBuild, updateProject, workspaceFor,
+  createProject, deleteProject, history, listProjects, listRuns, livePreview, loadProject, restore, startBuild, stopBuild, updateProject, workspaceFor,
 } from '../services/projects.ts';
 
 const TYPES: Record<string, string> = {
@@ -32,6 +32,9 @@ export function registerProjects(app: App, deps: AppDeps) {
     const [runs, available] = await Promise.all([listRuns(db, project.id), deps.sandboxes.available().catch(() => false)]);
     return c.json({ project, runs, sandbox: { kind: deps.sandboxes.kind, available } });
   });
+
+  /** Run the app in its sandbox; `url` is the live preview's public address, or null for a static site. */
+  app.post('/v1/projects/:id/live', async (c) => c.json(await livePreview(deps, await loadProject(db, c.req.param('id')))));
 
   app.patch('/v1/projects/:id', async (c) => {
     const input = await body(c, z.object({ name: z.string().trim().min(1).max(80).optional(), budgetCents: z.number().int().min(50).max(10_000).optional() }).strict());

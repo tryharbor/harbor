@@ -64,7 +64,7 @@ export async function updateProject(db: Db, id: string, patch: { name?: string; 
 export async function deleteProject(deps: BuildDeps, id: string): Promise<void> {
   const p = await loadProject(deps.db, id);
   if (await runningRun(deps.db, p.id)) throw new HarborError('CONFLICT', 'Stop the build first.');
-  if (await deps.sandboxes.available()) await (await deps.sandboxes.forProject(p.id, (await workspaceFor(deps, p.id)).root)).stop().catch(() => undefined);
+  await deps.sandboxes.release?.(p.id).catch(() => undefined);
   await deps.db.query('DELETE FROM projects WHERE id = $1', [p.id]);
   await rm(join(deps.projectsDir, p.id), { recursive: true, force: true });
 }
@@ -152,3 +152,17 @@ export async function restore(deps: BuildDeps, project: Project, sha: string): P
   const restored = await (await workspaceFor(deps, project.id)).restore(sha);
   return restored ? { sha: restored } : {};
 }
+
+/**
+ * Start the project's app in its sandbox and return the address of the live preview, or null when there's nothing to
+ * run (no dev server: the static preview shows the files).
+ */
+export async function livePreview(deps: BuildDeps, project: Project): Promise<{ url: string | null }> {
+  if (deps.sandboxes.kind === 'none' || !(await deps.sandboxes.available().catch(() => false))) {
+    throw new HarborError('CONFLICT', 'Live previews need a sandbox. Connect Vercel Sandbox to run apps.');
+  }
+  const ws = await workspaceFor(deps, project.id);
+  const url = await (await deps.sandboxes.forProject(project.id, ws.root)).preview();
+  return { url: url ?? null };
+}
+

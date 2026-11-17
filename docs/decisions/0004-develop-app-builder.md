@@ -88,7 +88,10 @@ each content feature) can override it. Harbor ships a recommended pick per job a
    dedicated kernel per sandbox, the right isolation for AI-written code); billed for active CPU, so a dev server sitting
    idle for a preview costs little; a public URL per declared port (`sandbox.domain(port)`) for the live preview;
    deny-by-default network rules that can change at runtime; files persist across stops (running processes don't, so
-   the dev server restarts on resume). Runner-up: E2B, for its pause/resume of memory and processes, at wall-clock
+   the dev server restarts on resume). Wired in `apps/api/src/build/vercel-sandbox.ts`: Harbor's copy of the files stays
+   the source of truth and is synced to the sandbox before each command and back after it (through the same path checks);
+   network allows package registries only; "Run live" starts the app's dev server and frames its `*.vercel.run` address.
+   Runner-up: E2B, for its pause/resume of memory and processes, at wall-clock
    billing and a $150/mo plan for sessions over an hour. Docker stays the local option; nothing requires it.
 
 **Still open: what people will want to build.** Before adding more starters, research which basic apps new owners would

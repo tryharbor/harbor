@@ -242,7 +242,7 @@ export const getSiteLeads = (siteId: string) => api<{ data: SiteLead[] }>(`/v1/s
 export interface Project { id: string; brandId: string; name: string; budgetCents: number; spentCents: number; createdAt: string; updatedAt: string }
 export interface BuildStep { at: string; kind: 'message' | 'action' | 'result' | 'error'; text: string; tool?: string; path?: string }
 export interface BuildRun { id: string; projectId: string; request: string; status: 'running' | 'succeeded' | 'failed' | 'budget' | 'stopped' | 'steps'; steps: BuildStep[]; summary?: string; model?: string; inputTokens: number; outputTokens: number; costCents: number; commitSha?: string; createdAt: string; finishedAt?: string }
-export interface ProjectView { project: Project; runs: BuildRun[]; sandbox: { kind: 'none' | 'docker'; available: boolean } }
+export interface ProjectView { project: Project; runs: BuildRun[]; sandbox: { kind: 'none' | 'docker' | 'vercel'; available: boolean } }
 export const getProjects = (brandId: string) => api<{ data: Project[] }>(`/v1/brands/${brandId}/projects`).then(data);
 export const getProject = (id: string) => api<ProjectView>(`/v1/projects/${id}`);
 export const getProjectFiles = (id: string) => api<{ data: { path: string; bytes: number }[] }>(`/v1/projects/${id}/files`).then(data);

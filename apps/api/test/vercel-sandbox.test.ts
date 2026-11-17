@@ -91,7 +91,9 @@ describe('choosing the sandbox from the environment', () => {
   it('refuses half-set credentials and a Vercel request without them', () => {
     expect(() => vercelCredentialsFromEnv({ VERCEL_TOKEN: 't' })).toThrow(/along with VERCEL_TOKEN/);
     expect(vercelCredentialsFromEnv({ VERCEL_TEAM_ID: 'team', VERCEL_PROJECT_ID: 'prj' })).toBeUndefined();
-    expect(() => sandboxesFromEnv({ HARBOR_SANDBOX: 'vercel' })).toThrow(/needs VERCEL_TOKEN/);
+    expect(vercelCredentialsFromEnv({ VERCEL_TEAM_ID: 'team', VERCEL_PROJECT_ID: 'prj', HARBOR_SANDBOX: 'vercel' })).toEqual({ cli: true, teamId: 'team', projectId: 'prj' });
+    expect(sandboxesFromEnv({ VERCEL_TEAM_ID: 'team', VERCEL_PROJECT_ID: 'prj', HARBOR_SANDBOX: 'vercel' }).kind).toBe('vercel');
+    expect(() => sandboxesFromEnv({ HARBOR_SANDBOX: 'vercel' })).toThrow(/needs VERCEL_TEAM_ID/);
     expect(() => sandboxesFromEnv({ HARBOR_SANDBOX: 'kubernetes' })).toThrow(/must be/);
   });
 

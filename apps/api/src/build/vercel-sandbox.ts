@@ -34,7 +34,8 @@ export interface RemoteBoxes {
   destroy(name: string): Promise<void>;
 }
 
-export const REMOTE_ROOT = '/vercel/sandbox/app';
+/** The sandbox's home is /vercel (user ubuntu); the project lives in a folder of its own under it. */
+export const REMOTE_ROOT = '/vercel/app';
 /** Dependencies and build output: never synced either way. */
 const SKIP_DIRS = ['node_modules', '.git', '.next', 'dist', '.cache', '.vercel', 'build', '.turbo'];
 const MAX_PULL = 300;
@@ -189,7 +190,7 @@ export function vercelSandboxes(boxes: RemoteBoxes): SandboxProvider {
       if (!s) {
         const name = boxName(projectId);
         s = boxes.connect(name).then(async (box) => {
-          await box.run(`mkdir -p ${REMOTE_ROOT}`, { cwd: '/vercel/sandbox', timeoutMs: 30_000 });
+          await box.run(`mkdir -p ${REMOTE_ROOT}`, { cwd: '/vercel', timeoutMs: 30_000 });
           return new VercelProjectSandbox(boxes, name, box, new Workspace(workspaceRoot));
         });
         s.catch(() => open.delete(projectId));
@@ -207,47 +208,77 @@ export function vercelSandboxes(boxes: RemoteBoxes): SandboxProvider {
 // ---- The real thing: @vercel/sandbox ----
 
 export interface VercelCredentials { token: string; teamId: string; projectId: string }
+/** Sign in through this machine's Vercel CLI login: short-lived tokens for the team and project, refreshed as needed. */
+export interface VercelCliLogin { cli: true; teamId: string; projectId: string }
+export type VercelAuth = VercelCredentials | VercelCliLogin | 'oidc';
 
 /**
- * Credentials from the environment: VERCEL_TOKEN + VERCEL_TEAM_ID + VERCEL_PROJECT_ID (an access token), or
- * VERCEL_OIDC_TOKEN (from `vercel env pull`). Undefined when neither is set: Harbor then never calls Vercel, so the SDK's
- * interactive sign-in can't start.
+ * Credentials from the environment, in order:
+ * - VERCEL_TOKEN + VERCEL_TEAM_ID + VERCEL_PROJECT_ID: an access token (production);
+ * - VERCEL_OIDC_TOKEN: a token from `vercel env pull`;
+ * - HARBOR_SANDBOX=vercel with VERCEL_TEAM_ID + VERCEL_PROJECT_ID and no token: this machine's Vercel CLI login
+ *   (`vercel login`), which mints short-lived tokens for that project. For development; no token to create or store.
+ * Undefined otherwise: Harbor then never calls Vercel, so no interactive sign-in can start.
  */
-export function vercelCredentialsFromEnv(env: Record<string, string | undefined> = process.env): VercelCredentials | 'oidc' | undefined {
+export function vercelCredentialsFromEnv(env: Record<string, string | undefined> = process.env): VercelAuth | undefined {
   const token = env.VERCEL_TOKEN?.trim();
   const teamId = env.VERCEL_TEAM_ID?.trim();
   const projectId = env.VERCEL_PROJECT_ID?.trim();
   if (token && teamId && projectId) return { token, teamId, projectId };
-  // The team and project alone (no token yet) just means "not connected"; a token without them is a mistake.
   if (token) throw new Error('Vercel Sandbox needs VERCEL_TEAM_ID and VERCEL_PROJECT_ID along with VERCEL_TOKEN.');
-  return env.VERCEL_OIDC_TOKEN?.trim() ? 'oidc' : undefined;
+  if (env.VERCEL_OIDC_TOKEN?.trim()) return 'oidc';
+  // The team and project alone just mean "not connected", unless HARBOR_SANDBOX=vercel asks for the CLI login.
+  if (teamId && projectId && env.HARBOR_SANDBOX?.trim().toLowerCase() === 'vercel') return { cli: true, teamId, projectId };
+  return undefined;
 }
 
-export function realVercelBoxes(creds: VercelCredentials | 'oidc'): RemoteBoxes {
-  const auth = creds === 'oidc' ? {} : creds;
+/** Tokens from the CLI login last 12 hours; reconnect well before, so a long-lived sandbox handle never goes stale. */
+const REFRESH_MS = 60 * 60_000;
+
+export function realVercelBoxes(creds: VercelAuth): RemoteBoxes {
+  const auth = async (): Promise<Partial<VercelCredentials>> => {
+    if (creds === 'oidc') return {};
+    if ('cli' in creds) {
+      const { getVercelOidcToken } = await import('@vercel/oidc');
+      return { token: await getVercelOidcToken({ team: creds.teamId, project: creds.projectId }), teamId: creds.teamId, projectId: creds.projectId };
+    }
+    return creds;
+  };
   const load = () => import('@vercel/sandbox');
-  const wrap = (sb: import('@vercel/sandbox').Sandbox): RemoteBox => ({
-    async run(command, opts) {
-      // The sandbox kills the command (SIGKILL) at timeoutMs, so nothing keeps running after Harbor stops waiting.
-      const r = await sb.runCommand({ cmd: 'sh', args: ['-lc', command], cwd: opts.cwd, ...(opts.env ? { env: opts.env } : {}), timeoutMs: opts.timeoutMs });
-      const [stdout, stderr] = await Promise.all([r.stdout().catch(() => ''), r.stderr().catch(() => '')]);
-      return { exitCode: r.exitCode, stdout, stderr };
-    },
-    async start(command, opts) {
-      await sb.runCommand({ cmd: 'sh', args: ['-lc', command], cwd: opts.cwd, ...(opts.env ? { env: opts.env } : {}), detached: true });
-    },
-    writeFiles: (files) => sb.writeFiles(files),
-    readFile: (path) => sb.readFileToBuffer({ path }),
-    domain: (port) => sb.domain(port),
-    async stop() {
-      await sb.stop();
-    },
-  });
+  const wrap = (first: import('@vercel/sandbox').Sandbox, name: string): RemoteBox => {
+    let sb = first;
+    let at = Date.now();
+    const fresh = async () => {
+      if (Date.now() - at > REFRESH_MS) {
+        const { Sandbox } = await load();
+        sb = await Sandbox.get({ ...(await auth()), name } as Parameters<typeof Sandbox.get>[0]);
+        at = Date.now();
+      }
+      return sb;
+    };
+    return {
+      async run(command, opts) {
+        // The sandbox kills the command (SIGKILL) at timeoutMs, so nothing keeps running after Harbor stops waiting.
+        const r = await (await fresh()).runCommand({ cmd: 'sh', args: ['-lc', command], cwd: opts.cwd, ...(opts.env ? { env: opts.env } : {}), timeoutMs: opts.timeoutMs });
+        const [stdout, stderr] = await Promise.all([r.stdout().catch(() => ''), r.stderr().catch(() => '')]);
+        return { exitCode: r.exitCode, stdout, stderr };
+      },
+      async start(command, opts) {
+        await (await fresh()).runCommand({ cmd: 'sh', args: ['-lc', command], cwd: opts.cwd, ...(opts.env ? { env: opts.env } : {}), detached: true });
+      },
+      writeFiles: async (files) => (await fresh()).writeFiles(files),
+      readFile: async (path) => (await fresh()).readFileToBuffer({ path }),
+      domain: (port) => sb.domain(port),
+      async stop() {
+        await (await fresh()).stop();
+      },
+    };
+  };
   return {
     async connect(name) {
       const { Sandbox } = await load();
       const sb = await Sandbox.getOrCreate({
-        ...auth,
+        ...(await auth()),
         name,
         ports: [PREVIEW_PORT],
         timeout: 30 * 60_000,
@@ -255,12 +286,12 @@ export function realVercelBoxes(creds: VercelCredentials | 'oidc'): RemoteBoxes 
         persistent: true,
         networkPolicy: { allow: ALLOWED_HOSTS },
         tags: { app: 'harbor' },
-      });
-      return wrap(sb);
+      } as Parameters<typeof Sandbox.getOrCreate>[0]);
+      return wrap(sb, name);
     },
     async destroy(name) {
       const { Sandbox } = await load();
-      const sb = await Sandbox.get({ ...auth, name }).catch(() => undefined);
+      const sb = await Sandbox.get({ ...(await auth()), name } as Parameters<typeof Sandbox.get>[0]).catch(() => undefined);
       await sb?.delete();
     },
   };

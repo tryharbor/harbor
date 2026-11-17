@@ -128,7 +128,7 @@ export function sandboxesFromEnv(env: Record<string, string | undefined> = proce
   if (v === 'none') return noSandbox;
   if (v === 'docker') return dockerSandboxes();
   const creds = vercelCredentialsFromEnv(env);
-  if (v === 'vercel' && !creds) throw new Error('HARBOR_SANDBOX=vercel needs VERCEL_TOKEN, VERCEL_TEAM_ID and VERCEL_PROJECT_ID (or VERCEL_OIDC_TOKEN).');
+  if (v === 'vercel' && !creds) throw new Error('HARBOR_SANDBOX=vercel needs VERCEL_TEAM_ID and VERCEL_PROJECT_ID (plus VERCEL_TOKEN, or this machine’s vercel login), or VERCEL_OIDC_TOKEN.');
   if (v && v !== 'vercel') throw new Error(`HARBOR_SANDBOX must be "vercel", "docker" or "none", got "${env.HARBOR_SANDBOX}".`);
   return creds ? vercelSandboxes(realVercelBoxes(creds)) : dockerSandboxes();
 }

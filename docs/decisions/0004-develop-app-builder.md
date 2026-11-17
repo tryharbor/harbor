@@ -1,6 +1,6 @@
 # 0004: Develop builds websites and full apps, on any major model
 
-Date: 2026-11-16. Status: proposed (open questions at the end need the owner's call).
+Date: 2026-11-16. Status: accepted (owner's answers to the open questions below).
 
 ## Decision
 
@@ -75,14 +75,18 @@ each content feature) can override it. Harbor ships a recommended pick per job a
    merge, export.
 4. **Close the loop.** "Shipped" events → Assistant ideas; Stripe products → Money; Business Memory → the app's copy and theme.
 
-## Open questions (the owner's call)
+## Owner's answers (2026-11-16)
 
-1. **Spend.** Real models reverse the build-out's zero-spend rule. Per-build cap for testing (suggested $5) and a monthly
-   ceiling?
-2. **Keys.** Harbor's own provider keys (billed in plans), owners' keys only, or both?
-3. **Hosting and accounts.** Harbor-managed repositories and hosting (friendliest; Harbor carries the bill), or the owner's
-   own GitHub and deploy host?
-4. **First Full app starter.** A web app with sign-in and payments, a booking app, or a storefront?
+1. **Spend: $5 cap per Full app build** while testing, and **keep builds basic at first**: small, well-scoped apps on the
+   starter, not whole platforms in one go.
+2. **Keys: both.** Harbor's provider keys by default, billed through plans; owners can plug in their own key.
+3. **Hosting: Harbor-managed.** Harbor holds the repositories and hosting; owners never see GitHub and can export their
+   code at any time.
+4. **First starter: a web app with sign-in, a database and Stripe payments.**
+
+**Still open: what people will want to build.** Before adding more starters, research which basic apps new owners would
+pay for. Early candidates from the owner: dropshipping stores, SEO/GEO tools, and similar simple platforms. Each becomes a
+starter only once we know it sells.
 
 ## Consequences
 

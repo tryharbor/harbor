@@ -15,21 +15,20 @@ export function Footer() {
           </div>
           <div>
             <span className="label">Product</span>
-            <Link href="/product">Overview</Link>
+            <Link href="/product">How it works</Link>
             {FEATURES.map((f) => <Link key={f.slug} href={f.href}>{f.name}</Link>)}
-          </div>
-          <div>
-            <span className="label">Build</span>
-            <Link href="/developers">Developers</Link>
-            <Link href="/developers#mcp">MCP server</Link>
+            <Link href="/pricing">Pricing</Link>
           </div>
           <div>
             <span className="label">Resources</span>
-            <Link href="/use-cases">Use cases</Link>
-            {COMPARISONS.map((c) => <Link key={c.slug} href={`/compare/${c.slug}`}>Harbor vs {c.name}</Link>)}
             <Link href="/blog">Blog</Link>
             <Link href="/changelog">Changelog</Link>
-            <Link href="/pricing">Pricing</Link>
+            <Link href="/developers">Developers</Link>
+            <Link href="/use-cases">Use cases</Link>
+          </div>
+          <div>
+            <span className="label">Compare</span>
+            {COMPARISONS.map((c) => <Link key={c.slug} href={`/compare/${c.slug}`}>Harbor vs {c.name}</Link>)}
           </div>
           <div>
             <span className="label">Company</span>
@@ -42,7 +41,7 @@ export function Footer() {
         <p className="footer-big" aria-hidden="true">Harbor</p>
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <span>© {new Date().getFullYear()} Harbor Labs LLC. Built in public.</span>
-          <span className="mono small">Publishes to X · LinkedIn · Instagram · Threads</span>
+          <span className="mono small">Build · Market · Money</span>
         </div>
       </div>
     </footer>

@@ -67,8 +67,8 @@ export const USE_CASES: UseCase[] = [
       { q: 'Can someone else review drafts?', a: 'Today approvals happen inside Harbor. Client review links are planned for the Agency plan.' },
     ],
     related: [
-      { href: '/product/brand-memory', label: 'Brand Memory' },
-      { href: '/product/insights', label: 'Insights' },
+      { href: '/product/business', label: 'Your business' },
+      { href: '/product/market', label: 'Market' },
       { href: '/pricing', label: 'Pricing per brand' },
     ],
   },
@@ -117,7 +117,7 @@ export const USE_CASES: UseCase[] = [
     ],
     related: [
       { href: '/developers', label: 'MCP tools and API' },
-      { href: '/product/agents', label: 'Agents & Approvals' },
+      { href: '/product/market', label: 'Market' },
       { href: '/blog/how-harbors-approvals-inbox-works', label: "How Harbor's approvals inbox works" },
     ],
   },

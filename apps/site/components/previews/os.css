@@ -1,0 +1,50 @@
+/* Previews for the startup-OS product pages. They sit inside a light app Window (.app), so they use its --a-* colours. */
+.os-pad { padding: 16px; }
+.os-stack { display: grid; gap: 10px; align-content: start; }
+.os-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.os-muted { color: var(--a-muted); font-size: 12px; }
+.os-field { display: grid; gap: 3px; padding: 8px 10px; background: var(--a-sunken); font-size: 13px; color: var(--a-ink); }
+.os-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border: 1px solid var(--a-line); background: var(--a-panel); font-size: 13px; color: var(--a-ink); }
+.os-row strong { font-weight: 600; }
+.os-three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
+.os-swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.os-swatches div { display: grid; gap: 4px; font-size: 11px; color: var(--a-muted); }
+.os-swatches i { height: 40px; border: 1px solid var(--a-line); }
+
+.os-site { display: grid; gap: 6px; padding: 8px; min-height: 96px; align-content: start; font-size: 11px; line-height: 1.2; }
+.os-site-nav { font-size: 9px; font-weight: 600; padding-bottom: 4px; border-bottom: 1px solid; }
+.os-site-btn { justify-self: start; padding: 3px 8px; border-radius: 999px; font-size: 9.5px; font-weight: 600; }
+.os-design { display: grid; gap: 6px; padding: 6px; border: 1px solid var(--a-line); background: var(--a-panel); font-size: 12px; }
+.os-design.on { border-color: var(--a-ink); }
+
+.os-builder { display: grid; grid-template-columns: 0.9fr 1.1fr; min-height: 300px; }
+.os-chat { display: grid; gap: 10px; align-content: start; padding: 14px; border-right: 1px solid var(--a-line); background: var(--a-sunken); }
+.os-you { justify-self: end; max-width: 92%; padding: 8px 10px; background: var(--a-panel); border: 1px solid var(--a-line); font-size: 12.5px; color: var(--a-ink); }
+.os-agent { font-size: 12.5px; line-height: 1.5; color: var(--a-ink); }
+.os-compose { margin-top: 10px; padding: 10px; border: 1px solid var(--a-line-strong); background: var(--a-panel); font-size: 12px; color: var(--a-dim); }
+.os-app { display: grid; grid-template-rows: auto 1fr; background: #fafafa; }
+.os-app-bar { padding: 8px 12px; color: #fff; font-size: 11px; font-weight: 600; }
+.os-app-body { display: grid; gap: 8px; align-content: start; padding: 16px; font-size: 12px; color: #18181a; }
+.os-app-body strong { font-size: 18px; letter-spacing: -0.02em; }
+.os-select { padding: 7px 9px; border: 1px solid #d4d4d8; background: #fff; }
+
+.os-option { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 10px; background: var(--a-sunken); border: 1px solid transparent; font-size: 12.5px; color: var(--a-ink); }
+.os-option.on { background: var(--a-panel); border-color: #f78ad9; }
+.os-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.os-chips span { padding: 4px 9px; border: 1px solid var(--a-line-strong); font-size: 11.5px; color: var(--a-ink); }
+.os-post-img { display: grid; gap: 8px; align-content: end; aspect-ratio: 1 / 1; max-height: 240px; padding: 18px; color: #fff; }
+.os-post-img strong { font-family: Georgia, serif; font-size: 22px; line-height: 1.15; }
+.os-post-kicker { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.85; }
+
+.os-total { display: flex; align-items: baseline; gap: 10px; }
+.os-total strong { font-size: 34px; font-weight: 500; letter-spacing: -0.04em; color: var(--a-ink); }
+.os-bars { display: flex; align-items: flex-end; gap: 5px; height: 70px; }
+.os-bars i { flex: 1; background: var(--a-line-strong); }
+.os-bars i:last-child { background: #f78ad9; }
+
+@media (max-width: 640px) {
+  .os-builder { grid-template-columns: 1fr; }
+  .os-chat { border-right: 0; border-bottom: 1px solid var(--a-line); }
+  .os-three { grid-template-columns: 1fr; }
+}

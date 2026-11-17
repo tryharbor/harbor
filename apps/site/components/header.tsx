@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NAV, SITE } from '../lib/site';
 import { Mark } from './ui';
 
-/** Sticky header: Product menu (the five features plus Developers and Use cases), top links. */
+/** Sticky header: Product menu (the four parts of Harbor and an overview), top links. */
 export function Header() {
   const path = usePathname();
   const [menu, setMenu] = useState(false);
@@ -41,7 +41,7 @@ export function Header() {
             {menu ? (
               <div className="menu-panel">
                 <div>
-                  <span className="label" style={{ padding: '0 10px 6px' }}>The loop</span>
+                  <span className="label" style={{ padding: '0 10px 6px' }}>Harbor</span>
                   {NAV.product.map((f) => (
                     <Link key={f.slug} href={f.href} className={`menu-item c-${f.color}`}>
                       <span className="swatch" />
@@ -50,20 +50,17 @@ export function Header() {
                   ))}
                 </div>
                 <div>
-                  <span className="label" style={{ padding: '0 10px 6px' }}>Platform</span>
-                  <Link href="/product" className="menu-item"><span /><span><strong>Overview</strong><span className="small dim">How the pieces fit together</span></span></Link>
-                  {NAV.more.map((m) => (
-                    <Link key={m.href} href={m.href} className="menu-item"><span /><span><strong>{m.name}</strong><span className="small dim">{m.short}</span></span></Link>
-                  ))}
+                  <span className="label" style={{ padding: '0 10px 6px' }}>Start here</span>
+                  <Link href="/product" className="menu-item"><span /><span><strong>How it works</strong><span className="small dim">From one description to a business that pays</span></span></Link>
+                  <Link href="/pricing" className="menu-item"><span /><span><strong>Pricing</strong><span className="small dim">One price for the whole business</span></span></Link>
                 </div>
               </div>
             ) : null}
           </div>
-          {NAV.more.map((m) => <Link key={m.href} href={m.href} aria-current={current(m.href)}>{m.name}</Link>)}
           {NAV.top.map((m) => <Link key={m.href} href={m.href} aria-current={current(m.href)}>{m.name}</Link>)}
         </nav>
         <div className="header-actions">
-          <Link className="btn sm primary hide-sm" href={SITE.start}>Get started</Link>
+          <Link className="btn sm primary hide-sm" href={SITE.start}>Get early access</Link>
           <button type="button" className="btn sm burger" aria-expanded={mobile} aria-label={mobile ? 'Close menu' : 'Open menu'} onClick={() => setMobile((m) => !m)}>{mobile ? 'Close' : 'Menu'}</button>
         </div>
       </div>
@@ -71,12 +68,12 @@ export function Header() {
       {mobile ? (
         <nav className="mobile-nav" aria-label="Mobile">
           <span className="label" style={{ marginTop: 8 }}>Product</span>
-          <Link href="/product">Overview</Link>
+          <Link href="/product">How it works</Link>
           {NAV.product.map((f) => <Link key={f.slug} href={f.href} className={`c-${f.color}`}><span className="swatch" style={{ marginRight: 12 }} />{f.name}</Link>)}
           <span className="label" style={{ marginTop: 20 }}>More</span>
-          {[...NAV.more, ...NAV.top].map((m) => <Link key={m.href} href={m.href}>{m.name}</Link>)}
+          {NAV.top.map((m) => <Link key={m.href} href={m.href}>{m.name}</Link>)}
           <div className="mobile-actions">
-            <Link className="btn primary" href={SITE.start}>Get started</Link>
+            <Link className="btn primary" href={SITE.start}>Get early access</Link>
           </div>
         </nav>
       ) : null}

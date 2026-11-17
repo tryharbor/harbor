@@ -46,12 +46,12 @@
 @media (max-width: 640px) { .pp-nav { grid-template-columns: minmax(0, 1fr); } .pp-nav-link.next { text-align: left; justify-items: start; } }
 
 /* Overview: the five pieces strip */
-.pp-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.pp-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
 .pp-strip a { background: var(--panel); padding: 20px; display: grid; gap: 10px; align-content: start; text-decoration: none; min-height: 210px; transition: background 160ms; }
 .pp-strip a:hover { background: var(--raised); }
 .pp-strip strong { font-weight: 500; font-size: 20px; letter-spacing: -0.02em; line-height: 1.15; }
 .pp-strip .pp-verb { font-size: clamp(26px, 2.6vw, 34px); letter-spacing: -0.04em; line-height: 1; }
-@media (max-width: 1000px) { .pp-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pp-strip a:last-child { grid-column: 1 / -1; } }
+@media (max-width: 1000px) { .pp-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .pp-strip { grid-template-columns: minmax(0, 1fr); } .pp-strip a { min-height: 0; } }
 
 .pp-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }

@@ -10,7 +10,7 @@ export const SITE = {
   github: 'https://github.com/tryharbor/harbor',
   x: 'https://x.com/tryharbor',
   email: 'hello@useharbor.io',
-  /** Where "Get started" goes. Pricing offers Cloud early access; point this at Cloud signup once it opens. */
+  /** Where "Get early access" goes. Pricing offers Cloud early access; point this at Cloud signup once it opens. */
   start: '/pricing',
 };
 
@@ -24,25 +24,19 @@ export type Feature = {
   pitch: string;
 };
 
-/** The five features, in the order of Harbor's loop: remember → plan → draft → publish → learn. */
+/** The four parts of Harbor, in the order a business uses them: describe it, build it, market it, get paid. */
 export const FEATURES: Feature[] = [
-  { slug: 'brand-memory', href: '/product/brand-memory', name: 'Brand Memory', color: 'pink', short: 'Every brand’s voice, audiences and offers, learned from what actually performs.', pitch: 'A memory per brand that gets sharper with every post.' },
-  { slug: 'agents', href: '/product/agents', name: 'Agents & Approvals', color: 'violet', short: 'Agents plan the week and draft it. Nothing posts until you approve.', pitch: 'The strategist’s homework, done before Monday.' },
-  { slug: 'studio', href: '/product/studio', name: 'Studio & Canvas', color: 'coral', short: 'Draft for every platform at once, on a canvas per campaign.', pitch: 'One idea, every platform, in each one’s native shape.' },
-  { slug: 'publishing', href: '/product/publishing', name: 'Publishing', color: 'amber', short: 'Schedule to X, LinkedIn, Instagram and Threads at each brand’s best times.', pitch: 'Direct to the platforms, at the hours that work.' },
-  { slug: 'insights', href: '/product/insights', name: 'Insights', color: 'yellow', short: 'Growth curves against your own median, and a weekly digest that says what to do next.', pitch: 'Not vanity totals. What worked, and why.' },
+  { slug: 'business', href: '/product/business', name: 'Your business', color: 'pink', short: 'Describe it once: what you sell, who buys it, what it costs, how it looks. Everything starts from here.', pitch: 'Tell Harbor once. Never type it again.' },
+  { slug: 'build', href: '/product/build', name: 'Build', color: 'coral', short: 'A website that gets you booked, or the app your customers sign in to, from a plain description.', pitch: 'Your website, or the product itself.' },
+  { slug: 'market', href: '/product/market', name: 'Market', color: 'violet', short: 'Posts that sound like you, for Instagram, LinkedIn, X and Threads. Pick the ones you like.', pitch: 'Posts that already know your business.' },
+  { slug: 'money', href: '/product/money', name: 'Money', color: 'yellow', short: 'What came in this month, from Stripe and what you add, next to everything else.', pitch: 'See it pay, without a spreadsheet.' },
 ];
 
 export const NAV = {
   product: FEATURES,
-  more: [
-    { href: '/developers', name: 'Developers', short: 'MCP server, API keys and the API' },
-    { href: '/use-cases', name: 'Use cases', short: 'Several brands, Claude over MCP, and comparisons' },
-  ],
   top: [
     { href: '/pricing', name: 'Pricing' },
     { href: '/blog', name: 'Blog' },
-    { href: '/changelog', name: 'Changelog' },
   ],
 };
 

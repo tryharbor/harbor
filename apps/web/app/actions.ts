@@ -270,6 +270,38 @@ export async function saveStyleRules(form: FormData) {
   go(back, { notice: 'Style rules saved.' });
 }
 
+// ---- AI model ----
+
+export async function setActiveModel(form: FormData) {
+  const provider = text(form, 'provider');
+  try {
+    await api('/v1/models/active', { method: 'PUT', body: JSON.stringify({ provider, ...(text(form, 'model') ? { model: text(form, 'model') } : {}) }) });
+  } catch (err) {
+    go('/settings#ai', { error: message(err, 'Could not switch the model.') });
+  }
+  refresh();
+  go('/settings#ai', { notice: provider === 'simulated' ? 'Using the simulated model. Nothing is spent.' : 'Model switched. New AI work uses it from now on.' });
+}
+
+export async function saveModelKey(form: FormData) {
+  try {
+    await api(`/v1/models/keys/${text(form, 'provider')}`, { method: 'PUT', body: JSON.stringify({ key: text(form, 'key') }) });
+  } catch (err) {
+    go('/settings#ai', { error: message(err, 'Could not save that key.') });
+  }
+  go('/settings#ai', { notice: 'Key saved. It is stored encrypted and never shown again.' });
+}
+
+export async function removeModelKey(form: FormData) {
+  try {
+    await api(`/v1/models/keys/${text(form, 'provider')}`, { method: 'DELETE' });
+  } catch (err) {
+    go('/settings#ai', { error: message(err, 'Could not remove that key.') });
+  }
+  refresh();
+  go('/settings#ai', { notice: 'Key removed.' });
+}
+
 // ---- Money ----
 
 const moneyBack = (form: FormData) => `/money?brand=${encodeURIComponent(text(form, 'brandId'))}`;

@@ -31,7 +31,7 @@ const channel = async (platform: string, handle: string) => {
 
 describe('modes', () => {
   it('defaults to sandbox publishing and the simulated model', async () => {
-    expect(await (await send('GET', '/v1/mode')).json()).toEqual({ publish: 'sandbox', model: 'simulated' });
+    expect(await (await send('GET', '/v1/mode')).json()).toEqual({ publish: 'sandbox', model: 'simulated', modelId: 'simulated-v1', modelLabel: 'Simulated AI' });
   });
 
   it('sends connect to the web app instead of a consent screen', async () => {
@@ -42,7 +42,7 @@ describe('modes', () => {
 
   it('hides sandbox routes in live mode', async () => {
     const live = createApp(db, { publishMode: 'live', registry: new Map() });
-    expect(await (await live.request('/v1/mode')).json()).toEqual({ publish: 'live', model: 'simulated' });
+    expect(await (await live.request('/v1/mode')).json()).toEqual({ publish: 'live', model: 'simulated', modelId: 'simulated-v1', modelLabel: 'Simulated AI' });
     const res = await live.request('/v1/sandbox/advance', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"hours":1}' });
     expect(res.status).toBe(404);
   });

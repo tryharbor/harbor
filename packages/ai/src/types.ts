@@ -1,4 +1,5 @@
 import type { Brand, BrandVoice, NormalizedMetrics, Platform, PostPart, Signal } from '@harbor/core';
+import type { SiteCopy, SiteCopyInput } from './site.ts';
 
 /** Token counts for one model call (estimated for the simulated model). */
 export interface ModelUsage {
@@ -107,7 +108,10 @@ export interface RefineVoiceChangesInput {
   changes: DraftChange[];
 }
 
-/** The AI surface Harbor uses. Implementations: SimulatedModel (default, offline) and AnthropicModel (off for now). */
+/**
+ * The AI surface Harbor uses. Implementations: SimulatedModel (default, offline), PromptedModel (any real provider) and
+ * ModelRouter (whichever of those the workspace has chosen).
+ */
 export interface ContentModel {
   readonly name: string;
   readonly simulated: boolean;
@@ -120,6 +124,8 @@ export interface ContentModel {
   digest(input: DigestInput): Promise<ModelResult<DigestResult>>;
   /** Polish the wording of the voice refresh's proposed changes. Same changes, same order; removals keep their text. */
   refineVoiceChanges(input: RefineVoiceChangesInput): Promise<ModelResult<DraftChange[]>>;
+  /** The words for a business's one-page website, from Business Memory. */
+  siteCopy(input: SiteCopyInput): Promise<ModelResult<SiteCopy>>;
 }
 
 // ---- Digest (weekly insights) ----

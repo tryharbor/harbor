@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { HarborError, brandSchema, brandVoiceSchema } from '@harbor/core';
-import { AnthropicModel, SimulatedModel, createModel } from '../src/index.ts';
+import { ModelRouter, SimulatedModel, createModel } from '../src/index.ts';
 import { EXAMPLES, RICH_MEMORY, makeBrand, signal } from './fixtures.ts';
 
 const clock = () => new Date('2026-10-01T00:00:00Z');
@@ -186,14 +186,15 @@ describe('Simulated ideas and drafts from dogfooding', () => {
 });
 
 describe('createModel', () => {
-  it('defaults to the simulated model and keeps the real one switched off', async () => {
+  it('defaults to the simulated model and needs a key for a real provider', () => {
     expect(createModel({}).name).toBe('simulated-v1');
     expect(createModel({ HARBOR_MODEL: 'simulated' }).simulated).toBe(true);
-    const real = createModel({ HARBOR_MODEL: 'anthropic' });
-    expect(real).toBeInstanceOf(AnthropicModel);
-    const err = await real.draft({ brand, idea: { title: 't', angle: '' }, platform: 'x', maxLength: 280 }).catch((e) => e);
-    expect(err).toBeInstanceOf(HarborError);
-    expect(err.code).toBe('NOT_IMPLEMENTED');
+    expect(() => createModel({ HARBOR_MODEL: 'anthropic' })).toThrow(/ANTHROPIC_API_KEY/);
+    expect(() => createModel({ HARBOR_MODEL: 'google' })).toThrow(/GEMINI_API_KEY/);
+    const real = createModel({ HARBOR_MODEL: 'openai', OPENAI_API_KEY: 'sk-test' });
+    expect(real).toBeInstanceOf(ModelRouter);
+    expect(real.active).toEqual({ provider: 'openai', model: 'gpt-6-astra' });
+    expect(real.simulated).toBe(false);
     expect(() => createModel({ HARBOR_MODEL: 'gpt' })).toThrow();
   });
 });
@@ -231,6 +232,5 @@ describe('Brand Memory that learns', () => {
     expect(res.result[0]!.why).toBe('It goes against the results.');
     expect(res.result[1]).toMatchObject({ lift: 1.6, feature: 'numberOpen' });
     expect(await model.refineVoiceChanges({ brandName: 'Harbor', voice, changes })).toEqual(res);
-    await expect(new AnthropicModel().refineVoiceChanges()).rejects.toBeInstanceOf(HarborError);
   });
 });

@@ -1,4 +1,5 @@
 import type { Brand, BrandVoice, Platform, PostPart, Signal, VoiceValue } from '@harbor/core';
+import { simulatedSiteCopy, type SiteCopy, type SiteCopyInput } from './site.ts';
 import {
   EMOJI_RE,
   EMOJI_RE_G,
@@ -91,6 +92,10 @@ export class SimulatedModel implements ContentModel {
 
   async refineVoiceChanges(input: RefineVoiceChangesInput): Promise<ModelResult<DraftChange[]>> {
     return this.wrap(input, refineVoiceChanges(input));
+  }
+
+  async siteCopy(input: SiteCopyInput): Promise<ModelResult<SiteCopy>> {
+    return this.wrap({ brand: input.brand.memory }, simulatedSiteCopy(input));
   }
 }
 

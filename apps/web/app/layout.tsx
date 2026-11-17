@@ -106,7 +106,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   <span className="label">Mode</span>
                   <span className="row">
                     <span className={`pill ${live ? 's-live' : 'plain'}`}>{live ? 'Live publishing' : 'Sandbox'}</span>
-                    <span className="pill plain">{mode.model === 'simulated' ? 'Simulated AI' : 'Claude'}</span>
+                    <span className="pill plain">{mode.modelLabel}</span>
                   </span>
                 </div>
               ) : null}

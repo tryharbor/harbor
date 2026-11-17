@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createApp, type App } from '../src/app.ts';
+import { HarborError } from '@harbor/core';
+import type { ContentModel } from '@harbor/ai';
+import { createApp, createDeps, type App } from '../src/app.ts';
 import { openDb, type Db } from '../src/db/client.ts';
 import { RICH_MEMORY, SAMPLE_WRITING, sender } from './helpers.ts';
 
@@ -128,14 +130,22 @@ describe('drafts (Studio)', () => {
     expect(kinds.slice(0, 2)).toEqual(['rewrite', 'rewrite']);
   });
 
-  it('records a failed run when the real model is off', async () => {
-    const off = createApp(db, { publishMode: 'sandbox', modelMode: 'anthropic' });
+  it('records a failed run when the model fails', async () => {
+    const fail = async () => {
+      throw new HarborError('UPSTREAM_ERROR', 'The provider is down.');
+    };
+    const broken: ContentModel = { name: 'broken-v1', simulated: false, learnVoice: fail, generateIdeas: fail, draft: fail, rewrite: fail, digest: fail, refineVoiceChanges: fail, siteCopy: fail };
+    const off = createApp(db, {}, createDeps(db, { publishMode: 'sandbox', model: broken }));
     const res = await off.request('/v1/drafts/generate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ideaId, platforms: ['x'] }) });
-    expect(res.status).toBe(501);
-    expect((await res.json()).error.message).toMatch(/Real model is off/);
+    expect(res.status).toBe(502);
+    expect((await res.json()).error.message).toMatch(/provider is down/);
     const [run] = (await (await send('GET', `/v1/agent-runs?brandId=${brandId}`)).json()).data;
-    expect(run).toMatchObject({ kind: 'draft', status: 'failed', model: 'anthropic' });
-    expect(run.error).toMatch(/Real model is off/);
+    expect(run).toMatchObject({ kind: 'draft', status: 'failed', model: 'broken-v1' });
+    expect(run.error).toMatch(/provider is down/);
+  });
+
+  it('refuses to start a real provider without its key', () => {
+    expect(() => createApp(db, { publishMode: 'sandbox', modelMode: 'anthropic' })).toThrow(/ANTHROPIC_API_KEY/);
   });
 });
 

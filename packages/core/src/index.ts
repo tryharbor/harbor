@@ -6,3 +6,4 @@ export * from './money.ts';
 export * from './media.ts';
 export * from './domain.ts';
 export * from './publishing.ts';
+export { z } from 'zod';

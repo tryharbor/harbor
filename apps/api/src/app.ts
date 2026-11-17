@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { createMiddleware } from 'hono/factory';
 import { cors } from 'hono/cors';
 import { HarborError, newId } from '@harbor/core';
-import { createModel, modelModeFromEnv, type ContentModel, type ModelMode } from '@harbor/ai';
+import { CATALOG, ModelRouter, PROVIDERS, createModel, modelModeFromEnv, type ContentModel, type ModelMode } from '@harbor/ai';
 import { createProviderRegistry, createSandboxRegistry, type ProviderRegistry } from '@harbor/providers';
 import type { Db } from './db/client.ts';
 import { LocalDiskStore, type MediaStore } from './lib/media-store.ts';
@@ -12,6 +12,7 @@ import { SecretStore } from './lib/secrets.ts';
 import { registerAgentRuns } from './routes/agent-runs.ts';
 import { registerAssistant } from './routes/assistant.ts';
 import { registerMoney } from './routes/money.ts';
+import { registerModels } from './routes/models.ts';
 import { registerApiKeys } from './routes/api-keys.ts';
 import { registerApprovals } from './routes/approvals.ts';
 import { registerAutomations } from './routes/automations.ts';
@@ -68,6 +69,8 @@ export interface AppDeps {
   registry: ProviderRegistry;
   modelMode: ModelMode;
   model: ContentModel;
+  /** The same model as a router whose provider can be switched at runtime; absent when a test injects a fixed model. */
+  models?: ModelRouter;
   secrets: () => SecretStore;
   webUrl: string;
   mediaStore: MediaStore;
@@ -85,7 +88,7 @@ export function createDeps(db: Db, opts: AppOptions = {}): AppDeps {
   const publishMode = opts.publishMode ?? publishModeFromEnv();
   const registry = opts.registry ?? (publishMode === 'sandbox' ? createSandboxRegistry() : createProviderRegistry());
   const modelMode = opts.modelMode ?? (opts.model ? (opts.model.simulated ? 'simulated' : 'anthropic') : modelModeFromEnv());
-  const model = opts.model ?? createModel({ HARBOR_MODEL: modelMode });
+  const model = opts.model ?? createModel(opts.modelMode ? { ...process.env, HARBOR_MODEL: modelMode } : process.env);
   let store: SecretStore | undefined;
   const key = () => opts.secretKey || process.env.HARBOR_SECRET_KEY || (publishMode === 'sandbox' ? sandboxSecretKey() : undefined);
   const secrets = () => (store ??= new SecretStore(db, key()));
@@ -95,6 +98,7 @@ export function createDeps(db: Db, opts: AppOptions = {}): AppDeps {
     registry,
     modelMode,
     model,
+    ...(model instanceof ModelRouter ? { models: model } : {}),
     secrets,
     webUrl: opts.webUrl ?? process.env.HARBOR_WEB_URL ?? 'http://localhost:4801',
     mediaStore: opts.mediaStore ?? new LocalDiskStore(),
@@ -147,7 +151,11 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   });
 
   /** Which publishing mode and model are active, so the UI can label sandbox / simulated output. */
-  app.get('/v1/mode', (c) => c.json({ publish: deps.publishMode, model: deps.modelMode }));
+  app.get('/v1/mode', (c) => {
+    const active = deps.models?.active ?? { provider: deps.modelMode, model: deps.model.name };
+    const label = PROVIDERS.flatMap((p) => CATALOG[p].models).find((m) => m.id === active.model)?.label ?? (active.provider === 'simulated' ? 'Simulated AI' : active.model);
+    return c.json({ publish: deps.publishMode, model: active.provider, modelId: active.model, modelLabel: label });
+  });
 
   registerBrands(app, deps);
   registerCompetitors(app, deps);
@@ -165,6 +173,7 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerMemory(app, deps);
   registerAssistant(app, deps);
   registerMoney(app, deps);
+  registerModels(app, deps);
   registerReplies(app, deps);
   registerMedia(app, deps);
   registerMcp(app, deps);

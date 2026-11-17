@@ -19,8 +19,18 @@ export const forBrowser = (body: string) =>
 
 export interface Mode {
   publish: 'sandbox' | 'live';
-  model: 'simulated' | 'anthropic';
+  model: 'simulated' | 'anthropic' | 'openai' | 'google';
+  modelId: string;
+  /** e.g. "Claude Opus 5.5", "Simulated AI". */
+  modelLabel: string;
 }
+export type ModelProvider = 'anthropic' | 'openai' | 'google';
+export interface ModelChoice {
+  active: { provider: Mode['model']; model: string };
+  providers: { id: ModelProvider; name: string; models: { id: string; label: string; note: string; price?: { input: number; output: number } }[]; key: 'own' | 'harbor' | 'none' }[];
+  switchable: boolean;
+}
+export const getModels = () => api<ModelChoice>('/v1/models');
 
 export interface BrandVoice {
   summary: string;

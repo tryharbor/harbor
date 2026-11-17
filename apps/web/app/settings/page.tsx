@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { revokeApiKey } from '../agent-actions';
-import { API_BROWSER_URL, API_INTERNAL_URL, API_PUBLIC_URL, getApiKeys, getMcpInfo, getPlatforms, loadAll, type ApiKey, type McpInfo, type PlatformInfo } from '../api';
+import { API_BROWSER_URL, API_INTERNAL_URL, API_PUBLIC_URL, getApiKeys, getMcpInfo, getModels, getPlatforms, loadAll, type ApiKey, type McpInfo, type ModelChoice, type PlatformInfo } from '../api';
+import { ModelSettings } from '../components/model-settings';
 import { Flash, LoadError, PageHeader, PLATFORM_NAME, when } from '../ui';
 import { NewApiKey } from './api-keys';
 
@@ -19,15 +20,16 @@ function bridgeDir() {
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ notice?: string; error?: string }> }) {
   const s = await searchParams;
-  const res = await loadAll<[PlatformInfo[], ApiKey[], McpInfo]>([getPlatforms(), getApiKeys(), getMcpInfo()]);
+  const res = await loadAll<[PlatformInfo[], ApiKey[], McpInfo, ModelChoice]>([getPlatforms(), getApiKeys(), getMcpInfo(), getModels()]);
   if (!res.ok) return (<><PageHeader title="Settings" /><LoadError message={res.error} /></>);
-  const [platforms, keys, mcp] = res.data;
+  const [platforms, keys, mcp, models] = res.data;
   const active = keys.filter((k) => !k.revokedAt);
   const revoked = keys.filter((k) => k.revokedAt);
   return (
     <>
       <PageHeader title="Settings" sub="How this Harbor install connects to the platforms, and how agents connect to Harbor." />
       <Flash params={s} />
+      <ModelSettings choice={models} />
       <section className="stack" id="mcp">
         <div className="stack" style={{ gap: 6 }}>
           <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />MCP server</span>

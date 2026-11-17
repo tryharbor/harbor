@@ -213,6 +213,17 @@ export const getChannels = (brandId?: string) => api<{ data: Channel[] }>(brandI
 export const getPosts = (params: { brandId?: string; status?: PostStatus; from?: string; to?: string; limit?: string } = {}) =>
   api<{ data: PostView[] }>(`/v1/posts${qs(params)}`).then(data);
 export const getPost = (id: string) => api<PostDetail>(`/v1/posts/${id}`);
+// ---- Money ----
+export interface MoneyEntry { id: string; brandId: string; kind: 'revenue' | 'expense'; amountCents: number; currency: string; occurredOn: string; category?: string; note?: string; source: 'manual' | 'stripe'; createdAt: string }
+export interface MoneySettings { brandId: string; currency: string; cashCents?: number; cashAsOf?: string; stripe?: { label: string; connectedAt: string; syncedAt?: string } }
+export interface MoneyWeek { start: string; revenueCents: number; expenseCents: number }
+export interface MoneySummary {
+  currency: string; today: string; revenueThisWeekCents: number; normalWeekCents?: number; paceVsNormal?: number;
+  revenueThisMonthCents: number; spendThisMonthCents: number; netThisMonthCents: number; monthlyNetCents?: number;
+  cashCents?: number; cashAsOf?: string; runwayMonths?: number; weeks: MoneyWeek[]; otherCurrencyEntries: number;
+}
+export const getMoney = (brandId: string) => api<{ settings: MoneySettings; summary: MoneySummary; entries: MoneyEntry[] }>(`/v1/brands/${brandId}/money`);
+
 // ---- Social assistant ----
 export type DesignLayout = 'headline' | 'quote' | 'list';
 export interface PostOption {

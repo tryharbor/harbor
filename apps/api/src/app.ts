@@ -11,6 +11,7 @@ import { publishModeFromEnv, sandboxSecretKey, type PublishMode } from './lib/mo
 import { SecretStore } from './lib/secrets.ts';
 import { registerAgentRuns } from './routes/agent-runs.ts';
 import { registerAssistant } from './routes/assistant.ts';
+import { registerMoney } from './routes/money.ts';
 import { registerApiKeys } from './routes/api-keys.ts';
 import { registerApprovals } from './routes/approvals.ts';
 import { registerAutomations } from './routes/automations.ts';
@@ -163,6 +164,7 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerApiKeys(app, deps);
   registerMemory(app, deps);
   registerAssistant(app, deps);
+  registerMoney(app, deps);
   registerReplies(app, deps);
   registerMedia(app, deps);
   registerMcp(app, deps);

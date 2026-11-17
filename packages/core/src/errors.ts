@@ -6,6 +6,8 @@ export const ERROR_CODES = {
   CONFLICT: 409,
   INTERNAL_ERROR: 500,
   NOT_IMPLEMENTED: 501,
+  /** An outside service (e.g. Stripe) failed or couldn't be reached. */
+  UPSTREAM_ERROR: 502,
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_CODES;

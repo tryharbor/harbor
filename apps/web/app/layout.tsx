@@ -29,6 +29,7 @@ const NAV = [
   { href: '/media', label: 'Media', icon: Icon.media },
   { href: '/performance', label: 'Performance', icon: Icon.performance },
   { href: '/insights', label: 'Insights', icon: Icon.insights },
+  { href: '/money', label: 'Money', icon: Icon.money },
 ];
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

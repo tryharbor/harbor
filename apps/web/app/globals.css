@@ -125,7 +125,9 @@ code { font-size: 12.5px; background: var(--raised); border: 1px solid var(--lin
 
 /* ---- Shell ---- */
 .shell { display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); min-height: 100vh; }
-.sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 16px 12px; background: var(--sidebar-bg); }
+.sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 16px 12px; background: var(--sidebar-bg); scrollbar-width: none; }
+/* The sidebar still scrolls on short windows; it just doesn't show a bar against the content. */
+.sidebar::-webkit-scrollbar { display: none; }
 .wordmark { display: flex; align-items: center; gap: 10px; font-size: 17px; letter-spacing: -0.02em; color: var(--ink); text-decoration: none; padding: 2px 8px; }
 .wordmark img, .wordmark svg { width: 22px; height: 22px; }
 .new-post { text-align: center; }
@@ -843,3 +845,27 @@ img.avatar { object-fit: cover; padding: 0; }
 
 /* Post designs: the PNG the API draws (the same image attached to drafts). */
 .pd-img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; background: var(--raised); }
+
+/* ---- Money ---- */
+.revenue-chart { position: relative; }
+.revenue-chart > svg { display: block; width: 100%; height: auto; overflow: visible; }
+.rc-key svg { flex: none; }
+.rc-grid { stroke: var(--line); stroke-width: 1; }
+.rc-tick { fill: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+.rc-bar { fill: var(--ink); transition: opacity 150ms var(--ease); }
+.rc-hover { opacity: 0.8; }
+/* This week is still running: lighter, and its axis label says so. */
+.rc-now { fill: var(--ink); opacity: 0.35; }
+.rc-normal { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.rc-key { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.rc-tip { position: absolute; top: 24px; transform: translate(-50%, -8px); display: grid; gap: 2px; padding: 6px 10px; border-radius: 6px; background: rgba(24, 24, 26, 0.92); color: #fff; font-size: 12px; white-space: nowrap; pointer-events: none; }
+.rc-tip strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+.rc-tip span { color: #b4b4b4; }
+.money-log > li { grid-template-columns: 56px minmax(0, 1fr) auto 22px; align-items: center; column-gap: 12px; }
+.money-amt { font-weight: 500; white-space: nowrap; }
+.money-amt.revenue { color: var(--good); }
+.seg-radio { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border-radius: var(--r-alert); font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; }
+.seg-radio input { position: absolute; opacity: 0; pointer-events: none; }
+.seg-radio:has(input:checked) { background: var(--panel); color: var(--ink); box-shadow: var(--shadow-low); }
+.seg-radio:has(input:focus-visible) { outline: 2px solid var(--signal); outline-offset: 2px; }
+@media (max-width: 860px) { .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

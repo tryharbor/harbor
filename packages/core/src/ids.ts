@@ -25,6 +25,7 @@ export const ID_PREFIX = {
   mediaAsset: 'med',
   request: 'req',
   chat: 'cht',
+  moneyEntry: 'mny',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

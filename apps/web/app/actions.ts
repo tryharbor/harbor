@@ -270,6 +270,82 @@ export async function saveStyleRules(form: FormData) {
   go(back, { notice: 'Style rules saved.' });
 }
 
+// ---- Money ----
+
+const moneyBack = (form: FormData) => `/money?brand=${encodeURIComponent(text(form, 'brandId'))}`;
+
+export async function addMoneyEntry(form: FormData) {
+  const back = moneyBack(form);
+  try {
+    await api(`/v1/brands/${text(form, 'brandId')}/money/entries`, {
+      method: 'POST',
+      body: JSON.stringify({ kind: text(form, 'kind'), amount: text(form, 'amount'), occurredOn: text(form, 'occurredOn'), category: text(form, 'category'), note: text(form, 'note') }),
+    });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not add that entry.') });
+  }
+  go(back, { notice: text(form, 'kind') === 'revenue' ? 'Revenue added.' : 'Expense added.' });
+}
+
+export async function deleteMoneyEntry(form: FormData) {
+  const back = moneyBack(form);
+  try {
+    await api(`/v1/money/entries/${text(form, 'entryId')}`, { method: 'DELETE' });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not delete that entry.') });
+  }
+  go(back, { notice: 'Entry deleted.' });
+}
+
+export async function saveMoneySettings(form: FormData) {
+  const back = moneyBack(form);
+  const cash = text(form, 'cash').replace(/[$,\s]/g, '');
+  try {
+    await api(`/v1/brands/${text(form, 'brandId')}/money/settings`, {
+      method: 'PATCH',
+      body: JSON.stringify({ currency: text(form, 'currency') || undefined, cash: cash === '' ? null : cash }),
+    });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not save cash on hand.') });
+  }
+  go(back, { notice: 'Saved.' });
+}
+
+export async function connectStripe(form: FormData) {
+  const back = moneyBack(form);
+  const brandId = text(form, 'brandId');
+  const key = text(form, 'key');
+  try {
+    await api(`/v1/brands/${brandId}/money/stripe`, { method: 'POST', body: JSON.stringify(key ? { key } : {}) });
+    await api(`/v1/brands/${brandId}/money/stripe/sync`, { method: 'POST' });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not connect Stripe.') });
+  }
+  go(back, { notice: 'Stripe connected and synced.' });
+}
+
+export async function syncStripe(form: FormData) {
+  const back = moneyBack(form);
+  let n = 0;
+  try {
+    const r = await api<{ revenue: number; expenses: number }>(`/v1/brands/${text(form, 'brandId')}/money/stripe/sync`, { method: 'POST' });
+    n = r.revenue + r.expenses;
+  } catch (err) {
+    go(back, { error: message(err, 'Could not sync Stripe.') });
+  }
+  go(back, { notice: `Synced ${n} entr${n === 1 ? 'y' : 'ies'} from Stripe.` });
+}
+
+export async function disconnectStripe(form: FormData) {
+  const back = moneyBack(form);
+  try {
+    await api(`/v1/brands/${text(form, 'brandId')}/money/stripe`, { method: 'DELETE' });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not disconnect Stripe.') });
+  }
+  go(back, { notice: 'Stripe disconnected. Synced entries stay in the log.' });
+}
+
 // ---- Social assistant ----
 
 export async function startAssistantChat(form: FormData) {

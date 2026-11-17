@@ -96,7 +96,8 @@ export const midSentence = (s: string) => {
 };
 export const upperFirst = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 export const stripEnd = (s: string) => s.trim().replace(/[\s.!?…:;,]+$/, '');
-export const ensureEnd = (s: string) => (/[.!?…:)"'”]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
+/** Ends a sentence with a period unless it already ends one (a bracketed note "[…]" counts as ended). */
+export const ensureEnd = (s: string) => (/[.!?…:)\]"'”]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
 
 export const uniqueBy = <T>(xs: T[], key: (x: T) => string): T[] => {
   const seen = new Set<string>();

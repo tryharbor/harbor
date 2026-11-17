@@ -348,7 +348,7 @@ export type Outcome = z.infer<typeof outcomeSchema>;
  * 'agent' is a parent run (an agent with steps); the model runs it makes keep their own kind. 'preview' drafts the
  * same brief with and without Brand Memory.
  */
-export const AGENT_RUN_KINDS = ['insights', 'ideas', 'draft', 'outcome', 'voice', 'rewrite', 'agent', 'preview'] as const;
+export const AGENT_RUN_KINDS = ['insights', 'ideas', 'draft', 'outcome', 'voice', 'rewrite', 'agent', 'preview', 'assistant'] as const;
 export const agentRunKindSchema = z.enum(AGENT_RUN_KINDS);
 export type AgentRunKind = z.infer<typeof agentRunKindSchema>;
 

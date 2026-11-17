@@ -10,6 +10,7 @@ import { LocalDiskStore, type MediaStore } from './lib/media-store.ts';
 import { publishModeFromEnv, sandboxSecretKey, type PublishMode } from './lib/modes.ts';
 import { SecretStore } from './lib/secrets.ts';
 import { registerAgentRuns } from './routes/agent-runs.ts';
+import { registerAssistant } from './routes/assistant.ts';
 import { registerApiKeys } from './routes/api-keys.ts';
 import { registerApprovals } from './routes/approvals.ts';
 import { registerAutomations } from './routes/automations.ts';
@@ -161,6 +162,7 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerAutomations(app, deps);
   registerApiKeys(app, deps);
   registerMemory(app, deps);
+  registerAssistant(app, deps);
   registerReplies(app, deps);
   registerMedia(app, deps);
   registerMcp(app, deps);

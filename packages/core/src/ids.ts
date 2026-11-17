@@ -24,6 +24,7 @@ export const ID_PREFIX = {
   importScan: 'imp',
   mediaAsset: 'med',
   request: 'req',
+  chat: 'cht',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

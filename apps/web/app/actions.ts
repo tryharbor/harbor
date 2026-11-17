@@ -302,6 +302,84 @@ export async function removeModelKey(form: FormData) {
   go('/settings#ai', { notice: 'Key removed.' });
 }
 
+// ---- Build: Website mode ----
+
+const buildBack = (form: FormData) => `/build?brand=${encodeURIComponent(text(form, 'brandId'))}`;
+
+export async function createWebsite(form: FormData) {
+  const back = buildBack(form);
+  try {
+    await api(`/v1/brands/${text(form, 'brandId')}/site`, { method: 'POST', body: JSON.stringify({ direction: text(form, 'direction') || 'bold' }) });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not write the website.') });
+  }
+  go(back, { notice: 'Your website is ready to look over. Pick a direction, edit anything, then publish.' });
+}
+
+export async function setSiteDirection(form: FormData) {
+  const back = buildBack(form);
+  try {
+    await api(`/v1/sites/${text(form, 'siteId')}`, { method: 'PATCH', body: JSON.stringify({ direction: text(form, 'direction') }) });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not change the direction.') });
+  }
+  go(back, { notice: 'Direction changed.' });
+}
+
+/** The edit form posts every section's fields as s<i>_<field> (offers items as s<i>_<j>_<field>), plus their kinds. */
+export async function saveWebsite(form: FormData) {
+  const back = buildBack(form);
+  const n = Number(text(form, 'sectionCount')) || 0;
+  const sections: unknown[] = [];
+  for (let i = 0; i < n; i++) {
+    const f = (k: string) => text(form, `s${i}_${k}`);
+    switch (f('kind')) {
+      case 'hero': sections.push({ kind: 'hero', headline: f('headline'), sub: f('sub'), cta: f('cta') }); break;
+      case 'offers': {
+        const items = [];
+        for (let j = 0; j < 12; j++) {
+          const name = text(form, `s${i}_${j}_name`);
+          if (!name) continue;
+          const price = text(form, `s${i}_${j}_price`);
+          items.push({ name, summary: text(form, `s${i}_${j}_summary`), ...(price ? { price } : {}) });
+        }
+        if (items.length) sections.push({ kind: 'offers', title: f('title'), items });
+        break;
+      }
+      case 'proof': {
+        const points = lines(form, `s${i}_points`);
+        if (points.length) sections.push({ kind: 'proof', title: f('title'), points });
+        break;
+      }
+      case 'about': if (f('body')) sections.push({ kind: 'about', title: f('title'), body: f('body') }); break;
+      case 'contact': sections.push({ kind: 'contact', title: f('title'), body: f('body') }); break;
+    }
+  }
+  try {
+    await api(`/v1/sites/${text(form, 'siteId')}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ copy: { title: text(form, 'title'), description: text(form, 'description'), sections }, settings: { ctaUrl: text(form, 'ctaUrl') } }),
+    });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not save the website.') });
+  }
+  go(back, { notice: 'Saved.' });
+}
+
+export async function siteAction(form: FormData) {
+  const back = buildBack(form);
+  const what = text(form, 'what');
+  const id = text(form, 'siteId');
+  const notices: Record<string, string> = { publish: 'Published. Your site is live.', unpublish: 'Unpublished. The site is a draft again.', rewrite: 'Rewritten from Business Memory.', delete: 'Website deleted.' };
+  if (!notices[what]) go(back, { error: 'Unknown action.' });
+  try {
+    await api(what === 'delete' ? `/v1/sites/${id}` : `/v1/sites/${id}/${what}`, { method: what === 'delete' ? 'DELETE' : 'POST' });
+  } catch (err) {
+    go(back, { error: message(err, 'That didn’t work.') });
+  }
+  go(back, { notice: notices[what]! });
+}
+
 // ---- Money ----
 
 const moneyBack = (form: FormData) => `/money?brand=${encodeURIComponent(text(form, 'brandId'))}`;

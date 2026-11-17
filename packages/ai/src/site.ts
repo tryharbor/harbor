@@ -29,6 +29,10 @@ const sentence = (s: string) => {
   return !t ? '' : /[.!?]$/.test(t) ? t : `${t}.`;
 };
 
+/** "Chicago" → "Serving Chicago."; "Online, shipping across the US" stays as written. */
+const whereLine = (loc: string) => (/^(online|worldwide|everywhere|remote)/i.test(loc.trim()) ? sentence(loc) : `Serving ${loc.trim()}.`);
+const isPlace = (loc: string) => !/^(online|worldwide|everywhere|remote)/i.test(loc.trim());
+
 const CTA: Record<string, string> = { service: 'Book now', product: 'Shop now', ecommerce: 'Shop now', software: 'Get started', creator: 'Join now' };
 
 /** The simulated model's site: assembled from Business Memory as written, inventing nothing. */
@@ -38,7 +42,7 @@ export function simulatedSiteCopy({ brand }: SiteCopyInput): SiteCopy {
   const name = brand.name.replace(/\s*\(demo\)$/, '');
   const product = m.products[0];
   const headline = m.branding.tagline || b.oneLiner || product?.summary || name;
-  const sub = [b.oneLiner && b.oneLiner !== headline ? b.oneLiner : '', b.location ? `Serving ${b.location}.` : ''].filter(Boolean).map(sentence).join(' ') || sentence(product?.summary ?? '');
+  const sub = [b.oneLiner && b.oneLiner !== headline ? b.oneLiner : '', b.location ? whereLine(b.location) : ''].filter(Boolean).map(sentence).join(' ') || sentence(product?.summary ?? '');
   const cta = product?.cta || CTA[b.type ?? ''] || 'Get in touch';
 
   const sections: SiteSection[] = [{ kind: 'hero', headline, sub, cta }];
@@ -49,7 +53,7 @@ export function simulatedSiteCopy({ brand }: SiteCopyInput): SiteCopy {
   if (points.length) sections.push({ kind: 'proof', title: `Why ${name}`, points: points.map(sentence) });
   const about = [b.oneLiner, m.audiences[0]?.description].filter(Boolean).map((s) => sentence(s!)).join(' ');
   if (about) sections.push({ kind: 'about', title: `About ${name}`, body: about });
-  sections.push({ kind: 'contact', title: 'Get in touch', body: b.location ? `Questions, quotes or bookings in ${b.location}: send a message and we'll get back to you.` : "Send a message and we'll get back to you." });
+  sections.push({ kind: 'contact', title: 'Get in touch', body: b.location && isPlace(b.location) ? `Questions, quotes or bookings in ${b.location}: send a message and we'll get back to you.` : "Questions or orders: send a message and we'll get back to you." });
 
   return {
     title: b.oneLiner ? `${name}: ${b.oneLiner.replace(/[.!?]$/, '')}` : name,

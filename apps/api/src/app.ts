@@ -13,6 +13,7 @@ import { registerAgentRuns } from './routes/agent-runs.ts';
 import { registerAssistant } from './routes/assistant.ts';
 import { registerMoney } from './routes/money.ts';
 import { registerModels } from './routes/models.ts';
+import { registerSites } from './routes/sites.ts';
 import { registerApiKeys } from './routes/api-keys.ts';
 import { registerApprovals } from './routes/approvals.ts';
 import { registerAutomations } from './routes/automations.ts';
@@ -174,6 +175,7 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerAssistant(app, deps);
   registerMoney(app, deps);
   registerModels(app, deps);
+  registerSites(app, deps);
   registerReplies(app, deps);
   registerMedia(app, deps);
   registerMcp(app, deps);
@@ -184,6 +186,9 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 const PUBLIC_ROUTES: { methods: string[]; path: RegExp }[] = [
   { methods: ['GET', 'HEAD'], path: /^\/health$/ },
+  // Published Website-mode sites and their contact forms are for the public.
+  { methods: ['GET', 'HEAD'], path: /^\/sites\/[a-z0-9-]+$/ },
+  { methods: ['POST'], path: /^\/sites\/[a-z0-9-]+\/contact$/ },
   { methods: ['GET', 'HEAD'], path: /^\/media\/[^/]+\/[^/]+$/ },
   { methods: ['GET'], path: /^\/v1\/channels\/[a-z]+\/callback$/ },
   { methods: ['POST'], path: /^\/v1\/channels\/(instagram|threads)\/(deauthorize|data-deletion)$/ },

@@ -26,6 +26,8 @@ export const ID_PREFIX = {
   request: 'req',
   chat: 'cht',
   moneyEntry: 'mny',
+  site: 'sit',
+  siteLead: 'led',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

@@ -21,12 +21,13 @@ export const dynamic = 'force-dynamic';
 
 /**
  * One item per pillar, plus the two things that cut across them: the Assistant and Approvals (everything waiting on
- * you). A pillar's own pages are tabs at the top of the page (section-tabs.tsx). Plan and Build join here when built.
+ * you). A pillar's own pages are tabs at the top of the page (section-tabs.tsx). Plan joins here when built.
  */
 const NAV: { href: string; label: string; icon: () => ReactNode; exact?: boolean; count?: 'approvals'; match?: readonly string[] }[] = [
   { href: '/', label: 'Home', icon: Icon.home, exact: true },
   { href: '/assistant', label: 'Assistant', icon: Icon.assistant },
   { href: '/approvals', label: 'Approvals', icon: Icon.approvals, count: 'approvals' },
+  { href: '/build', label: 'Build', icon: Icon.build },
   { href: '/hub', label: 'Market', icon: Icon.campaigns, match: MARKET_PATHS },
   { href: '/money', label: 'Money', icon: Icon.money },
 ];

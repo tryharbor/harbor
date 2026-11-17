@@ -103,6 +103,9 @@ describe('simulatedSiteCopy', () => {
     expect(s.sections.find((x) => x.kind === 'proof')).toMatchObject({ points: ['Licensed and insured in Illinois.', 'Tracks every post at 1h, 6h, 24h, 72h and 7d.'] });
     expect(s.sections.at(-1)!.kind).toBe('contact');
     expect(s.title).toBe('Harbor: Plumbing for Chicago homes');
+    const online = simulatedSiteCopy({ brand: makeBrand({ business: { oneLiner: 'Small-batch coffee.', location: 'Online, shipping across the US' } }) });
+    expect(online.sections[0]).toMatchObject({ headline: 'Small-batch coffee.', sub: 'Online, shipping across the US.' });
+    expect(online.sections.at(-1)).toMatchObject({ body: "Questions or orders: send a message and we'll get back to you." });
   });
 });
 

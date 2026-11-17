@@ -223,6 +223,21 @@ export const getChannels = (brandId?: string) => api<{ data: Channel[] }>(brandI
 export const getPosts = (params: { brandId?: string; status?: PostStatus; from?: string; to?: string; limit?: string } = {}) =>
   api<{ data: PostView[] }>(`/v1/posts${qs(params)}`).then(data);
 export const getPost = (id: string) => api<PostDetail>(`/v1/posts/${id}`);
+// ---- Build: Website mode ----
+export type SiteDirection = 'bold' | 'classic' | 'minimal';
+export type SiteSection =
+  | { kind: 'hero'; headline: string; sub: string; cta: string }
+  | { kind: 'offers'; title: string; items: { name: string; summary: string; price?: string }[] }
+  | { kind: 'proof'; title: string; points: string[] }
+  | { kind: 'about'; title: string; body: string }
+  | { kind: 'contact'; title: string; body: string };
+export interface SiteCopy { title: string; description: string; sections: SiteSection[] }
+export interface Site { id: string; brandId: string; slug: string; direction: SiteDirection; copy: SiteCopy; settings: { ctaUrl?: string }; status: 'draft' | 'published'; runId?: string; publishedAt?: string; createdAt: string; updatedAt: string }
+export interface SiteLead { id: string; siteId: string; name: string; email: string; message: string; createdAt: string }
+export const getSite = (brandId: string) => api<Site | null>(`/v1/brands/${brandId}/site`);
+export const getSiteDirections = () => api<{ data: { id: SiteDirection; name: string; note: string }[] }>('/v1/sites/directions').then(data);
+export const getSiteLeads = (siteId: string) => api<{ data: SiteLead[] }>(`/v1/sites/${siteId}/leads`).then(data);
+
 // ---- Money ----
 export interface MoneyEntry { id: string; brandId: string; kind: 'revenue' | 'expense'; amountCents: number; currency: string; occurredOn: string; category?: string; note?: string; source: 'manual' | 'stripe'; createdAt: string }
 export interface MoneySettings { brandId: string; currency: string; cashCents?: number; cashAsOf?: string; stripe?: { label: string; connectedAt: string; syncedAt?: string } }

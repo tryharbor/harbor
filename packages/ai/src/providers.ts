@@ -95,14 +95,15 @@ export function anthropicProvider(apiKey: string): LlmProvider {
     async complete(model, req) {
       let res;
       try {
-        res = await client.beta.messages.create({
+        // Streamed, then collected: long agent steps (up to 32k output tokens) must stream, or the SDK refuses them.
+        res = await client.beta.messages.stream({
           model,
           max_tokens: req.maxTokens,
           system: req.system,
           messages: [{ role: 'user', content: req.prompt }],
           output_config: { effort: req.effort ?? 'medium', format: { type: 'json_schema', schema: req.schema } },
           ...(FALLBACK_MODELS.has(model) ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const } : {}),
-        });
+        }).finalMessage();
       } catch (err) {
         return failed('anthropic', err);
       }

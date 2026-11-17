@@ -4,5 +4,6 @@
 .guide-prose table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 15px; display: block; overflow-x: auto; }
 .guide-prose th, .guide-prose td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .guide-prose th { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); font-weight: 400; }
-.guide-prose td:not(:first-child) { white-space: nowrap; }
+.guide-prose td:not(:first-child) { min-width: 11ch; }
+.guide-prose td { overflow-wrap: normal; }
 .guide-prose h2#sources + ul, .guide-prose h2:last-of-type + ul { font-size: 14px; color: var(--muted); }

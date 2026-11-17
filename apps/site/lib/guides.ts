@@ -23,9 +23,9 @@ import { extractFaq, parseFrontmatter } from './blog';
 
 /** Each trade's name on the index, and how the closing banner talks to someone starting one. */
 export const TRADES: Record<string, string> = { cleaning: 'Cleaning business', 'lawn-care': 'Lawn care business', 'dog-grooming': 'Dog grooming business',
-  photography: 'Photography business', general: 'Any service business' };
+  photography: 'Photography business', 'home-bakery': 'Home bakery business', general: 'Any service business' };
 export const TRADE_CTA: Record<string, string> = { cleaning: 'Get your cleaning business online.', 'lawn-care': 'Get your lawn care business online.', 'dog-grooming': 'Get your grooming business online.',
-  photography: 'Get your photography business online.', general: 'Get your business online.' };
+  photography: 'Get your photography business online.', 'home-bakery': 'Get your home bakery online.', general: 'Get your business online.' };
 export const KINDS = ['start', 'cost', 'price', 'customers', 'general'] as const;
 export type Kind = (typeof KINDS)[number];
 export const KIND_LABEL: Record<Kind, string> = { start: 'Start', cost: 'Costs', price: 'Pricing', customers: 'First customers', general: 'Guide' };

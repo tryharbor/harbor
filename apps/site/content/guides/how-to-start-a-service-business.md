@@ -1,7 +1,7 @@
 ---
 title: How to start a service business in 2026
 description: The steps to start a local service business, like cleaning or lawn care, with what each step costs and the rules that apply, sourced and dated.
-answer: To start a service business, pick a service people already pay for, work out your startup costs and prices, register (you're a sole proprietor by default, and an EIN is free), get liability insurance, set up card payments, plan for 15.3% self-employment tax, and win your first customers through people you know and a free Google Business Profile. Cleaning can start for under $400; lawn care for about $1,050.
+answer: To start a service business, pick a service people already pay for, work out your startup costs and prices, register (you're a sole proprietor by default, and an EIN is free), get liability insurance, set up card payments, plan for 15.3% self-employment tax, and win your first customers through people you know and a free Google Business Profile. A home bakery or cleaning business can start for under $400; lawn care for about $1,050.
 trade: general
 kind: general
 published: 2026-11-17
@@ -20,6 +20,7 @@ Trade guides so far:
 - [How to start a lawn care business](/guides/how-to-start-a-lawn-care-business)
 - [How to start a dog grooming business](/guides/how-to-start-a-dog-grooming-business)
 - [How to start a photography business](/guides/how-to-start-a-photography-business)
+- [How to start a home bakery](/guides/how-to-start-a-home-bakery)
 
 ## 2. Work out what it costs to start
 
@@ -31,6 +32,7 @@ Service businesses are cheap to start because most of the cost is equipment you 
 | Lawn care | about $1,052 | about $3,131 |
 | Dog grooming | about $1,420 | about $4,500 (home salon) |
 | Photography | about $1,135 | about $4,860 |
+| Home bakery | about $343 | about $1,123 |
 
 The lean budgets assume you use your own vehicle and start as a sole proprietor. The typical budgets add commercial-grade equipment, a bond or extra insurance, and an LLC.
 
@@ -38,6 +40,7 @@ The lean budgets assume you use your own vehicle and start as a sole proprietor.
 - [Lawn care business startup costs](/guides/lawn-care-business-startup-costs)
 - [Dog grooming business startup costs](/guides/dog-grooming-business-startup-costs)
 - [Photography business startup costs](/guides/photography-business-startup-costs)
+- [Home bakery startup costs](/guides/home-bakery-startup-costs)
 
 ## 3. Set your prices
 
@@ -49,6 +52,7 @@ A simple way to price one job: **your hourly pay × hours, plus driving and supp
 - [How much to charge for lawn mowing](/guides/how-much-to-charge-for-lawn-mowing)
 - [How much to charge for dog grooming](/guides/how-much-to-charge-for-dog-grooming)
 - [How much to charge for photography](/guides/how-much-to-charge-for-photography)
+- [How much to charge for baked goods](/guides/how-much-to-charge-for-baked-goods)
 
 ## 4. Register the business
 
@@ -75,6 +79,7 @@ Liability insurance covers damage you might cause in a customer's home or yard, 
 | Lawn care | about $57 (Insureon); most Next Insurance customers pay $18–$55 |
 | Dog grooming | about $50 (Insureon); $65 for mobile groomers |
 | Photography | about $29 (Insureon) |
+| Home bakery | about $39 (Insureon); FLIP from $299 a year |
 
 Cleaners often add a janitorial bond (about $112–$175 a year), and lawn care businesses often insure their tools and equipment (about $42 a month).
 
@@ -103,6 +108,7 @@ Trade-specific plans:
 - [Your first 10 lawn care customers](/guides/get-your-first-lawn-care-customers)
 - [Your first 10 dog grooming clients](/guides/get-your-first-dog-grooming-clients)
 - [Your first 10 photography clients](/guides/get-your-first-photography-clients)
+- [Your first home bakery customers](/guides/get-your-first-home-bakery-customers)
 
 ## 10. Get a simple website
 
@@ -112,7 +118,7 @@ You can win your first few customers without one. Once people start searching fo
 
 ### How much does it cost to start a service business?
 
-It depends on the equipment. A house cleaning business can start for about $369 and a lawn care business for about $1,052, using a vehicle you already have and starting as a sole proprietor (prices checked November 2026).
+It depends on the equipment. Lean starts, using a vehicle and kitchen you already have and starting as a sole proprietor: about $343 for a home bakery, $369 for house cleaning, $1,052 for lawn care, $1,135 for photography and $1,420 for dog grooming (prices checked November 2026).
 
 ### Do I need an LLC to start a service business?
 
@@ -120,7 +126,7 @@ No. You're a sole proprietor by default, at no cost. An LLC separates business d
 
 ### Do I need a license to start a service business?
 
-Usually not a special state license for cleaning or mowing, but many cities and counties require a general business license. Some work, like applying pesticides, does need state certification.
+Usually not a special state license for cleaning, mowing or photography, but many cities and counties require a general business license. Some work does need one: applying pesticides needs state certification, some states (like Colorado and Connecticut) license dog groomers, and selling food from home falls under your state's cottage food law.
 
 ### What taxes do I pay when I'm self-employed?
 
@@ -128,7 +134,7 @@ Income tax plus self-employment tax of 15.3% of your net earnings, paid through 
 
 ### Which service business is cheapest to start?
 
-Of the two priced here, house cleaning: about $369 for a lean start, against about $1,052 for lawn care, because cleaning supplies cost far less than a mower and trimmer.
+Of the five priced here, a home bakery (about $343 with a mixer you already have, in a state with no permit fee) and house cleaning (about $369). Lawn care, photography and dog grooming start at about $1,050–$1,420, because the mower, camera or grooming table costs more.
 
 ## Sources
 
@@ -137,11 +143,11 @@ Of the two priced here, house cleaning: about $369 for a lean start, against abo
 - LLC filing fees: Texas Secretary of State (Form 205); Florida Division of Corporations; New York Department of State.
 - Certification standards for pesticide applicators, U.S. EPA. epa.gov, updated March 6, 2026.
 - C-27 landscaping classification, and "Gardener or landscaper: what's the difference?", California Contractors State License Board. cslb.ca.gov.
-- Insurance costs: Insureon (house cleaners, updated September 1, 2026; lawn care, updated September 28, 2026; groomers, updated July 10–11, 2025; photography, updated February 24, 2026); Simply Business (janitorial, modified October 28, 2026); Next Insurance (lawn care, data updated October 2026).
+- Insurance costs: Insureon (house cleaners, updated September 1, 2026; lawn care, updated September 28, 2026; groomers, updated July 10–11, 2025; photography, updated February 24, 2026; cake and cookie bakers, updated September 14, 2026); Food Liability Insurance Program (fliprogram.com); Simply Business (janitorial, modified October 28, 2026); Next Insurance (lawn care, data updated October 2026).
 - House cleaning prices, Thumbtack (thumbtack.com, updated October 20, 2026); lawn mowing prices, LawnStarter (lawnstarter.com, updated November 4, 2026); dog grooming and photographer prices, Thumbtack (updated October 28, 2026).
 - Standard mileage rates, IRS. irs.gov.
 - Pricing, Stripe (stripe.com/pricing); payment fees, Square (squareup.com).
 - Self-employment tax (irs.gov, reviewed October 30, 2026) and estimated taxes FAQ (irs.gov, updated October 2, 2026), IRS.
 - Manage your service areas, Google Business Profile Help. support.google.com.
 - Advertise with Nextdoor. business.nextdoor.com.
-- Startup budgets: Harbor's itemized cleaning, lawn care, dog grooming and photography cost guides, with prices seen November 17, 2026.
+- Startup budgets: Harbor's itemized cleaning, lawn care, dog grooming, photography and home bakery cost guides, with prices seen November 17, 2026.

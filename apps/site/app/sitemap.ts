@@ -3,6 +3,7 @@ import { getPosts } from '../lib/blog';
 import { COMPARISONS } from '../lib/compare';
 import { FEATURES, SITE } from '../lib/site';
 import { USE_CASES } from '../lib/use-cases';
+import { getGuides } from '../lib/guides';
 
 export const dynamic = 'force-static';
 // Rebuilt at most hourly, so a post written ahead appears on its date without a deploy (see lib/blog.ts).
@@ -25,6 +26,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     page('/product', 0.9, 'weekly'),
     ...FEATURES.map((f) => page(f.href, 0.8, 'monthly')),
     page('/pricing', 0.8, 'monthly'),
+    page('/guides', 0.8, 'weekly'),
+    ...getGuides().map((g) => page(`/guides/${g.slug}`, 0.8, 'monthly', g.updated)),
     page('/developers', 0.8, 'monthly'),
     page('/use-cases', 0.7, 'monthly'),
     ...USE_CASES.map((u) => page(`/use-cases/${u.slug}`, 0.7, 'monthly')),

@@ -21,6 +21,7 @@ export function Footer() {
           </div>
           <div>
             <span className="label">Resources</span>
+            <Link href="/guides">Guides</Link>
             <Link href="/blog">Blog</Link>
             <Link href="/changelog">Changelog</Link>
             <Link href="/developers">Developers</Link>

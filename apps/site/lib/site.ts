@@ -36,6 +36,7 @@ export const NAV = {
   product: FEATURES,
   top: [
     { href: '/pricing', name: 'Pricing' },
+    { href: '/guides', name: 'Guides' },
     { href: '/blog', name: 'Blog' },
   ],
 };

@@ -3,19 +3,16 @@
 export const SITE = {
   name: 'Harbor',
   url: 'https://useharbor.io',
-  tagline: 'The open-source content strategist for builders',
+  tagline: 'The content strategist for builders',
   description:
-    'Harbor learns what works for each of your brands, plans the week, drafts it in your voice and waits for your OK. Open source: self-host it free, or use Harbor Cloud.',
-  /** The public repo (goes public at launch). */
+    'Harbor learns what works for each of your brands, plans the week, drafts it in your voice and waits for your OK.',
+  /** The code repo. Only the Terms page links it (the license); it isn't part of the positioning. */
   github: 'https://github.com/tryharbor/harbor',
   x: 'https://x.com/tryharbor',
   email: 'hello@useharbor.io',
-  /** Where "Get started" goes. Pricing lets visitors pick self-host (free) or Cloud (early access); point this at
-   *  Cloud signup once it opens. */
+  /** Where "Get started" goes. Pricing offers Cloud early access; point this at Cloud signup once it opens. */
   start: '/pricing',
 };
-
-export const CLONE = 'git clone https://github.com/tryharbor/harbor && cd harbor && pnpm install && pnpm dev';
 
 export type Feature = {
   slug: string;
@@ -40,8 +37,7 @@ export const NAV = {
   product: FEATURES,
   more: [
     { href: '/developers', name: 'Developers', short: 'MCP server, API keys and the API' },
-    { href: '/open-source', name: 'Open source', short: 'AGPL. Self-host in minutes, own your data' },
-    { href: '/use-cases', name: 'Use cases', short: 'Several brands, Claude over MCP, self-hosting, and comparisons' },
+    { href: '/use-cases', name: 'Use cases', short: 'Several brands, Claude over MCP, and comparisons' },
   ],
   top: [
     { href: '/pricing', name: 'Pricing' },

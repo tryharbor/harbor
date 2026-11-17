@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { NAV, SITE } from '../lib/site';
-import { GitHubIcon, Mark } from './ui';
+import { Mark } from './ui';
 
-/** Sticky header: Product menu (the five features plus Developers and Open source), top links, GitHub. */
+/** Sticky header: Product menu (the five features plus Developers and Use cases), top links. */
 export function Header() {
   const path = usePathname();
   const [menu, setMenu] = useState(false);
@@ -63,7 +63,6 @@ export function Header() {
           {NAV.top.map((m) => <Link key={m.href} href={m.href} aria-current={current(m.href)}>{m.name}</Link>)}
         </nav>
         <div className="header-actions">
-          <a className="btn sm hide-sm icon-btn" href={SITE.github} aria-label="Harbor on GitHub" title="Harbor on GitHub"><GitHubIcon size={16} /></a>
           <Link className="btn sm primary hide-sm" href={SITE.start}>Get started</Link>
           <button type="button" className="btn sm burger" aria-expanded={mobile} aria-label={mobile ? 'Close menu' : 'Open menu'} onClick={() => setMobile((m) => !m)}>{mobile ? 'Close' : 'Menu'}</button>
         </div>
@@ -78,7 +77,6 @@ export function Header() {
           {[...NAV.more, ...NAV.top].map((m) => <Link key={m.href} href={m.href}>{m.name}</Link>)}
           <div className="mobile-actions">
             <Link className="btn primary" href={SITE.start}>Get started</Link>
-            <a className="btn" href={SITE.github}><GitHubIcon />GitHub</a>
           </div>
         </nav>
       ) : null}

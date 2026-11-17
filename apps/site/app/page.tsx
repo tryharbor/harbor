@@ -1,18 +1,17 @@
 import Link from 'next/link';
-import { CopyCommand } from '../components/copy-command';
 import { LoopTabs } from '../components/loop-tabs';
 import { PlatformIcon } from '../components/platform-icon';
 import { ApprovalsPreview } from '../components/previews/approvals';
 import { Reveal } from '../components/reveal';
-import { CtaBand, GitHubButton, SectionHead, Window } from '../components/ui';
-import { CLONE, FEATURES, PLATFORMS, PLATFORM_NAME, SITE } from '../lib/site';
+import { CtaBand, SectionHead, Window } from '../components/ui';
+import { FEATURES, PLATFORMS, PLATFORM_NAME, SITE } from '../lib/site';
 import { PRICING } from '../lib/pricing';
 import { JsonLd, softwareApplication } from '../lib/jsonld';
 import type { Metadata } from 'next';
 import { pageMeta } from '../lib/seo';
 
 const BRANDS = [
-  { name: 'Harbor', kind: 'Open-source SaaS', voice: 'Personal · data-led · candid', best: 'Tue 9am on X', median: '2.9K', change: '+22%' },
+  { name: 'Harbor', kind: 'SaaS', voice: 'Personal · data-led · candid', best: 'Tue 9am on X', median: '2.9K', change: '+22%' },
   { name: 'Tidewater Coffee', kind: 'Small-batch roaster', voice: 'Warm · story-led · playful', best: 'Sun 7pm on Instagram', median: '3.2K', change: '+26%' },
   { name: 'Fieldnotes', kind: 'Newsletter', voice: 'Calm · considered · polished', best: 'Wed 8am on LinkedIn', median: '1.4K', change: 'flat' },
 ];
@@ -75,7 +74,7 @@ export default function Home() {
             <div><strong>5</strong><span className="label">checkpoints per post · 1h 6h 24h 3d 7d</span></div>
             <div><strong>4</strong><span className="label">platforms, published direct</span></div>
             <div><strong>0</strong><span className="label">posts sent without your OK</span></div>
-            <div><strong>100%</strong><span className="label">open source · self-host free</span></div>
+            <div><strong>1</strong><span className="label">approvals inbox for every brand</span></div>
           </div>
         </Reveal>
       </section>
@@ -165,42 +164,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Open source */}
-      <section className="section rule">
-        <div className="container split">
-          <Reveal>
-            <div className="stack" style={{ gap: 20 }}>
-              <span className="eyebrow"><span className="pixels" />Open source</span>
-              <h2 className="h2">Your content, your data, your server.</h2>
-              <p className="lede" style={{ margin: 0 }}>Harbor is AGPL-licensed. Run it on your laptop in sandbox mode with no keys and no spend, then connect your own platform apps when you’re ready.</p>
-              <ul className="check-list">
-                <li>Sandbox publishing and a built-in model: try everything for free</li>
-                <li>Postgres, or an embedded database for local use</li>
-                <li>Your own platform developer apps; tokens encrypted at rest</li>
-              </ul>
-              <div className="row"><GitHubButton /><Link className="btn" href="/open-source">Self-host guide</Link></div>
-              <CopyCommand command={CLONE} display="git clone github.com/tryharbor/harbor" />
-            </div>
-          </Reveal>
-          <Reveal delay={120}>
-            <div className="terminal">
-              <div className="window-bar" style={{ background: 'var(--raised)', color: 'var(--dim)', borderColor: 'var(--line)' }}><i /><i /><i /><span className="grow">~/harbor</span><span style={{ width: 39 }} /></div>
-              <pre>{`$ git clone https://github.com/tryharbor/harbor
-$ cd harbor && pnpm install
-$ pnpm dev
-
-  Harbor API on http://localhost:4800
-  publishing: sandbox · model: simulated
-  Harbor on   http://localhost:4801  ✓`}</pre>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
       {/* Pricing teaser */}
       <section className="section rule">
         <div className="container stack" style={{ gap: 40 }}>
-          <SectionHead eyebrow="Pricing" title="Priced per brand, not per seat." lede="Self-hosting is free forever. Harbor Cloud is opening soon at early pricing." />
+          <SectionHead eyebrow="Pricing" title="Priced per brand, not per seat." lede="Harbor Cloud is opening soon at early pricing." />
           <div className="cards">
             {PRICING.map((p, i) => (
               <Reveal key={p.name} delay={i * 60} className="card">

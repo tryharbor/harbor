@@ -32,7 +32,7 @@ export const USE_CASES: UseCase[] = [
     title: 'One content strategy per brand, run from one place.',
     metaTitle: 'Content strategy for multiple brands',
     description:
-      'How to run social content for several brands without them blurring together: a memory and baseline per brand, one approvals inbox, and a weekly plan for each, in open-source Harbor.',
+      'How to run social content for several brands without them blurring together: a memory and baseline per brand, one approvals inbox, and a weekly plan for each, in Harbor.',
     answer:
       'To run content for several brands without mixing them up, keep three things separate per brand: its voice, its audience and its own performance baseline. Then review everything in one place. Harbor does exactly that. Each brand gets its own Brand Memory and its own median to measure posts against, while plans, drafts and approvals for every brand land in one inbox. A win on one brand never skews another.',
     problem: {
@@ -61,7 +61,7 @@ export const USE_CASES: UseCase[] = [
       ],
     },
     faq: [
-      { q: 'How many brands can Harbor handle?', a: 'Self-hosted, there’s no limit. Harbor Cloud plans are priced per brand: 2 on Starter, 6 on Builder, 25 on Agency.' },
+      { q: 'How many brands can Harbor handle?', a: 'Harbor Cloud plans are priced per brand: 2 on Starter, 6 on Builder, 25 on Agency.' },
       { q: 'Can one brand post to several platforms?', a: 'Yes. A brand is the thing you post for, and it can connect X, LinkedIn, Instagram and Threads. Each platform keeps its own limits, previews and best times.' },
       { q: 'Will a viral post on one brand change another brand’s recommendations?', a: 'No. Baselines, verdicts, best times and the voice refresh are all computed per brand.' },
       { q: 'Can someone else review drafts?', a: 'Today approvals happen inside Harbor. Client review links are planned for the Agency plan.' },
@@ -114,62 +114,11 @@ export const USE_CASES: UseCase[] = [
       { q: 'Can Claude publish posts through Harbor?', a: 'No. Harbor’s MCP server can propose posts, which wait in Approvals. Only a person approving them schedules anything.' },
       { q: 'Which MCP clients work?', a: 'Any client that speaks MCP over Streamable HTTP, such as Claude Code. Clients that only speak stdio, like Claude Desktop, use Harbor’s stdio bridge.' },
       { q: 'What can a read-only key do?', a: 'List brands, read Brand Memory, posts, digests, best times, campaigns, ideas, approvals and agent runs. Anything that creates or proposes needs the write scope.' },
-      { q: 'Does it work with a self-hosted Harbor?', a: 'Yes. The MCP server is part of Harbor’s API, at /mcp. Self-hosted, it’s your own server and your own keys.' },
     ],
     related: [
       { href: '/developers', label: 'MCP tools and API' },
       { href: '/product/agents', label: 'Agents & Approvals' },
       { href: '/blog/how-harbors-approvals-inbox-works', label: "How Harbor's approvals inbox works" },
-    ],
-  },
-  {
-    slug: 'self-hosted-social-media-scheduler',
-    label: 'Self-hosted social media scheduler',
-    eyebrow: 'Use case · Self-hosted',
-    title: 'A self-hosted social media scheduler that also learns.',
-    metaTitle: 'Open-source, self-hosted social media scheduler',
-    description:
-      'Harbor is an open-source (AGPL), self-hosted way to schedule and publish to X, LinkedIn, Instagram and Threads through your own developer apps, then measure every post against your own median.',
-    answer:
-      'Harbor is an open-source, self-hosted social media scheduler for X, LinkedIn, Instagram and Threads. It runs on your own server with Postgres (or an embedded database for local use), publishes through your own developer apps, and keeps your tokens encrypted in your own database. Beyond scheduling, it measures every post at 1h, 6h, 24h, 3 days and 7 days against your own median and uses the results to plan the next week. It’s free under the AGPL, and it runs in a sandbox mode with no keys at all.',
-    problem: {
-      title: 'Why self-host',
-      points: [
-        'Your account tokens, drafts and analytics stay on a server you control.',
-        'No per-seat or per-channel bill: self-hosted Harbor has every feature and no brand limit.',
-        'You can read the code that touches your accounts, and change it.',
-        'Hosted schedulers stop at scheduling. Harbor keeps going after the post is out.',
-      ],
-    },
-    steps: [
-      { title: 'Publish straight to the platforms', body: 'Harbor talks to each platform’s own API through developer apps you register, so there’s no middleman API. Each platform’s rules are checked before sending: text limits, media counts, aspect ratios.', preview: 'platform-rules', window: 'Voice check · Platform rules' },
-      { title: 'No double posts', body: 'If a publish times out after the platform may have accepted it, Harbor marks it "check platform" and waits for you. It never retries an unknown outcome on its own.', preview: 'safe-publish', window: 'Did it go out?' },
-      { title: 'Measured after it’s out', body: 'Five checkpoints per post, compared with your own median at the same age, so you see what actually worked rather than vanity totals.', preview: 'checkpoint-curve', window: 'Performance' },
-    ],
-    workflow: {
-      title: 'From clone to first post',
-      steps: [
-        'Clone the repo, run pnpm install and pnpm dev. It starts in sandbox mode with a simulated model: no keys, no spend.',
-        'Explore with demo data, or add your own brand.',
-        'When you’re ready, set HARBOR_SECRET_KEY, a stable HTTPS URL and your platform app keys in .env.',
-        'Connect each account through the platform’s own consent screen.',
-        'Schedule your first post, then watch its growth curve fill in over the first week.',
-      ],
-    },
-    code: {
-      title: 'Run it locally',
-      lines: 'git clone https://github.com/tryharbor/harbor && cd harbor\npnpm install\npnpm dev     # API on :4800, app on :4801, sandbox mode',
-    },
-    faq: [
-      { q: 'What do I need to self-host Harbor?', a: 'Node.js 22.12+ and pnpm. Postgres for production (set DATABASE_URL), or the embedded PGlite database for local use. To go live, developer apps on each platform you want to post to.' },
-      { q: 'Which platforms does it support?', a: 'X, LinkedIn, Instagram and Threads. That’s fewer than most hosted schedulers; Harbor goes deep on those four rather than wide.' },
-      { q: 'Does self-hosting cost anything?', a: 'Harbor is free. You pay for your own server and database, and X bills its API per post and per read (about 4 cents to publish and track a post). LinkedIn, Instagram and Threads don’t charge.' },
-      { q: 'Is there Docker support?', a: 'A one-command Docker setup is next on the roadmap. Today you run it with Node and pnpm.' },
-    ],
-    related: [
-      { href: '/open-source', label: 'Self-host guide' },
-      { href: '/product/publishing', label: 'Publishing' },
-      { href: '/blog/what-every-social-api-gives-you-in-2026', label: 'What every social API gives you' },
     ],
   },
 ];

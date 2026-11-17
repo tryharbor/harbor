@@ -34,14 +34,14 @@ export default function OpengraphImage() {
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-          <div style={{ fontSize: 84, lineHeight: 1, letterSpacing: '-0.045em', maxWidth: 980 }}>The open-source content strategist for builders.</div>
+          <div style={{ fontSize: 84, lineHeight: 1, letterSpacing: '-0.045em', maxWidth: 980 }}>The content strategist for builders.</div>
           <div style={{ fontSize: 28, color: '#a1a1aa', maxWidth: 900, lineHeight: 1.35 }}>Learns what works for each brand, plans the week, drafts it in your voice and waits for your OK.</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex' }}>
             {PIXELS.map((c) => <div key={c} style={{ width: 72, height: 14, background: c }} />)}
           </div>
-          <span style={{ fontSize: 22, color: '#71717a', letterSpacing: '0.08em', textTransform: 'uppercase' }}>useharbor.io · AGPL</span>
+          <span style={{ fontSize: 22, color: '#71717a', letterSpacing: '0.08em', textTransform: 'uppercase' }}>useharbor.io</span>
         </div>
       </div>
     ),

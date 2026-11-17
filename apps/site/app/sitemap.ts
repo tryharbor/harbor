@@ -25,7 +25,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     page('/product', 0.9, 'weekly'),
     ...FEATURES.map((f) => page(f.href, 0.8, 'monthly')),
     page('/pricing', 0.8, 'monthly'),
-    page('/open-source', 0.8, 'monthly'),
     page('/developers', 0.8, 'monthly'),
     page('/use-cases', 0.7, 'monthly'),
     ...USE_CASES.map((u) => page(`/use-cases/${u.slug}`, 0.7, 'monthly')),

@@ -11,57 +11,53 @@ import { JsonLd, faqPage } from '../../lib/jsonld';
 /** The FAQ below as plain text, for structured data. Keep in step with the visible answers. */
 const FAQ_LD = [
   { q: 'What counts as a brand?', a: 'A brand is one thing you post for: your product, a side project, your own name, a client. Each brand has its own Brand Memory, connected accounts and baseline. One brand can post to all four platforms.' },
-  { q: 'Do I need my own platform developer apps?', a: 'Self-hosted: yes. Harbor publishes through developer apps you register on X, LinkedIn, Meta (Instagram) and Threads; for your own accounts none need app review. Cloud: no. Cloud will connect through Harbor’s own apps.' },
+  { q: 'Do I need my own platform developer apps?', a: 'No. Harbor Cloud connects through Harbor’s own apps: you click Connect and sign in to each platform.' },
   { q: 'What does X cost?', a: 'X’s API is pay-per-use: about $0.015 per post, about $0.20 for a post with a link, and $0.005 per metrics read. Harbor reads each post 5 times, so a post costs about 4 cents to publish and track, or about 22 cents with a link. LinkedIn, Instagram and Threads don’t charge for API use.' },
-  { q: 'Can I move from self-host to Cloud?', a: 'That’s the plan. Both run the same code on Postgres, so moving is a database move. Connected accounts are reconnected once, because their tokens belong to your own developer apps.' },
   { q: 'Will Harbor ever post without asking?', a: 'No. Agents, automations and MCP clients can draft and propose, and every proposal waits in Approvals until a person approves it.' },
-  { q: 'Is self-hosting really free?', a: 'Yes. Harbor is open source under the AGPL, with every feature included and no brand limit. You pay only for your own server, database and any platform or model usage.' },
 ];
 
 export const metadata: Metadata = pageMeta('/pricing', {
   title: 'Pricing',
-  description: 'Self-host Harbor free forever under the AGPL, or use Harbor Cloud, priced per brand: Starter $19 for 2 brands, Builder $49 for 6, Agency $149 for 25. Early pricing.',
+  description: 'Harbor Cloud is priced per brand: Starter $19 for 2 brands, Builder $49 for 6, Agency $149 for 25. Early pricing.',
   alternates: { canonical: '/pricing' },
 });
 
 type Cell = string | boolean;
-const COLUMNS = ['Self-host', 'Starter', 'Builder', 'Agency'] as const;
-const ROWS: { group: string; rows: { label: string; cells: [Cell, Cell, Cell, Cell]; note?: string }[] }[] = [
+const COLUMNS = ['Starter', 'Builder', 'Agency'] as const;
+const ROWS: { group: string; rows: { label: string; cells: [Cell, Cell, Cell]; note?: string }[] }[] = [
   {
     group: 'Brands and platforms',
     rows: [
-      { label: 'Brands', cells: ['Unlimited', '2', '6', '25'] },
-      { label: 'X, LinkedIn, Instagram, Threads', cells: [true, true, true, true] },
-      { label: 'Brand Memory per brand', cells: [true, true, true, true] },
-      { label: 'Media library and platform crops', cells: [true, true, true, true] },
+      { label: 'Brands', cells: ['2', '6', '25'] },
+      { label: 'X, LinkedIn, Instagram, Threads', cells: [true, true, true] },
+      { label: 'Brand Memory per brand', cells: [true, true, true] },
+      { label: 'Media library and platform crops', cells: [true, true, true] },
     ],
   },
   {
     group: 'Agents',
     rows: [
-      { label: 'Weekly plan, digest, voice refresh', cells: [true, true, true, true] },
-      { label: 'Approvals inbox', cells: [true, true, true, true] },
-      { label: 'Automations', cells: [true, false, true, true] },
-      { label: 'MCP server and API keys', cells: [true, false, true, true] },
-      { label: 'AI and metrics limits', cells: ['No limits', 'Standard', 'Higher', 'Higher'], note: 'Self-hosted Harbor runs the simulated model for free. Cloud plans have monthly limits on AI runs, X reads and snapshot retention.' },
+      { label: 'Weekly plan, digest, voice refresh', cells: [true, true, true] },
+      { label: 'Approvals inbox', cells: [true, true, true] },
+      { label: 'Automations', cells: [false, true, true] },
+      { label: 'MCP server and API keys', cells: [false, true, true] },
+      { label: 'AI and metrics limits', cells: ['Standard', 'Higher', 'Higher'], note: 'Plans have monthly limits on AI runs, X reads and snapshot retention.' },
     ],
   },
   {
-    group: 'Running it',
+    group: 'Included',
     rows: [
-      { label: 'Hosting', cells: ['Your server', 'Harbor', 'Harbor', 'Harbor'] },
-      { label: 'Backups', cells: ['Yours to run', true, true, true] },
-      { label: 'Platform developer apps', cells: ['Your own', 'Not needed', 'Not needed', 'Not needed'], note: 'On Cloud you connect through Harbor’s own apps. That needs each platform’s app review, which happens before Cloud opens.' },
-      { label: 'X API costs', cells: ['Billed to you by X', 'Within limits', 'Within limits', 'Within limits'] },
-      { label: 'Cross-brand reporting', cells: [true, true, true, true] },
-      { label: 'Client review links', cells: [false, false, false, 'Coming'] },
-      { label: 'Source code', cells: ['AGPL', 'AGPL', 'AGPL', 'AGPL'] },
+      { label: 'Hosting and backups', cells: [true, true, true] },
+      { label: 'Connect accounts in a click', cells: [true, true, true] },
+      { label: 'X API costs', cells: ['Within limits', 'Within limits', 'Within limits'] },
+      { label: 'Cross-brand reporting', cells: [true, true, true] },
+      { label: 'Client review links', cells: [false, false, 'Coming'] },
     ],
   },
   {
     group: 'Support',
     rows: [
-      { label: 'Support', cells: ['GitHub', 'Email', 'Priority email', 'Priority email'] },
+      { label: 'Support', cells: ['Email', 'Priority email', 'Priority email'] },
     ],
   },
 ];
@@ -86,7 +82,7 @@ export default function PricingPage() {
       <PageHero
         eyebrow="Pricing"
         title="Priced per brand, not per seat."
-        lede="Early pricing. Harbor Cloud is opening soon; self-hosting is free forever."
+        lede="Early pricing. Harbor Cloud is opening soon."
       />
 
       {/* Plans */}
@@ -99,7 +95,7 @@ export default function PricingPage() {
               <Reveal key={p.name} delay={i * 70} className={`pr-plan${featured ? ' featured' : ''}`}>
                 <div className="row" style={{ justifyContent: 'space-between' }}>
                   <span className="label">{p.name}</span>
-                  {featured ? <span className="tag pr-tag"><span className="pixels" style={{ width: 15, height: 4 }} aria-hidden="true" />Recommended</span> : i === 0 ? <span className="tag">Free forever</span> : <span className="tag">Cloud · soon</span>}
+                  {featured ? <span className="tag pr-tag"><span className="pixels" style={{ width: 15, height: 4 }} aria-hidden="true" />Recommended</span> : <span className="tag">Cloud · soon</span>}
                 </div>
                 <strong className="pr-price">{p.price}<span>{p.per}</span></strong>
                 <p className="muted" style={{ margin: 0 }}>{p.brands}</p>
@@ -123,7 +119,7 @@ export default function PricingPage() {
       {/* Comparison */}
       <section className="section">
         <div className="container stack" style={{ gap: 40 }}>
-          <SectionHead eyebrow="Compare" title="Self-host or Cloud." lede="The same Harbor either way. The difference is who runs the server, who holds the platform apps and who pays the platform bills." />
+          <SectionHead eyebrow="Compare" title="What each plan includes." lede="The same Harbor on every plan. Plans differ in how many brands they hold and how much the agents can do each month." />
           <Reveal>
             <div className="pr-table-wrap" role="region" aria-label="Plan comparison" tabIndex={0}>
               <table className="pr-table">
@@ -158,8 +154,8 @@ export default function PricingPage() {
           <div className="cards">
             {[
               { n: '01', t: 'Brands are the unit builders think in', d: 'Seats don’t matter when you work alone. The number of things you post for does. Each brand in Harbor has its own Brand Memory, baseline and best times, so that’s what a plan counts.' },
-              { n: '02', t: 'No sales call', d: 'Start free by self-hosting, then pick a cheap self-serve plan if you’d rather not run a server. Tools priced per seat for marketing departments are built for a different buyer.' },
-              { n: '03', t: 'Why there’s no hosted free tier yet', d: 'Every active Cloud user costs real money: model tokens for agents and drafts, X’s pay-per-read API, storage for metric snapshots. A hosted free tier would come out of pocket. Self-hosting is the free path.' },
+              { n: '02', t: 'No sales call', d: 'Pick a cheap self-serve plan and start. Tools priced per seat for marketing departments are built for a different buyer.' },
+              { n: '03', t: 'Why there’s no free tier yet', d: 'Every active user costs real money: model tokens for agents and drafts, X’s pay-per-read API, storage for metric snapshots. For now, a free tier would come out of pocket.' },
             ].map((c, i) => (
               <Reveal key={c.n} delay={i * 80} className="card">
                 <span className="mono small" style={{ color: 'var(--pink)' }}>{c.n}</span>
@@ -187,38 +183,24 @@ export default function PricingPage() {
               <details name="pricing-faq">
                 <summary>Do I need my own platform developer apps?</summary>
                 <div>
-                  <p><strong>Self-hosted: yes.</strong> Harbor publishes through developer apps you register on X, LinkedIn, Meta (Instagram) and Threads. For your own accounts none of them need app review, because you only connect accounts that hold a role on your app. Allow about an hour for all four. The <Link href="/open-source#guide">self-host guide</Link> walks through it.</p>
-                  <p><strong>Cloud: no.</strong> Cloud will connect through Harbor’s own apps, so you click Connect and sign in. That needs each platform’s app review, which is why Cloud isn’t open yet.</p>
+                  <p><strong>No.</strong> Harbor Cloud connects through Harbor’s own apps, so you click Connect and sign in to each platform. Nothing to register, no developer console.</p>
                 </div>
               </details>
               <details name="pricing-faq">
                 <summary>What does X cost?</summary>
                 <div>
-                  <p>X’s API is pay-per-use: you add credits in the X developer console and X bills each post and each read. Rough numbers from X’s console:</p>
+                  <p>X’s API is pay-per-use: X bills each post and each read. Rough numbers from X’s console:</p>
                   <dl className="pr-costs">
                     {XCOST.map((c) => <div key={c.what}><dt>{c.what}</dt><dd className="mono">{c.cost}</dd></div>)}
                   </dl>
-                  <p>So a post without a link costs about four cents all in, and one with a link about 22 cents. Reading replies and importing past posts are billed reads too, so they’re off by default (<code>HARBOR_X_READ_REPLIES</code>). Set a spending limit in X’s console either way. Check X’s current pricing; it changes.</p>
-                  <p>Self-hosted, X bills you directly. On Cloud, X usage is covered up to your plan’s limits. LinkedIn, Instagram and Threads don’t charge for API use.</p>
-                </div>
-              </details>
-              <details name="pricing-faq">
-                <summary>Can I move from self-host to Cloud?</summary>
-                <div>
-                  <p>That’s the plan. Both run the same code on Postgres, so moving is a database move, not a rewrite: your brands, Brand Memory, posts and their metric history come with you. We’ll publish the steps before Cloud opens.</p>
-                  <p>One thing won’t carry over: connected accounts. Their tokens were issued to your own developer apps and are encrypted with your <code>HARBOR_SECRET_KEY</code>, so on Cloud you reconnect each account once. Moving back to self-hosting works the same way.</p>
+                  <p>So a post without a link costs about four cents all in, and one with a link about 22 cents. Reading replies and importing past posts are billed reads too, so they’re off by default. X’s pricing changes, so treat these as rough.</p>
+                  <p>X usage is covered up to your plan’s limits. LinkedIn, Instagram and Threads don’t charge for API use.</p>
                 </div>
               </details>
               <details name="pricing-faq">
                 <summary>Will Harbor ever post without asking?</summary>
                 <div>
                   <p>No. Agents, automations and MCP clients can draft and propose, and every proposal waits in Approvals until a person approves it. That’s the same on every plan. <Link href="/blog/how-harbors-approvals-inbox-works">How the approvals inbox works</Link>.</p>
-                </div>
-              </details>
-              <details name="pricing-faq">
-                <summary>Is self-hosting really free?</summary>
-                <div>
-                  <p>Yes. Harbor is open source under the AGPL, with every feature included and no brand limit. You pay for your own server, database and any platform or model usage. In sandbox mode with the simulated model it costs nothing to run at all.</p>
                 </div>
               </details>
             </div>

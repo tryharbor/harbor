@@ -9,7 +9,7 @@ import '../guide.css';
 
 export const metadata: Metadata = pageMeta('/use-cases', {
   title: 'Use cases and comparisons',
-  description: 'How builders use Harbor: content for several brands, planning posts from Claude over MCP, and self-hosted publishing. Plus honest comparisons with Postiz, Buffer and Jasper.',
+  description: 'How builders use Harbor: content for several brands and planning posts from Claude over MCP. Plus honest comparisons with Postiz, Buffer and Jasper.',
 });
 
 export default function UseCasesIndex() {

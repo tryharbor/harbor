@@ -3,7 +3,7 @@ import { SITE } from './site';
 
 /**
  * Structured data (schema.org JSON-LD) so search engines and AI answer engines read the same facts the page shows:
- * what Harbor is, what it costs, that it's open source, and who publishes it.
+ * what Harbor is, what it costs, and who publishes it.
  */
 export function JsonLd({ data }: { data: object | object[] }) {
   // JSON in a script tag: escape "<" so a value can never close the tag.
@@ -22,7 +22,7 @@ export const organization = {
   url: SITE.url,
   logo: `${SITE.url}/icon.svg`,
   email: SITE.email,
-  sameAs: [SITE.github, SITE.x],
+  sameAs: [SITE.x],
 };
 
 export const website = {
@@ -36,7 +36,7 @@ export const website = {
   inLanguage: 'en',
 };
 
-/** The product: open-source software you can self-host free, with Cloud plans priced per brand. */
+/** The product: Harbor Cloud, priced per brand. */
 export const softwareApplication = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -46,9 +46,7 @@ export const softwareApplication = {
   url: SITE.url,
   applicationCategory: 'BusinessApplication',
   applicationSubCategory: 'Social media management and content strategy',
-  operatingSystem: 'Web; self-hosted on Linux, macOS or any server with Node.js 22 and Postgres',
-  license: 'https://www.gnu.org/licenses/agpl-3.0.html',
-  isAccessibleForFree: true,
+  operatingSystem: 'Web',
   publisher: { '@id': ORG_ID },
   featureList: [
     'Brand Memory per brand: voice, audiences, products, knowledge, style rules',
@@ -69,18 +67,6 @@ export const softwareApplication = {
     url: `${SITE.url}/pricing`,
     ...(p.per ? { priceSpecification: { '@type': 'UnitPriceSpecification', price: p.price.replace('$', ''), priceCurrency: 'USD', unitCode: 'MON', referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: 'MON' } } } : {}),
   })),
-};
-
-export const sourceCode = {
-  '@context': 'https://schema.org',
-  '@type': 'SoftwareSourceCode',
-  name: 'Harbor',
-  codeRepository: SITE.github,
-  license: 'https://www.gnu.org/licenses/agpl-3.0.html',
-  programmingLanguage: ['TypeScript'],
-  runtimePlatform: 'Node.js',
-  targetProduct: { '@id': APP_ID },
-  publisher: { '@id': ORG_ID },
 };
 
 export function faqPage(items: { q: string; a: string }[]) {

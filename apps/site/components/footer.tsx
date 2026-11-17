@@ -10,7 +10,7 @@ export function Footer() {
         <div className="footer-grid">
           <div className="stack" style={{ gap: 12 }}>
             <Link href="/" className="brand" style={{ color: 'var(--ink)' }}><Mark size={20} />Harbor</Link>
-            <p style={{ margin: 0, maxWidth: '32ch' }}>{SITE.tagline}. Open source under the AGPL.</p>
+            <p style={{ margin: 0, maxWidth: '32ch' }}>{SITE.tagline}.</p>
             <span className="pixels" aria-hidden="true" />
           </div>
           <div>
@@ -22,8 +22,6 @@ export function Footer() {
             <span className="label">Build</span>
             <Link href="/developers">Developers</Link>
             <Link href="/developers#mcp">MCP server</Link>
-            <Link href="/open-source">Self-host</Link>
-            <a href={SITE.github}>GitHub</a>
           </div>
           <div>
             <span className="label">Resources</span>

@@ -16,7 +16,7 @@ const THEMES: { kind: Kind; label: string; replies: number; posts: number; sampl
   { kind: 'question', label: '4 people asked how long a feature really takes', replies: 4, posts: 2, sample: ['How long did the first version take?', 'Is 3 weeks normal for you?'], on: '3 weeks, 2 rewrites…' },
   { kind: 'question', label: '3 people asked how the growth curve is measured', replies: 3, posts: 1, sample: ['Is it views or likes?', 'Against all posts, or just mine?'], on: 'Every post, measured…' },
   { kind: 'praise', label: '5 people liked seeing the misses too', replies: 5, posts: 3, sample: ['Love that you show the posts that flopped.'], on: 'Month 7 numbers…' },
-  { kind: 'objection', label: '2 people said self-hosting sounds like work', replies: 2, posts: 1, sample: ['Not sure I want to run another server.'], on: 'Why we chose AGPL' },
+  { kind: 'objection', label: '2 people said approving every post sounds slow', replies: 2, posts: 1, sample: ['Do I really have to OK each one?'], on: 'Why agents never publish' },
   { kind: 'request', label: '3 people asked for a CSV export', replies: 3, posts: 2, sample: ['Would love to pull this into a sheet.'], on: 'Pricing is per brand…' },
 ];
 

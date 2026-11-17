@@ -38,10 +38,10 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <div className="pv-kv"><span className="a-label">Name</span><strong style={{ fontWeight: 500 }}>Harbor</strong></div>
-        <div className="pv-kv"><span className="a-label">What it is, in a sentence</span><p>The open-source content strategist for builders.</p></div>
+        <div className="pv-kv"><span className="a-label">What it is, in a sentence</span><p>The content strategist for builders.</p></div>
         <div className="pv-two">
-          <div className="pv-kv"><span className="a-label">Call to action</span><p>Star it on GitHub</p></div>
-          <div className="pv-kv"><span className="a-label">Proof points</span><ul className="pv-ul"><li>AGPL, self-host free</li><li>Publishes direct to 4 platforms</li></ul></div>
+          <div className="pv-kv"><span className="a-label">Call to action</span><p>Get early access</p></div>
+          <div className="pv-kv"><span className="a-label">Proof points</span><ul className="pv-ul"><li>Every post measured against your median</li><li>Publishes direct to 4 platforms</li></ul></div>
         </div>
       </>
     ),
@@ -50,7 +50,7 @@ const SECTIONS: Section[] = [
     key: 'knowledge', label: 'Knowledge', detail: '3 items',
     body: (
       <div className="pv-list">
-        <div><strong>Why AGPL</strong><span className="pv-sub">Owner note · the trade-offs we weighed</span></div>
+        <div><strong>Why agents never publish</strong><span className="pv-sub">Owner note · the trade-offs we weighed</span></div>
         <div><strong>3 people asked how the growth curve is measured</strong><span className="pv-sub">Saved from a reply theme · linked to 2 posts</span></div>
         <div><strong>Pricing is per brand, not per seat</strong><span className="pv-sub">Owner note</span></div>
       </div>
@@ -60,7 +60,7 @@ const SECTIONS: Section[] = [
     key: 'style', label: 'Style rules', detail: '2 terms · 2 formatting',
     body: (
       <>
-        <div className="pv-kv"><span className="a-label">Terms · use ⇒ instead of</span><ul className="pv-ul mono-ish"><li>brand ⇒ workspace</li><li>open source ⇒ free software</li></ul></div>
+        <div className="pv-kv"><span className="a-label">Terms · use ⇒ instead of</span><ul className="pv-ul mono-ish"><li>brand ⇒ workspace</li><li>strategist ⇒ scheduler</li></ul></div>
         <div className="pv-kv"><span className="a-label">Formatting</span><ul className="pv-ul"><li>At most two hashtags.</li><li>Sentence case, never Title Case.</li></ul></div>
       </>
     ),

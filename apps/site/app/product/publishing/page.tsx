@@ -97,7 +97,6 @@ export default function PublishingPage() {
       <AlsoInArea f={f} items={[
         { title: 'Snapshots from the first hour', body: 'Every published post is measured at 1h, 6h, 24h, 3 days and 7 days.', href: '/product/insights' },
         { title: 'Approvals first', body: 'Anything an agent drafted is scheduled only when a person approves it.', href: '/product/agents#approvals' },
-        { title: 'Your own apps', body: 'Self-hosters register their own platform apps. Meta needs an HTTPS redirect, so local setups use a tunnel.', href: '/open-source' },
         { title: 'Not yet', body: 'Video on LinkedIn. Reading replies and past posts on LinkedIn, which its API restricts.' },
       ]} />
 

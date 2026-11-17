@@ -12,14 +12,6 @@ export function Mark({ size = 22 }: { size?: number }) {
   );
 }
 
-export function GitHubIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.2.5-2.3 1.3-3.1-.2-.4-.6-1.6.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.6 18.3 5 18.3 5c.7 1.6.2 2.8.1 3.2.8.8 1.3 1.9 1.3 3.1 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3" />
-    </svg>
-  );
-}
-
 /** A page's opening: eyebrow, big headline, lede, actions, and an optional visual below or beside. */
 export function PageHero({ eyebrow, title, lede, actions, children, color }: { eyebrow: ReactNode; title: ReactNode; lede?: ReactNode; actions?: ReactNode; children?: ReactNode; color?: Feature['color'] }) {
   return (
@@ -58,11 +50,7 @@ export function Window({ title, children, className, style }: { title?: string; 
   );
 }
 
-export function GitHubButton({ label = 'Star on GitHub', primary = true }: { label?: string; primary?: boolean }) {
-  return <a className={`btn${primary ? ' primary' : ''}`} href={SITE.github}><GitHubIcon />{label}</a>;
-}
-
-export function CtaBand({ title = 'Plan next week in an afternoon.', lede = 'Self-host Harbor free, or get early access to Harbor Cloud. Either way, nothing posts until you say so.' }: { title?: ReactNode; lede?: ReactNode }) {
+export function CtaBand({ title = 'Plan next week in an afternoon.', lede = 'Get early access to Harbor Cloud. Nothing posts until you say so.' }: { title?: ReactNode; lede?: ReactNode }) {
   return (
     <section className="section tight">
       <div className="container">
@@ -73,7 +61,6 @@ export function CtaBand({ title = 'Plan next week in an afternoon.', lede = 'Sel
             <p className="lede" style={{ margin: 0 }}>{lede}</p>
             <div className="row">
               <Link className="btn primary" href={SITE.start}>Get started</Link>
-              <GitHubButton primary={false} label="View on GitHub" />
             </div>
           </div>
         </Reveal>

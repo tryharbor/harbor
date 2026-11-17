@@ -51,7 +51,7 @@ export function SaveToMemoryPreview() {
             <span className="a-label">Brand Memory · Knowledge</span>
             <div className="pv-list">
               <div className="pv-new"><strong>How is the growth curve measured? Views, or likes?</strong><span className="pv-sub">Saved from reply · linked to “3 weeks, 2 rewrites, 1 feature.”</span></div>
-              <div><strong>Why AGPL</strong><span className="pv-sub">Owner note</span></div>
+              <div><strong>Why agents never publish</strong><span className="pv-sub">Owner note</span></div>
             </div>
           </div>
         </Layer>

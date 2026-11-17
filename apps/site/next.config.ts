@@ -9,6 +9,9 @@ const config: NextConfig = {
       { source: '/:path*', has: [{ type: 'host', value: 'www.useharbor.io' }], destination: 'https://useharbor.io/:path*', permanent: true },
       // Comparisons are listed with the use cases.
       { source: '/compare', destination: '/use-cases', permanent: true },
+      // Open source isn't part of the positioning; its pages are gone.
+      { source: '/open-source', destination: '/', permanent: true },
+      { source: '/use-cases/self-hosted-social-media-scheduler', destination: '/use-cases', permanent: true },
       { source: '/blog/why-harbor-never-posts-without-you', destination: '/blog/how-harbors-approvals-inbox-works', permanent: true },
     ];
   },

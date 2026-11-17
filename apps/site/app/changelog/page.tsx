@@ -48,7 +48,7 @@ const ENTRIES: Entry[] = [
       'Each platform’s media rules are checked before anything publishes, and the voice check flags a missing or poorly fitting image. Instagram approvals need an image before you can approve them.',
       'Pick media in the Studio editor or right on an approval card. The weekly plan attaches tagged images to Instagram drafts.',
       'The voice refresh now measures how images, carousels and video perform.',
-      'Safer self-hosting: through a tunnel, the API only answers OAuth callbacks, media, the MCP server and health checks. Importing from a URL refuses private and internal addresses.',
+      'Safer hosting: through a tunnel, the API only answers OAuth callbacks, media, the MCP server and health checks. Importing from a URL refuses private and internal addresses.',
     ],
   },
   {
@@ -135,7 +135,7 @@ const ENTRIES: Entry[] = [
       'The app shell: Home (what needs attention, what’s coming up, recent results), the Hub with board, table and calendar views of the pipeline, Performance, brand pages and a composer.',
       'A demo mode with sample brands and history, on its own database.',
     ],
-    link: { href: '/open-source#guide', label: 'Self-host guide' },
+    link: { href: '/product/publishing', label: 'Publishing' },
   },
 ];
 
@@ -146,7 +146,6 @@ export default function ChangelogPage() {
         eyebrow="Changelog"
         title="What’s new in Harbor."
         lede="Harbor is built in public. Here’s every milestone so far, newest first."
-        actions={<a className="btn sm" href={`${SITE.github}/commits/main`}>Commits on GitHub</a>}
       />
       <section className="container" style={{ paddingBottom: 'clamp(48px, 7vw, 96px)' }}>
         <nav className="cl-index" aria-label="Milestones">

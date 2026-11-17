@@ -11,7 +11,9 @@ import { MAX_FILE_BYTES, Workspace } from './workspace.ts';
  * The sandbox is remote, so it can't mount the project folder. Harbor's copy stays the source of truth:
  * - before every command, files that changed in Harbor are pushed to the sandbox (and files deleted in Harbor are deleted);
  * - after it, files the command created or changed come back through the Workspace, so the same path checks apply
- *   (nothing outside the project, no `.git`, no symlinks); dependencies and build output never come back.
+ *   (nothing outside the project, no `.git`, no symlinks); dependencies and build output never come back;
+ * - what the running app saves (anything under data/, and any file that changed between syncs without Harbor writing
+ *   it) stays in the sandbox: customers' data never lands in the project's files or its version history.
  *
  * Network: deny by default, package registries allowed. No Harbor secret is ever passed into the sandbox.
  */
@@ -71,12 +73,22 @@ async function localHashes(ws: Workspace): Promise<Map<string, { hash: string; b
   return m;
 }
 
+/**
+ * Where an app keeps what it saves while running (orders, sign-ups). Harbor never copies it back: it's the business's
+ * customers' data, not code, so it stays in the sandbox and out of the project's version history.
+ */
+export const DATA_DIR = 'data';
+const isData = (p: string) => p === DATA_DIR || p.startsWith(`${DATA_DIR}/`);
+
 /** One project's sandbox: the remote box plus what Harbor last knew was in it. */
 class VercelProjectSandbox implements Sandbox {
-  /** Remote path → hash, as of the last sync; undefined until first listed. */
+  /** Remote path → hash, as Harbor left it after the last sync; undefined until first listed. */
   private remote?: Map<string, string>;
-  /** Files in the sandbox Harbor chose not to copy back (too big); never deleted from the sandbox on push. */
-  private kept = new Set<string>();
+  /**
+   * Files that live only in the sandbox: what the running app wrote (changed between syncs, not by Harbor), files that
+   * were there when Harbor (re)connected, and files too big to copy. Never copied back, never deleted on push.
+   */
+  private sandboxOnly = new Set<string>();
 
   constructor(private readonly boxes: RemoteBoxes, private readonly name: string, private box: RemoteBox, private readonly ws: Workspace) {}
 
@@ -86,46 +98,49 @@ class VercelProjectSandbox implements Sandbox {
     return parseListing(r.stdout);
   }
 
-  /** Make the sandbox match Harbor's files. */
+  /** Make the sandbox match Harbor's files, leaving the app's own data alone. */
   async push(): Promise<void> {
     const local = await localHashes(this.ws);
-    const remote = this.remote ?? (await this.list());
-    const changed = [...local].filter(([p, f]) => remote.get(p) !== f.hash).map(([path, f]) => ({ path: `${REMOTE_ROOT}/${path}`, content: f.bytes }));
-    const gone = [...remote.keys()].filter((p) => !local.has(p) && !this.kept.has(p));
+    const current = await this.list();
+    // Anything that changed in the sandbox since Harbor last synced was written by the running app (or was there before
+    // Harbor connected): it belongs to the sandbox, unless it's one of Harbor's own files.
+    for (const [p, h] of current) {
+      if (!local.has(p) && (!this.remote || this.remote.get(p) !== h)) this.sandboxOnly.add(p);
+    }
+    const changed = [...local].filter(([p, f]) => current.get(p) !== f.hash).map(([path, f]) => ({ path: `${REMOTE_ROOT}/${path}`, content: f.bytes }));
+    const gone = [...current.keys()].filter((p) => !local.has(p) && !this.sandboxOnly.has(p) && !isData(p));
     for (let i = 0; i < changed.length; i += 50) await this.box.writeFiles(changed.slice(i, i + 50));
     if (gone.length) await this.box.run(`rm -f -- ${gone.map((p) => q(p)).join(' ')}`, { cwd: REMOTE_ROOT, timeoutMs: 60_000 });
     this.remote = new Map([...local].map(([p, f]) => [p, f.hash]));
-    for (const p of this.kept) if (remote.has(p)) this.remote.set(p, remote.get(p)!);
+    for (const [p, h] of current) if (!local.has(p) && !gone.includes(p)) this.remote.set(p, h);
   }
 
-  /** Bring back what a command changed. Returns notes for the agent about anything not copied. */
+  /** Bring back what a command changed (never the app's data). Returns notes for the agent. */
   async pull(): Promise<string[]> {
     const before = this.remote ?? new Map();
     const after = await this.list();
     const notes: string[] = [];
-    const changed = [...after].filter(([p, h]) => before.get(p) !== h);
+    const changed = [...after].filter(([p, h]) => before.get(p) !== h && !isData(p) && !this.sandboxOnly.has(p));
     if (changed.length > MAX_PULL) notes.push(`${changed.length - MAX_PULL} more changed files weren't copied back (limit ${MAX_PULL} per command).`);
     for (const [path] of changed.slice(0, MAX_PULL)) {
       const bytes = await this.box.readFile(`${REMOTE_ROOT}/${path}`);
       if (!bytes) continue;
       if (bytes.length > MAX_FILE_BYTES) {
-        this.kept.add(path);
+        this.sandboxOnly.add(path);
         notes.push(`${path} stays in the sandbox only (over 512 KB).`);
         continue;
       }
       try {
         await this.ws.write(path, bytes);
-        this.kept.delete(path);
       } catch (err) {
-        this.kept.add(path);
+        this.sandboxOnly.add(path);
         notes.push(`${path} wasn't copied back: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
     for (const p of before.keys()) {
-      if (!after.has(p)) {
-        this.kept.delete(p);
-        await this.ws.remove(p).catch(() => undefined);
-      }
+      if (after.has(p)) continue;
+      this.sandboxOnly.delete(p);
+      if (!isData(p)) await this.ws.remove(p).catch(() => undefined);
     }
     this.remote = after;
     return notes;

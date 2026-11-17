@@ -211,6 +211,53 @@ describe('a project on Vercel Sandbox', () => {
     expect(box.started.length).toBe(1);
   });
 
+  it('leaves what the running app saved in the sandbox: never copied back, never deleted', async () => {
+    const { box, boxes } = fakeBoxes();
+    await ws.write('server.js', 'server');
+    const sb = await vercelSandboxes(boxes).forProject('prj_test1', ws.root);
+    await sb.exec('true');
+    // A customer places an order while the app runs: the app writes a file Harbor never wrote.
+    box.files.set('orders.json', Buffer.from('[{"email":"customer@example.com"}]'));
+    await sb.exec('ls');
+    expect(box.files.has('orders.json')).toBe(true);
+    expect((await ws.list()).map((f) => f.path)).toEqual(['server.js']);
+    // More orders later: still not copied back.
+    box.files.set('orders.json', Buffer.from('[{"email":"customer@example.com"},{"email":"two@example.com"}]'));
+    await ws.write('server.js', 'server v2');
+    await sb.exec('true');
+    expect(box.files.get('server.js')?.toString()).toBe('server v2');
+    expect(box.files.has('orders.json')).toBe(true);
+    expect((await ws.list()).map((f) => f.path)).toEqual(['server.js']);
+  });
+
+  it('never copies back data/, even when a command writes it', async () => {
+    const { box, boxes } = fakeBoxes();
+    box.onRun = (cmd, b) => {
+      if (cmd === 'node seed.js') {
+        b.files.set('data/orders.json', Buffer.from('[]'));
+        b.files.set('notes.md', Buffer.from('code-ish'));
+      }
+      return undefined;
+    };
+    const sb = await vercelSandboxes(boxes).forProject('prj_test1', ws.root);
+    await sb.exec('node seed.js');
+    expect((await ws.list()).map((f) => f.path)).toEqual(['notes.md']);
+    await sb.exec('true');
+    expect(box.files.has('data/orders.json')).toBe(true);
+  });
+
+  it('keeps sandbox-only files after Harbor restarts', async () => {
+    const { box, boxes } = fakeBoxes();
+    await ws.write('server.js', 'server');
+    box.files.set('server.js', Buffer.from('server'));
+    box.files.set('orders.json', Buffer.from('[1]'));
+    // A fresh provider: Harbor has no memory of the sandbox.
+    const sb = await vercelSandboxes(boxes).forProject('prj_test1', ws.root);
+    await sb.exec('true');
+    expect(box.files.has('orders.json')).toBe(true);
+    expect((await ws.list()).map((f) => f.path)).toEqual(['server.js']);
+  });
+
   it('deletes the sandbox when the project goes', async () => {
     const { boxes, destroyed } = fakeBoxes();
     const provider = vercelSandboxes(boxes);

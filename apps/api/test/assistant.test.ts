@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp, type App } from '../src/app.ts';
 import { openDb, type Db } from '../src/db/client.ts';
+import sharp from 'sharp';
 import { headlineFrom, readIntent, topicOf } from '../src/services/assistant.ts';
+import { designSvg, listItems, markOn, wrap } from '../src/services/design-render.ts';
 import { RICH_MEMORY, sender } from './helpers.ts';
 
 let db: Db;
@@ -39,6 +41,34 @@ describe('reading messages', () => {
     expect(headlineFrom('Fresh beans, every two weeks. Order now at https://x.co #coffee', 'x')).toBe('Fresh beans, every two weeks.');
     expect(headlineFrom('#only #tags', 'Fallback')).toBe('Fallback');
     expect(headlineFrom('[Tell the story.] Roasted this week.', 'x')).toBe('Roasted this week.');
+  });
+});
+
+describe('design rendering', () => {
+  const brand = { name: 'Tidewater (demo)', logoUrl: undefined, memory: { branding: { tagline: '', colors: [{ hex: '#c0583a', role: 'primary' }, { hex: '#e8d5b5', role: 'secondary' }], fonts: { heading: '', body: '' } } } } as never;
+
+  it('wraps to the width and cuts with an ellipsis', () => {
+    expect(wrap('one two three four five six', 100, 500, 9).lines).toEqual(['one two', 'three', 'four five', 'six']);
+    const cut = wrap('one two three four five six', 100, 500, 2);
+    expect(cut).toEqual({ lines: ['one two', 'three…'], cut: true });
+  });
+
+  it('never draws a mark in the colour of its background', () => {
+    expect(markOn('#e8d5b5', '#e8d5b5', '#c0583a')).toBe('#c0583a');
+    expect(markOn('#ffffff', '#fefefe')).toBe('#111111');
+  });
+
+  it("takes list items from the draft's own list, or its sentences without links or tags", () => {
+    expect(listItems('Headline here.\n\n[Add the steps.]\n\n- Grind fresh\n- Use 15 g\n- Pour slowly #coffee', 'Headline here.')).toEqual(['Grind fresh', 'Use 15 g', 'Pour slowly #coffee']);
+    expect(listItems('Roasted this week. Shipped in 48 hours. https://x.co #beans', 'Roasted this week.')).toEqual(['Shipped in 48 hours.']);
+    expect(listItems('Tip. [Add steps.]. Grind fresh.', 'Tip.')).toEqual(['Grind fresh.']);
+  });
+
+  it('escapes text and leaves out emoji and the demo suffix', () => {
+    const svg = designSvg(brand, { layout: 'headline', label: 'Tip', headline: 'Beans & <brews> ☕ today' });
+    expect(svg).toContain('Beans &amp; &lt;brews&gt;');
+    expect(svg).not.toContain('☕');
+    expect(svg).toContain('>Tidewater<');
   });
 });
 
@@ -85,16 +115,29 @@ describe('/v1/assistant', () => {
     expect(chat.messages.at(-1).options.map((o: { kind: string }) => o.kind)).toEqual(['question', 'behind', 'proof']);
   });
 
+  it('draws each option as a 1080×1080 PNG', async () => {
+    const res = await send('GET', `/v1/assistant/chats/${chatId}/options/${firstOptionId}/design.png`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+    const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
+    expect([meta.format, meta.width, meta.height]).toEqual(['png', 1080, 1080]);
+    expect((await send('GET', `/v1/assistant/chats/${chatId}/options/nope/design.png`)).status).toBe(404);
+  });
+
   it('turns an option into an idea with drafts, once', async () => {
     const res = await send('POST', `/v1/assistant/chats/${chatId}/options/${firstOptionId}/use`);
     expect(res.status).toBe(200);
-    const { ideaId, draftIds } = await res.json();
+    const { ideaId, draftIds, mediaId } = await res.json();
     expect(ideaId).toMatch(/^ida_/);
+    expect(mediaId).toMatch(/^med_/);
+    const asset = await (await send('GET', `/v1/media/${mediaId}`)).json();
+    expect(asset).toMatchObject({ kind: 'image', mime: 'image/png', width: 1080, height: 1080, tags: ['assistant'] });
     expect(draftIds).toHaveLength(2);
     const ideas = (await (await send('GET', `/v1/ideas?brandId=${brandId}`)).json()).data;
     expect(ideas.find((i: { id: string }) => i.id === ideaId)).toMatchObject({ title: 'Our new Ethiopian roast', status: 'drafting' });
     const drafts = (await (await send('GET', `/v1/drafts?ideaId=${ideaId}`)).json()).data;
     expect(drafts.map((d: { platform: string; author: string }) => [d.platform, d.author]).sort()).toEqual([['instagram', 'agent'], ['x', 'agent']]);
+    for (const d of drafts) expect(d.parts[0].media[0]).toMatchObject({ kind: 'image', assetId: mediaId, variant: 'square' });
     const again = await (await send('POST', `/v1/assistant/chats/${chatId}/options/${firstOptionId}/use`)).json();
     expect(again).toEqual({ ideaId, draftIds: [] });
     const chat = await (await send('GET', `/v1/assistant/chats/${chatId}`)).json();

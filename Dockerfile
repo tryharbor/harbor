@@ -10,6 +10,11 @@ RUN corepack enable
 
 WORKDIR /app
 
+# Fonts for the assistant's post designs: sharp draws their SVG text with the system's fonts, and the slim image has
+# none. Inter matches the app; DejaVu covers anything Inter lacks.
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-inter fonts-dejavu-core fontconfig \
+  && rm -rf /var/lib/apt/lists/*
+
 # Manifests first: the install layer stays cached until dependencies change.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/api/package.json apps/api/

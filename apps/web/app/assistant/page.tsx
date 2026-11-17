@@ -4,7 +4,6 @@ import { deleteAssistantChat, sendAssistantMessage, startAssistantChat } from '.
 import { getBrands, getChat, getChannels, getChats, loadAll, type BrandView, type Chat, type ChatSummary } from '../api';
 import { BrandFilter } from '../components/brand-filter';
 import { OptionCard } from '../components/option-card';
-import { PostDesign } from '../components/post-design';
 import { SubmitButton } from '../components/submit-button';
 import { PlatformIcon } from '../platform-icon';
 import { Flash, LoadError, PLATFORM_NAME, PageHeader, SimTag, when } from '../ui';
@@ -100,7 +99,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
                         </div>
                         {m.options?.length ? (
                           <div className="option-grid">
-                            {m.options.map((o) => <OptionCard key={o.id} option={o} chatId={chat.id} brandId={brand.id} design={<PostDesign brand={brand} option={o} />} />)}
+                            {m.options.map((o) => <OptionCard key={o.id} option={o} chatId={chat.id} brandId={brand.id} designSrc={`/assistant/design/${chat.id}/${o.id}?v=${encodeURIComponent(brand.updatedAt)}`} />)}
                           </div>
                         ) : null}
                         <span className="small dim row" style={{ gap: 6 }}>{when(m.at, { hour: 'numeric', minute: '2-digit' })}{m.model ? <SimTag model={m.model} /> : null}</span>

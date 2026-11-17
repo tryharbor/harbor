@@ -841,24 +841,5 @@ img.avatar { object-fit: cover; padding: 0; }
   .chat-msg.user { max-width: 90%; }
 }
 
-/* Post designs (Business Memory → Branding). Square, sized by the card. */
-.pd-frame { container-type: inline-size; }
-.pd { aspect-ratio: 1 / 1; position: relative; display: grid; align-content: center; gap: 4cqw; padding: 9cqw; overflow: hidden; }
-.pd-head { font-size: 8.4cqw; line-height: 1.12; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
-.pd-sub { font-size: 4cqw; line-height: 1.35; opacity: 0.8; }
-.pd-foot { position: absolute; left: 9cqw; right: 9cqw; bottom: 7cqw; display: flex; align-items: center; gap: 2.6cqw; font-size: 3.6cqw; font-weight: 600; }
-.pd-logo, .pd-monogram { width: 7cqw; height: 7cqw; border-radius: 1.6cqw; object-fit: cover; flex: none; }
-.pd-monogram { display: grid; place-items: center; font-size: 4cqw; font-weight: 700; }
-.pd-chip { justify-self: start; font-size: 3.4cqw; font-weight: 600; padding: 1.2cqw 3cqw; border-radius: 9999px; }
-.pd-headline .pd-head { font-size: 9.4cqw; }
-.pd-quote { align-content: start; padding-top: 6cqw; }
-.pd-quote-mark { font-size: 26cqw; line-height: 0.8; font-weight: 700; height: 15cqw; }
-.pd-quote .pd-head { font-weight: 600; font-size: 7.4cqw; }
-.pd-band { position: absolute; left: 0; right: 0; bottom: 0; height: 21cqw; }
-.pd-band .pd-foot { bottom: 7cqw; }
-.pd-list { align-content: start; padding-top: 12cqw; }
-.pd-stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 2.6cqw; }
-.pd-list .pd-head { font-size: 7.2cqw; }
-.pd-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 3cqw; font-size: 4.1cqw; line-height: 1.3; }
-.pd-items li { display: grid; grid-template-columns: 7cqw minmax(0, 1fr); gap: 3cqw; align-items: start; }
-.pd-num { display: grid; place-items: center; width: 7cqw; height: 7cqw; border-radius: 9999px; font-size: 3.6cqw; font-weight: 700; }
+/* Post designs: the PNG the API draws (the same image attached to drafts). */
+.pd-img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 1; background: var(--raised); }

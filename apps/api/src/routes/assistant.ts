@@ -3,7 +3,7 @@ import { platformSchema } from '@harbor/core';
 import type { App, AppDeps } from '../app.ts';
 import { body } from '../lib/http.ts';
 import { loadBrand } from '../services/brands.ts';
-import { deleteChat, listChats, loadChat, sendMessage, startChat, useOption } from '../services/assistant.ts';
+import { deleteChat, listChats, loadChat, optionPng, sendMessage, startChat, useOption } from '../services/assistant.ts';
 
 const message = z.string().trim().min(1).max(2000);
 const startSchema = z.object({ message, platforms: z.array(platformSchema).min(1).max(4).optional() }).strict();
@@ -32,11 +32,20 @@ export function registerAssistant(app: App, deps: AppDeps) {
     return c.json(await sendMessage(deps, brand, chat, input.message));
   });
 
-  /** Turn an option into an idea with its drafts (Studio). Idempotent per option. */
+  /** The option's design as a 1080×1080 PNG, drawn from the brand's branding as it is now. */
+  app.get('/v1/assistant/chats/:id/options/:optionId/design.png', async (c) => {
+    const chat = await loadChat(db, c.req.param('id'));
+    const brand = await loadBrand(db, chat.brandId);
+    const png = await optionPng(brand, chat, c.req.param('optionId'));
+    return c.body(new Uint8Array(png), 200, { 'content-type': 'image/png', 'cache-control': 'private, max-age=60' });
+  });
+
+  /** Turn an option into an idea with its drafts (Studio), its design attached as an image. Idempotent per option. */
   app.post('/v1/assistant/chats/:id/options/:optionId/use', async (c) => {
     const chat = await loadChat(db, c.req.param('id'));
-    const { ideaId, draftIds } = await useOption(db, chat, c.req.param('optionId'));
-    return c.json({ ideaId, draftIds });
+    const brand = await loadBrand(db, chat.brandId);
+    const { ideaId, draftIds, mediaId } = await useOption(deps, brand, chat, c.req.param('optionId'));
+    return c.json({ ideaId, draftIds, ...(mediaId ? { mediaId } : {}) });
   });
 
   app.delete('/v1/assistant/chats/:id', async (c) => {

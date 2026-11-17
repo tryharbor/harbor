@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { chooseAssistantOption } from '../actions';
 import type { PostOption } from '../api';
 import { PLATFORM_NAME } from '../ui';
@@ -9,13 +9,13 @@ import { PlatformIcon } from '../platform-icon';
 import { SubmitButton } from './submit-button';
 
 /** One post option: its design, its caption per platform (tabs), and "Use this", which opens it in Studio. */
-export function OptionCard({ option, design, chatId, brandId }: { option: PostOption; design: ReactNode; chatId: string; brandId: string }) {
+export function OptionCard({ option, designSrc, chatId, brandId }: { option: PostOption; designSrc: string; chatId: string; brandId: string }) {
   const [platform, setPlatform] = useState(option.drafts[0]?.platform);
   const draft = option.drafts.find((d) => d.platform === platform) ?? option.drafts[0];
   const text = draft?.parts.map((p) => p.text).join('\n\n') ?? '';
   return (
     <article className="option-card">
-      {design}
+      <img className="pd-img" src={designSrc} alt={`${option.label} design: ${option.design.headline}`} width={1080} height={1080} loading="lazy" />
       <div className="option-body">
         <div className="spread" style={{ gap: 8 }}>
           <span className="tag">{option.label}</span>

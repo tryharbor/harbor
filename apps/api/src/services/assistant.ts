@@ -3,8 +3,10 @@ import type { ModelResult, RewriteInstruction } from '@harbor/ai';
 import type { AppDeps } from '../app.ts';
 import type { Db } from '../db/client.ts';
 import { iso } from '../lib/http.ts';
+import { renderDesign, type DesignSpec } from './design-render.ts';
 import { DEFAULT_MAX, insertDraft } from './drafts.ts';
 import { insertIdea } from './ideas.ts';
+import { assetRef, ingestMedia, loadAssetRow, type MediaDeps } from './media.ts';
 import { withRun, type RunInfo } from './runs.ts';
 
 /**
@@ -314,18 +316,45 @@ export async function sendMessage(deps: Deps, brand: Brand, chat: Chat, message:
   return saveMessages(deps.db, { ...withUser, messages: [...withUser.messages, reply] });
 }
 
-/**
- * Turn an option into an idea with one agent draft per platform, ready in Studio. Picking the same option again
- * returns the idea it already became.
- */
-export async function useOption(db: Db, chat: Chat, optionId: string): Promise<{ ideaId: string; draftIds: string[]; chat: Chat }> {
+/** What the design renderer needs from an option. */
+export const designSpec = (o: PostOption): DesignSpec => ({ ...o.design, label: o.label, body: o.drafts[0]?.parts.map((p) => p.text).join('\n\n') ?? '' });
+
+export function findOption(chat: Chat, optionId: string): { msg: ChatMessage; option: PostOption } {
   const msg = chat.messages.find((m) => m.options?.some((o) => o.id === optionId));
   const option = msg?.options?.find((o) => o.id === optionId);
   if (!msg || !option) throw new HarborError('NOT_FOUND', `Option ${optionId} not found in chat ${chat.id}.`);
+  return { msg, option };
+}
+
+/** The option's design as a PNG (1080×1080), in the brand's current branding. */
+export const optionPng = (brand: Brand, chat: Chat, optionId: string) => renderDesign(brand, designSpec(findOption(chat, optionId).option));
+
+/**
+ * Turn an option into an idea with one agent draft per platform, ready in Studio. The design is saved to the
+ * brand's media library (tagged "assistant") and attached to the first part of every draft as its square variant
+ * (a JPEG, which Instagram needs, and uncropped, since designs are square). Picking the same option
+ * again returns the idea it already became.
+ */
+export async function useOption(deps: MediaDeps, brand: Brand, chat: Chat, optionId: string): Promise<{ ideaId: string; draftIds: string[]; mediaId?: string; chat: Chat }> {
+  const { db } = deps;
+  const { msg, option } = findOption(chat, optionId);
   if (option.ideaId) return { ideaId: option.ideaId, draftIds: [], chat };
+  const png = await renderDesign(brand, designSpec(option));
+  const { asset } = await ingestMedia(deps, brand, {
+    bytes: png,
+    mime: 'image/png',
+    name: `${option.title.slice(0, 60)} (${option.label}).png`,
+    alt: option.design.headline,
+    tags: ['assistant'],
+  });
+  const row = await loadAssetRow(db, asset.id);
   const ideaId = await insertIdea(db, { brandId: chat.brandId, title: option.title, angle: option.angle, agentRunId: msg.runId });
   const draftIds: string[] = [];
-  for (const d of option.drafts) draftIds.push(await insertDraft(db, { brandId: chat.brandId, ideaId, platform: d.platform, parts: d.parts, author: 'agent', agentRunId: msg.runId }));
+  for (const d of option.drafts) {
+    const [first, ...rest] = d.parts;
+    const parts = first ? [{ ...first, media: [assetRef(row, d.platform, { variant: 'square' }), ...(first.media ?? [])] }, ...rest] : d.parts;
+    draftIds.push(await insertDraft(db, { brandId: chat.brandId, ideaId, platform: d.platform, parts, author: 'agent', agentRunId: msg.runId }));
+  }
   const messages = chat.messages.map((m) => (m !== msg ? m : { ...m, options: m.options!.map((o) => (o.id === optionId ? { ...o, ideaId } : o)) }));
-  return { ideaId, draftIds, chat: await saveMessages(db, { ...chat, messages }) };
+  return { ideaId, draftIds, mediaId: asset.id, chat: await saveMessages(db, { ...chat, messages }) };
 }

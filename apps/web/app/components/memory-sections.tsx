@@ -3,7 +3,7 @@ import { createCompetitor, deleteCompetitor, deleteListItem, saveBranding, saveB
 import type { Audience, BrandView, Competitor, ExamplePost, KnowledgeItem, MemoryListKey, Product } from '../api';
 import { PLATFORM_NAME, SimTag, TZ } from '../ui';
 import { BrandPalette } from './brand-palette';
-import { readableOn } from './post-design';
+import { readableOn } from './contrast';
 import { VoiceLearner } from './voice-learner';
 import { Select } from './select';
 

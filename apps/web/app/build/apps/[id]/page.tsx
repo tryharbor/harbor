@@ -1,51 +1,62 @@
 import Link from 'next/link';
 import { deleteProject, restoreVersion, setBuildCap, startBuild, stopBuild } from '../../../actions';
 import { getMode, getProject, getProjectFile, getProjectFiles, getProjectHistory, loadAll, type BuildRun, type Mode, type ProjectView } from '../../../api';
+import { previewToken } from '../../../auth';
 import { AutoRefresh } from '../../../components/auto-refresh';
 import { SubmitButton } from '../../../components/submit-button';
-import { previewToken } from '../../../auth';
-import { Flash, LoadError, PageHeader, when } from '../../../ui';
+import { LoadError, when } from '../../../ui';
 
 export const dynamic = 'force-dynamic';
 
-const STATUS: Record<BuildRun['status'], { text: string; cls: string }> = {
-  running: { text: 'Building…', cls: 's-publishing' },
-  succeeded: { text: 'Done', cls: 's-published' },
-  failed: { text: 'Failed', cls: 's-failed' },
-  budget: { text: 'Paused at the cost cap', cls: 's-unknown' },
-  stopped: { text: 'Stopped', cls: 'plain' },
-  steps: { text: 'Paused: step limit', cls: 's-unknown' },
-};
-const money = (cents: number) => (cents < 1 && cents > 0 ? '<$0.01' : `$${(cents / 100).toFixed(2)}`);
-const TOOL_WORD: Record<string, string> = { write_file: 'Wrote', read_file: 'Read', list_files: 'Looked at the files', delete_file: 'Deleted', run: 'Ran', done: 'Done' };
+/**
+ * A Full app project, laid out like Replit: a slim chat on the left (each build collapses to its summary), and the app
+ * filling the rest of the screen with a thin toolbar for Preview, Files and History. Everything else stays out of the way.
+ */
+
+const money = (cents: number) => (cents > 0 && cents < 1 ? '<$0.01' : `$${(cents / 100).toFixed(2)}`);
+const TOOL_WORD: Record<string, string> = { write_file: 'Wrote', read_file: 'Read', list_files: 'Looked at files', delete_file: 'Deleted', run: 'Ran', done: 'Done' };
+const FAILED: Partial<Record<BuildRun['status'], string>> = { failed: 'Didn’t finish', budget: 'Paused at the cost cap', stopped: 'Stopped', steps: 'Paused at the step limit' };
+const IDEAS = ['A page where customers pick a product and a delivery day', 'A simple order form that emails me', 'A members-only page with a sign-up form'];
+
+function Steps({ run }: { run: BuildRun }) {
+  return (
+    <ol className="ide-steps">
+      {run.steps.map((x, i) =>
+        x.kind === 'message' ? <li key={i}>{x.text}</li>
+          : x.kind === 'action' ? <li key={i} className="dim">{TOOL_WORD[x.tool ?? ''] ?? x.tool} <code>{x.text}</code></li>
+          : <li key={i} className={x.kind === 'error' ? 'err' : 'dim'}><pre>{x.text}</pre></li>,
+      )}
+    </ol>
+  );
+}
 
 function Run({ run, projectId }: { run: BuildRun; projectId: string }) {
-  const s = STATUS[run.status];
-  const actions = run.steps.filter((x) => x.kind === 'action');
+  const actions = run.steps.filter((x) => x.kind === 'action').length;
+  const latest = [...run.steps].reverse().find((x) => x.kind === 'message')?.text;
   return (
-    <li className="build-run">
-      <p className="chat-bubble">{run.request}</p>
-      <div className="stack" style={{ gap: 8 }}>
-        <div className="row" style={{ gap: 8 }}>
-          <span className={`pill ${s.cls}`}>{s.text}</span>
-          <span className="small dim">{when(run.createdAt, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · {run.model ?? 'model'} · {money(run.costCents)}</span>
-        </div>
-        <ol className="build-steps">
-          {run.steps.map((x, i) =>
-            x.kind === 'message' ? <li key={i} className="step-msg">{x.text}</li>
-              : x.kind === 'action' ? <li key={i} className="step-act"><span className="dim">{TOOL_WORD[x.tool ?? ''] ?? x.tool}</span> <code>{x.text}</code></li>
-              : <li key={i} className={`step-res${x.kind === 'error' ? ' err' : ''}`}><pre>{x.text}</pre></li>,
-          )}
-        </ol>
-        {run.summary && run.status !== 'running' ? <p className="chat-reply">{run.summary}</p> : null}
-        {run.status === 'running' ? (
+    <li className="ide-run">
+      <p className="ide-you">{run.request}</p>
+      {run.status === 'running' ? (
+        <div className="ide-agent">
+          <p className="ide-working"><span className="ide-dot" aria-hidden="true" />{latest ?? 'Starting…'}</p>
+          <details><summary>{actions} step{actions === 1 ? '' : 's'} so far</summary><Steps run={run} /></details>
           <form action={stopBuild}>
             <input type="hidden" name="projectId" value={projectId} />
             <input type="hidden" name="runId" value={run.id} />
-            <SubmitButton pending="Stopping…">Stop</SubmitButton>
+            <SubmitButton className="mono-button" pending="Stopping…">Stop</SubmitButton>
           </form>
-        ) : actions.length ? <span className="small dim">{actions.length} step{actions.length === 1 ? '' : 's'}{run.commitSha ? ` · saved as version ${run.commitSha.slice(0, 7)}` : ''}</span> : null}
-      </div>
+        </div>
+      ) : (
+        <div className="ide-agent">
+          {FAILED[run.status] ? <span className="ide-flag">{FAILED[run.status]}</span> : null}
+          {run.summary ? <p>{run.summary}</p> : null}
+          <details>
+            <summary>Worked through {actions} step{actions === 1 ? '' : 's'} · {money(run.costCents)}</summary>
+            <Steps run={run} />
+            <p className="dim small">{when(run.createdAt, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · {run.model}{run.commitSha ? ` · version ${run.commitSha.slice(0, 7)}` : ''}</p>
+          </details>
+        </div>
+      )}
     </li>
   );
 }
@@ -65,80 +76,108 @@ export default async function AppProject({ params, searchParams }: { params: Pro
   ]);
   const [files, commits, file] = extra.ok ? extra.data : [[], [], undefined];
   const lastSha = [...runs].reverse().find((r) => r.commitSha)?.commitSha ?? '';
+  const preview = `/p/${previewToken(project.id)}/index.html`;
+  const tabHref = (t: string) => `/build/apps/${project.id}?tab=${t}`;
 
   return (
-    <>
+    <div className="ide">
       <AutoRefresh active={running} />
-      <PageHeader
-        eyebrow={<Link href={`/build?brand=${project.brandId}&mode=app`}>← Build · Apps</Link>}
-        title={project.name}
-        sub={`${money(project.spentCents)} spent so far · builds stop at ${money(project.budgetCents)} each · ${mode.modelLabel}${mode.model === 'simulated' ? ' (no cost)' : ''}`}
-      />
-      <Flash params={s} />
-      {!sandbox.available ? (
-        <p className="notice small">This machine has no sandbox, so the builder writes files but can’t run commands (installs, tests, a dev server). The preview shows the files as a static site. Installing Docker turns commands and live previews on.</p>
-      ) : null}
-
-      <div className="app-work">
-        <div className="stack">
-          {runs.length ? <ol className="chat-thread build-thread">{runs.map((r) => <Run key={r.id} run={r} projectId={project.id} />)}</ol> : <p className="muted small">Tell Harbor what to build first: a page, a form, a feature. It uses your business’s facts and colours.</p>}
-          <form action={startBuild} className="composer card">
-            <input type="hidden" name="projectId" value={project.id} />
-            <div className="composer-form">
-              <textarea name="request" required maxLength={4000} disabled={running} placeholder={running ? 'Building… you can ask for the next thing when it’s done.' : 'e.g. A page where customers pick a roast, a grind and a delivery day'} aria-label="What should Harbor build?" />
-              <SubmitButton className="primary" pending="Starting…">Build</SubmitButton>
+      <aside className="ide-chat">
+        <header className="ide-head">
+          <Link href={`/build?brand=${project.brandId}&mode=app`} className="ide-back" aria-label="Back to apps">←</Link>
+          <strong className="ide-name">{project.name}</strong>
+          <details className="ide-menu">
+            <summary aria-label="App settings">⋯</summary>
+            <div className="ide-pop">
+              <p className="small dim">{money(project.spentCents)} spent · {mode.modelLabel}</p>
+              <form action={setBuildCap} className="row" style={{ gap: 6 }}>
+                <input type="hidden" name="projectId" value={project.id} />
+                <label htmlFor="cap" className="small" style={{ fontWeight: 400 }}>Cap per build $</label>
+                <input id="cap" name="cap" type="number" min={0.5} max={100} step={0.5} defaultValue={(project.budgetCents / 100).toFixed(2)} style={{ width: 80 }} />
+                <SubmitButton pending="…">Save</SubmitButton>
+              </form>
+              <form action={deleteProject}>
+                <input type="hidden" name="projectId" value={project.id} />
+                <input type="hidden" name="brandId" value={project.brandId} />
+                <button type="submit" className="link-button small">Delete this app</button>
+              </form>
             </div>
-          </form>
-          <details className="small">
-            <summary className="muted">Settings</summary>
-            <form action={setBuildCap} className="row" style={{ gap: 6, marginTop: 8 }}>
-              <input type="hidden" name="projectId" value={project.id} />
-              <label htmlFor="cap" style={{ fontWeight: 400 }}>Cost cap per build ($)</label>
-              <input id="cap" name="cap" type="number" min={0.5} max={100} step={0.5} defaultValue={(project.budgetCents / 100).toFixed(2)} style={{ width: 100 }} />
-              <SubmitButton pending="Saving…">Save</SubmitButton>
-            </form>
-            <form action={deleteProject} style={{ marginTop: 8 }}>
-              <input type="hidden" name="projectId" value={project.id} />
-              <input type="hidden" name="brandId" value={project.brandId} />
-              <button type="submit" className="link-button small">Delete this app and its files</button>
-            </form>
           </details>
+        </header>
+
+        <div className="ide-thread">
+          {s.error ? <p className="ide-note err" role="alert">{s.error}</p> : s.notice ? <p className="ide-note" role="status">{s.notice}</p> : null}
+          {runs.length ? (
+            <ol className="ide-runs">{runs.map((r) => <Run key={r.id} run={r} projectId={project.id} />)}</ol>
+          ) : (
+            <div className="ide-empty">
+              <strong>What should we build first?</strong>
+              <span className="small muted">Harbor uses your business’s facts and colours. Start small; you can keep adding.</span>
+              {IDEAS.map((t) => (
+                <form key={t} action={startBuild}>
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <input type="hidden" name="request" value={t} />
+                  <SubmitButton className="ide-idea" pending="Starting…">{t}</SubmitButton>
+                </form>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="stack app-side">
-          <nav className="segmented" aria-label="Project">
+        <form action={startBuild} className="ide-compose">
+          <input type="hidden" name="projectId" value={project.id} />
+          <textarea name="request" required maxLength={4000} disabled={running} rows={3} placeholder={running ? 'Building… ask for the next thing when it’s done.' : 'Ask Harbor to build or change something…'} aria-label="What should Harbor build?" />
+          <div className="ide-compose-bar">
+            <span className="small dim">{mode.model === 'simulated' ? 'Simulated · free' : `${mode.modelLabel} · up to ${money(project.budgetCents)}`}</span>
+            <SubmitButton className="primary" pending="Starting…">Build</SubmitButton>
+          </div>
+        </form>
+      </aside>
+
+      <section className="ide-main">
+        <div className="ide-bar">
+          <nav className="segmented" aria-label="View">
             {(['preview', 'files', 'history'] as const).map((t) => (
-              <Link key={t} href={`/build/apps/${project.id}?tab=${t}`} aria-current={tab === t ? 'page' : undefined}>{t[0]!.toUpperCase() + t.slice(1)}</Link>
+              <Link key={t} href={tabHref(t)} aria-current={tab === t ? 'page' : undefined}>{t[0]!.toUpperCase() + t.slice(1)}</Link>
             ))}
           </nav>
           {tab === 'preview' ? (
-            <div className="site-preview">
-              {/* Isolation comes from the response's CSP sandbox header (set by the API and again by the preview route): the
-                  app runs in a unique origin and can't reach Harbor's cookies or pages. An iframe sandbox attribute would add
-                  nothing, and some embedded browsers refuse to load sandboxed frames at all. */}
-              <iframe key={lastSha} src={`/p/${previewToken(project.id)}/index.html?v=${lastSha}`} title="App preview" />
-            </div>
+            <>
+              <span className="ide-url" title={sandbox.available ? undefined : 'No sandbox on this machine: the preview shows the files as a static site. Commands and a live dev server need a sandbox.'}>
+                {sandbox.available ? 'Live' : 'Static preview'} · index.html
+              </span>
+              <a className="button mono-button" href={preview} target="_blank" rel="noreferrer">Open ↗</a>
+            </>
+          ) : <span className="ide-url">{tab === 'files' ? `${files.length} files` : `${commits.length} versions`}</span>}
+        </div>
+        <div className="ide-body">
+          {tab === 'preview' ? (
+            // Isolation comes from the response's CSP sandbox header (a unique origin): the app can't reach Harbor.
+            <iframe key={lastSha} src={`${preview}?v=${lastSha}`} title="App preview" />
           ) : null}
           {tab === 'files' ? (
-            <div className="file-view">
-              <ul className="file-list">
+            <div className="ide-files">
+              <ul>
                 {files.map((f) => (
-                  <li key={f.path}><Link href={`/build/apps/${project.id}?tab=files&file=${encodeURIComponent(f.path)}`} aria-current={s.file === f.path ? 'page' : undefined}>{f.path}</Link><span className="dim small">{f.bytes < 1024 ? `${f.bytes} B` : `${Math.round(f.bytes / 1024)} KB`}</span></li>
+                  <li key={f.path}><Link href={`${tabHref('files')}&file=${encodeURIComponent(f.path)}`} aria-current={s.file === f.path ? 'page' : undefined}>{f.path}</Link></li>
                 ))}
               </ul>
-              {file ? <pre className="file-code"><code>{file.content}</code></pre> : <p className="small muted">Pick a file to read it.</p>}
+              {file ? <pre><code>{file.content}</code></pre> : <p className="small muted" style={{ padding: 16 }}>Pick a file.</p>}
             </div>
           ) : null}
           {tab === 'history' ? (
-            <ol className="list">
+            <ol className="ide-history">
               {commits.map((c, i) => (
-                <li key={c.sha} style={{ gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
-                  <span className="stack" style={{ gap: 0 }}><span>{c.message}</span><span className="small dim">{c.sha.slice(0, 7)} · {when(c.at, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{i === 0 ? ' · current' : ''}</span></span>
+                <li key={c.sha}>
+                  <span className="stack" style={{ gap: 0, minWidth: 0 }}>
+                    <span className="evidence-text">{c.message.replace(/^Build: /, '')}</span>
+                    <span className="small dim">{when(c.at, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{i === 0 ? ' · current' : ''}</span>
+                  </span>
                   {i > 0 ? (
                     <form action={restoreVersion}>
                       <input type="hidden" name="projectId" value={project.id} />
                       <input type="hidden" name="sha" value={c.sha} />
-                      <SubmitButton pending="Restoring…">Restore</SubmitButton>
+                      <SubmitButton className="mono-button" pending="…">Restore</SubmitButton>
                     </form>
                   ) : null}
                 </li>
@@ -146,7 +185,7 @@ export default async function AppProject({ params, searchParams }: { params: Pro
             </ol>
           ) : null}
         </div>
-      </div>
-    </>
+      </section>
+    </div>
   );
 }

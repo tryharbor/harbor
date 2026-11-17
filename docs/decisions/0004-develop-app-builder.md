@@ -84,6 +84,13 @@ each content feature) can override it. Harbor ships a recommended pick per job a
    code at any time.
 4. **First starter: a web app with sign-in, a database and Stripe payments.**
 
+5. **Sandbox: Vercel Sandbox** (chosen 2026-11-16 over E2B, Daytona, Modal and Cloudflare). Firecracker microVMs (a
+   dedicated kernel per sandbox, the right isolation for AI-written code); billed for active CPU, so a dev server sitting
+   idle for a preview costs little; a public URL per declared port (`sandbox.domain(port)`) for the live preview;
+   deny-by-default network rules that can change at runtime; files persist across stops (running processes don't, so
+   the dev server restarts on resume). Runner-up: E2B, for its pause/resume of memory and processes, at wall-clock
+   billing and a $150/mo plan for sessions over an hour. Docker stays the local option; nothing requires it.
+
 **Still open: what people will want to build.** Before adding more starters, research which basic apps new owners would
 pay for. Early candidates from the owner: dropshipping stores, SEO/GEO tools, and similar simple platforms. Each becomes a
 starter only once we know it sells.

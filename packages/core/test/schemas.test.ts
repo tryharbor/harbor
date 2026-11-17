@@ -25,6 +25,8 @@ describe('brand schemas', () => {
   it('fills Brand Memory defaults on create', () => {
     const parsed = brandCreateSchema.parse({ name: 'Acme' });
     expect(parsed.memory).toEqual({
+      business: { oneLiner: '', location: '', pricing: '', differentiators: [], goals: [] },
+      branding: { tagline: '', colors: [], fonts: { heading: '', body: '' }, visualStyle: '', imageRules: [] },
       voice: { summary: '', values: [], do: [], avoid: [], bannedWords: [], excerpts: [], sources: [], evidence: [] },
       audiences: [],
       products: [],
@@ -93,6 +95,36 @@ describe('Brand Memory v1 → v2', () => {
       voice: { summary: 'New', values: [], do: [], avoid: [], bannedWords: [], excerpts: [], sources: [], evidence: [] },
     });
     expect(brandMemoryPatchSchema.safeParse({ colour: 'red' }).success).toBe(false);
+  });
+});
+
+describe('Business Memory: business and branding', () => {
+  it('keeps documents without them working', () => {
+    const m = brandMemorySchema.parse({ voice: { summary: 'Plain.' } });
+    expect(m.business.differentiators).toEqual([]);
+    expect(m.branding.colors).toEqual([]);
+    expect(m.voice.summary).toBe('Plain.');
+  });
+
+  it('treats empty form values as not set', () => {
+    const p = brandMemoryPatchSchema.parse({ business: { type: '', stage: '', website: '', oneLiner: 'Plumbing for Chicago homes.' } });
+    expect(p.business).toMatchObject({ oneLiner: 'Plumbing for Chicago homes.' });
+    expect(p.business?.type).toBeUndefined();
+    expect(p.business?.stage).toBeUndefined();
+    expect(p.business?.website).toBeUndefined();
+  });
+
+  it('takes known types and stages only', () => {
+    expect(brandMemoryPatchSchema.safeParse({ business: { type: 'service', stage: 'launched' } }).success).toBe(true);
+    expect(brandMemoryPatchSchema.safeParse({ business: { type: 'franchise' } }).success).toBe(false);
+    expect(brandMemoryPatchSchema.safeParse({ business: { stage: 'scaling' } }).success).toBe(false);
+  });
+
+  it('stores colours as lowercase hex and rejects anything else', () => {
+    const p = brandMemoryPatchSchema.parse({ branding: { colors: [{ name: 'Harbor blue', hex: '#1D5D78', role: 'primary' }, { hex: '#ffffff' }] } });
+    expect(p.branding?.colors).toEqual([{ name: 'Harbor blue', hex: '#1d5d78', role: 'primary' }, { name: '', hex: '#ffffff', role: 'accent' }]);
+    expect(brandMemoryPatchSchema.safeParse({ branding: { colors: [{ hex: 'blue' }] } }).success).toBe(false);
+    expect(brandMemoryPatchSchema.safeParse({ branding: { colors: Array.from({ length: 9 }, () => ({ hex: '#000000' })) } }).success).toBe(false);
   });
 });
 

@@ -2,7 +2,9 @@ import { z } from 'zod';
 import { platformSchema } from './metrics.ts';
 
 /**
- * Brand Memory v2: everything Harbor knows about a brand that should shape strategy and drafting.
+ * Brand Memory v2 ("Business Memory" in the app): everything Harbor knows about a business that should shape
+ * planning, building, marketing and money. `business` and `branding` were added later; documents without them get
+ * empty defaults.
  *
  * Stored as one JSONB document per brand. Documents written by v1 (voice.description/traits/dont, offer, audience)
  * are migrated on read by `brandMemorySchema` (see migrateBrandMemory), so old rows keep working without a data
@@ -241,7 +243,64 @@ export const examplePostSchema = z.object({
 });
 export type ExamplePost = z.infer<typeof examplePostSchema>;
 
+// ---- Business and branding (Business Memory) ----
+
+export const BUSINESS_TYPES = ['service', 'product', 'software', 'creator', 'ecommerce', 'other'] as const;
+export const BUSINESS_STAGES = ['idea', 'building', 'launched', 'growing'] as const;
+export type BusinessType = (typeof BUSINESS_TYPES)[number];
+export type BusinessStage = (typeof BUSINESS_STAGES)[number];
+
+/** Empty strings from a form mean "not set". */
+const optionalEnum = <T extends readonly [string, ...string[]]>(values: T) =>
+  z.preprocess((v) => (v === '' || v === null ? undefined : v), z.enum(values).optional());
+const optionalUrl = z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v), z.string().url().optional());
+const shortList = (max: number, len: number) => z.array(z.string().trim().min(1).max(len)).max(max).default([]);
+
+/** What the business is: every pillar (plan, build, market, money) reads from this. */
+export const businessSchema = z.object({
+  type: optionalEnum(BUSINESS_TYPES),
+  /** What it does, in one sentence a customer would understand. */
+  oneLiner: z.string().max(300).default(''),
+  stage: optionalEnum(BUSINESS_STAGES),
+  /** Where it operates: a city or region, or "Online". */
+  location: z.string().max(200).default(''),
+  /** How it charges, e.g. "$120 call-out, then hourly" or "$19/month". */
+  pricing: z.string().max(1000).default(''),
+  /**
+   * Why customers pick it: facts drafts may state as true ("Licensed and insured in Illinois"). Drafts state no
+   * credential or claim that isn't here or in Knowledge.
+   */
+  differentiators: shortList(12, 300),
+  /** What the owner is working toward this quarter. */
+  goals: shortList(8, 300),
+  website: optionalUrl,
+});
+export type Business = z.infer<typeof businessSchema>;
+
+export const BRAND_COLOR_ROLES = ['primary', 'secondary', 'accent', 'neutral'] as const;
+export const brandColorSchema = z.object({
+  name: z.string().trim().max(60).default(''),
+  /** #rrggbb, stored lowercase. */
+  hex: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, 'Use a hex colour like #1d5d78.').transform((h) => h.toLowerCase()),
+  role: z.enum(BRAND_COLOR_ROLES).default('accent'),
+});
+export type BrandColor = z.infer<typeof brandColorSchema>;
+
+/** How the business looks: what images, graphics and a website should follow. The logo is the brand's logoUrl. */
+export const brandingSchema = z.object({
+  tagline: z.string().max(200).default(''),
+  colors: z.array(brandColorSchema).max(8).default([]),
+  fonts: z.object({ heading: z.string().trim().max(80).default(''), body: z.string().trim().max(80).default('') }).default({}),
+  /** The look and mood of images, e.g. "Bright, real job-site photos; clean before-and-afters". */
+  visualStyle: z.string().max(1000).default(''),
+  /** Rules for images and graphics, e.g. "No stock photos of people", "Logo bottom-right". */
+  imageRules: shortList(12, 300),
+});
+export type Branding = z.infer<typeof brandingSchema>;
+
 const memoryShape = {
+  business: businessSchema,
+  branding: brandingSchema,
   voice: brandVoiceSchema,
   audiences: z.array(audienceSchema),
   products: z.array(productSchema),
@@ -256,6 +315,8 @@ const memoryShape = {
 export const brandMemorySchema = z.preprocess(
   prepare,
   z.object({
+    business: memoryShape.business.default({}),
+    branding: memoryShape.branding.default({}),
     voice: memoryShape.voice.default({}),
     audiences: memoryShape.audiences.default([]),
     products: memoryShape.products.default([]),
@@ -275,6 +336,8 @@ export const brandMemoryPatchSchema = z.preprocess(
   (raw) => fillMemoryIds(migrateBrandMemory(raw)),
   z
     .object({
+      business: memoryShape.business.optional(),
+      branding: memoryShape.branding.optional(),
       voice: memoryShape.voice.optional(),
       audiences: memoryShape.audiences.optional(),
       products: memoryShape.products.optional(),

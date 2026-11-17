@@ -134,7 +134,7 @@ export async function ensureMemorySignals(db: Db, brand: Brand): Promise<void> {
   }
   const [any] = await db.query('SELECT id FROM signals WHERE brand_id = $1 LIMIT 1', [brand.id]);
   if (!any) {
-    const focus = brand.memory.products[0]?.summary || brand.memory.voice.summary || brand.name;
+    const focus = brand.memory.business.oneLiner || brand.memory.products[0]?.summary || brand.memory.voice.summary || brand.name;
     await ensureManual(db, brand.id, `Brand focus: ${preview(focus, 200)}`, { from: 'brand_memory' });
   }
 }

@@ -70,6 +70,23 @@ describe('/v1/brands', () => {
     expect((await send('PATCH', `/v1/brands/${brand.id}`, { memory: { colour: 'red' } })).status).toBe(400);
   });
 
+  it('saves business and branding as their own sections, leaving the rest alone', async () => {
+    const res = await send('PATCH', `/v1/brands/${brand.id}`, {
+      memory: {
+        business: { type: 'service', stage: 'launched', oneLiner: 'Plumbing for Chicago homes.', location: 'Chicago', differentiators: ['Licensed and insured in Illinois'], website: '' },
+        branding: { tagline: 'On time, every time.', colors: [{ name: 'Navy', hex: '#1B2A4A', role: 'primary' }], fonts: { heading: 'Bricolage Grotesque' }, imageRules: ['Real job photos, no stock'] },
+      },
+    });
+    expect(res.status).toBe(200);
+    const updated = brandSchema.parse(await res.json());
+    expect(updated.memory.business).toMatchObject({ type: 'service', stage: 'launched', location: 'Chicago', differentiators: ['Licensed and insured in Illinois'] });
+    expect(updated.memory.business.website).toBeUndefined();
+    expect(updated.memory.branding.colors).toEqual([{ name: 'Navy', hex: '#1b2a4a', role: 'primary' }]);
+    expect(updated.memory.branding.fonts).toEqual({ heading: 'Bricolage Grotesque', body: '' });
+    expect(updated.memory.voice.summary).toBe('New voice');
+    expect((await send('PATCH', `/v1/brands/${brand.id}`, { memory: { branding: { colors: [{ hex: 'navy' }] } } })).status).toBe(400);
+  });
+
   it('reads v1 Brand Memory documents as v2', async () => {
     const v1 = {
       voice: { description: 'Candid and direct.', traits: ['Transparent'], do: ['Use real numbers'], dont: ['leverage'] },

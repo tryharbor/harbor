@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
-import { createCompetitor, deleteCompetitor, deleteListItem, saveListItem, saveStyleRules, saveVoice } from '../actions';
+import { createCompetitor, deleteCompetitor, deleteListItem, saveBranding, saveBusiness, saveListItem, saveStyleRules, saveVoice } from '../actions';
 import type { Audience, BrandView, Competitor, ExamplePost, KnowledgeItem, MemoryListKey, Product } from '../api';
 import { PLATFORM_NAME, SimTag, TZ } from '../ui';
+import { BrandPalette } from './brand-palette';
+import { readableOn } from './post-design';
 import { VoiceLearner } from './voice-learner';
 import { Select } from './select';
 
-/** Brand Memory, section by section. Each section saves on its own (the API merges memory by top-level key). */
+/** Business Memory, section by section. Each section saves on its own (the API merges memory by top-level key). */
 
 const join = (xs: string[] = []) => xs.join('\n');
 const Hidden = ({ brandId, returnTo, list, id }: { brandId: string; returnTo: string; list?: MemoryListKey; id?: string }) => (
@@ -25,6 +27,135 @@ function SectionIntro({ title, children }: { title: string; children: ReactNode 
     </div>
   );
 }
+
+// ---- Business ----
+
+const BUSINESS_TYPES = [
+  { value: '', label: 'Choose…' },
+  { value: 'service', label: 'Service', hint: 'Plumbing, coaching, cleaning, consulting' },
+  { value: 'product', label: 'Physical product', hint: 'Things you make or sell' },
+  { value: 'software', label: 'Software or app', hint: 'SaaS, apps, tools' },
+  { value: 'creator', label: 'Creator or expertise', hint: 'Courses, newsletter, community' },
+  { value: 'ecommerce', label: 'Online store', hint: 'Selling through a store' },
+  { value: 'other', label: 'Something else' },
+];
+const BUSINESS_STAGES = [
+  { value: '', label: 'Choose…' },
+  { value: 'idea', label: 'Idea', hint: 'Figuring out what to build' },
+  { value: 'building', label: 'Building', hint: 'Not selling yet' },
+  { value: 'launched', label: 'Launched', hint: 'First customers' },
+  { value: 'growing', label: 'Growing', hint: 'Steady customers, scaling up' },
+];
+
+export function BusinessSection({ brand, returnTo }: { brand: BrandView; returnTo: string }) {
+  const b = brand.memory.business;
+  return (
+    <div className="stack-lg">
+      <SectionIntro title="Business">
+        What {brand.name} is, who it serves and where it’s headed. Everything Harbor plans, writes and builds starts here.
+      </SectionIntro>
+      <form action={saveBusiness} className="card stack">
+        <Hidden brandId={brand.id} returnTo={returnTo} />
+        <div className="field">
+          <label htmlFor="oneLiner">What it does, in one sentence</label>
+          <input id="oneLiner" name="oneLiner" defaultValue={b.oneLiner} maxLength={300} placeholder="Fast, tidy plumbing repairs for homes across Chicago." />
+        </div>
+        <div className="grid-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="field">
+            <label htmlFor="type">Kind of business</label>
+            <Select id="type" name="type" defaultValue={b.type ?? ''} ariaLabel="Kind of business" options={BUSINESS_TYPES} />
+          </div>
+          <div className="field">
+            <label htmlFor="stage">Stage</label>
+            <Select id="stage" name="stage" defaultValue={b.stage ?? ''} ariaLabel="Stage" options={BUSINESS_STAGES} />
+          </div>
+        </div>
+        <div className="grid-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="field">
+            <label htmlFor="location">Where it operates</label>
+            <input id="location" name="location" defaultValue={b.location} placeholder="Chicago and the near suburbs, or Online" />
+          </div>
+          <div className="field">
+            <label htmlFor="website">Website</label>
+            <input id="website" name="website" type="url" defaultValue={b.website ?? ''} placeholder="https://" />
+          </div>
+        </div>
+        <div className="field">
+          <label htmlFor="pricing">How it charges</label>
+          <input id="pricing" name="pricing" defaultValue={b.pricing} placeholder="$95 call-out, then $120/hour. Free quotes for big jobs." />
+        </div>
+        <div className="field">
+          <label htmlFor="differentiators">Why customers pick it (one per line)</label>
+          <textarea id="differentiators" name="differentiators" defaultValue={join(b.differentiators)} style={{ minHeight: 110 }} placeholder={'Licensed and insured in Illinois\nSame-day visits booked before noon\nUpfront prices, no surprises'} />
+          <span className="small dim">These are facts Harbor may state as true. It won’t claim a licence, award or guarantee that isn’t here or in Knowledge.</span>
+        </div>
+        <div className="field">
+          <label htmlFor="goals">Goals this quarter (one per line)</label>
+          <textarea id="goals" name="goals" defaultValue={join(b.goals)} style={{ minHeight: 90 }} placeholder={'Book 30 jobs a month\nGet the first 20 Google reviews'} />
+        </div>
+        <div><button className="inverse" type="submit">Save business</button></div>
+      </form>
+    </div>
+  );
+}
+
+// ---- Branding ----
+
+export function BrandingSection({ brand, returnTo }: { brand: BrandView; returnTo: string }) {
+  const br = brand.memory.branding;
+  const primary = br.colors.find((c) => c.role === 'primary') ?? br.colors[0];
+  const accent = br.colors.find((c) => c.role === 'accent' && c !== primary);
+  const neutral = br.colors.find((c) => c.role === 'neutral');
+  const onPrimary = primary ? readableOn(primary.hex) : undefined;
+  return (
+    <div className="stack-lg">
+      <SectionIntro title="Branding">
+        How {brand.name} looks. Images, graphics and pages Harbor makes follow these colours, fonts and rules. The logo is the one at the top of this page.
+      </SectionIntro>
+      {primary ? (
+        <div className="brand-preview" aria-label="Branding preview">
+          <div className="brand-preview-hero" style={{ background: primary.hex, color: onPrimary }}>
+            <span className="label" style={{ color: 'inherit', opacity: 0.75 }}>{brand.name}</span>
+            <strong style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', fontFamily: br.fonts.heading ? `"${br.fonts.heading}", var(--font-sans, system-ui)` : undefined }}>{br.tagline || brand.memory.business.oneLiner || 'Your tagline goes here.'}</strong>
+            {accent ? <span style={{ justifySelf: 'start', background: accent.hex, color: readableOn(accent.hex), padding: '6px 12px', borderRadius: 999, fontSize: 13, marginTop: 6 }}>Book now</span> : null}
+          </div>
+          <div className="palette-strip" style={{ borderRadius: 0, border: 0, height: 14, background: neutral?.hex }} aria-hidden="true">{br.colors.map((c) => <i key={c.hex + c.role} style={{ background: c.hex }} />)}</div>
+        </div>
+      ) : null}
+      <form action={saveBranding} className="card stack">
+        <Hidden brandId={brand.id} returnTo={returnTo} />
+        <div className="field">
+          <label htmlFor="tagline">Tagline</label>
+          <input id="tagline" name="tagline" defaultValue={br.tagline} maxLength={200} placeholder="On time, every time." />
+        </div>
+        <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="small" style={{ marginBottom: 6 }}>Colours</legend>
+          <BrandPalette key={brand.updatedAt} initial={br.colors} />
+        </fieldset>
+        <div className="grid-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="field">
+            <label htmlFor="fontHeading">Heading font</label>
+            <input id="fontHeading" name="fontHeading" defaultValue={br.fonts.heading} placeholder="Bricolage Grotesque" />
+          </div>
+          <div className="field">
+            <label htmlFor="fontBody">Body font</label>
+            <input id="fontBody" name="fontBody" defaultValue={br.fonts.body} placeholder="Inter" />
+          </div>
+        </div>
+        <div className="field">
+          <label htmlFor="visualStyle">Visual style</label>
+          <textarea id="visualStyle" name="visualStyle" defaultValue={br.visualStyle} style={{ minHeight: 90 }} placeholder="Bright, real photos from jobs. Clean before-and-afters. Friendly, never salesy." />
+        </div>
+        <div className="field">
+          <label htmlFor="imageRules">Image rules (one per line)</label>
+          <textarea id="imageRules" name="imageRules" defaultValue={join(br.imageRules)} style={{ minHeight: 90 }} placeholder={'No stock photos of people\nLogo bottom-right on graphics\nNo text over faces'} />
+        </div>
+        <div><button className="inverse" type="submit">Save branding</button></div>
+      </form>
+    </div>
+  );
+}
+
 
 // ---- Voice ----
 
@@ -313,6 +444,8 @@ export function MemoryPreview({ brand, competitors, title = 'What Harbor knows',
         knowledge,
       ]
     : [
+        { key: 'business', label: 'Business', ok: !!m.business.oneLiner, detail: m.business.oneLiner || 'Not described yet' },
+        { key: 'branding', label: 'Branding', ok: m.branding.colors.length > 0 || !!m.branding.tagline, detail: m.branding.colors.length ? `${m.branding.colors.length} colour${m.branding.colors.length === 1 ? '' : 's'}${m.branding.fonts.heading ? ` · ${m.branding.fonts.heading}` : ''}` : 'None yet · optional' },
         { key: 'products', label: 'Products', ok: m.products.length > 0, detail: m.products.map((p) => p.name).join(', ') || 'None yet' },
         { key: 'audiences', label: 'Audiences', ok: m.audiences.length > 0, detail: m.audiences.map((a) => a.name).join(', ') || 'None yet' },
         voice,

@@ -92,7 +92,7 @@ export async function renameBrand(form: FormData) {
   go(returnTo(form, `/brands/${brandId}`));
 }
 
-// ---- Brand Memory: voice ----
+// ---- Business Memory: voice ----
 
 const valueLines = (form: FormData) =>
   lines(form, 'values').map((l) => {
@@ -155,10 +155,10 @@ export async function applyVoice(form: FormData) {
     go(back, { error: message(err, 'Could not apply the voice.') });
   }
   refresh();
-  go(back, { notice: back.startsWith('/brands/new') ? 'Voice applied. You can fine-tune it later in Brand Memory.' : 'Voice applied. Edit anything below.' });
+  go(back, { notice: back.startsWith('/brands/new') ? 'Voice applied. You can fine-tune it later in Business Memory.' : 'Voice applied. Edit anything below.' });
 }
 
-// ---- Brand Memory: lists (audiences, products, knowledge, example posts) ----
+// ---- Business Memory: lists (audiences, products, knowledge, example posts) ----
 
 function itemFromForm(key: MemoryListKey, form: FormData, id: string): Record<string, unknown> {
   switch (key) {
@@ -207,6 +207,53 @@ export async function deleteListItem(form: FormData) {
   go(back);
 }
 
+export async function saveBusiness(form: FormData) {
+  const brandId = text(form, 'brandId');
+  const back = returnTo(form, `/brands/${brandId}/memory?section=business`);
+  try {
+    await patchMemory(brandId, {
+      business: {
+        type: text(form, 'type'),
+        stage: text(form, 'stage'),
+        oneLiner: text(form, 'oneLiner'),
+        location: text(form, 'location'),
+        pricing: text(form, 'pricing'),
+        differentiators: lines(form, 'differentiators'),
+        goals: lines(form, 'goals'),
+        website: text(form, 'website'),
+      },
+    });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not save the business details.') });
+  }
+  refresh();
+  go(back, { notice: 'Business saved.' });
+}
+
+export async function saveBranding(form: FormData) {
+  const brandId = text(form, 'brandId');
+  const back = returnTo(form, `/brands/${brandId}/memory?section=branding`);
+  try {
+    const hexes = form.getAll('colorHex').map(String);
+    const names = form.getAll('colorName').map(String);
+    const roles = form.getAll('colorRole').map(String);
+    const colors = hexes.map((hex, i) => ({ hex: hex.trim(), name: (names[i] ?? '').trim(), role: roles[i] || 'accent' })).filter((c) => c.hex);
+    await patchMemory(brandId, {
+      branding: {
+        tagline: text(form, 'tagline'),
+        colors,
+        fonts: { heading: text(form, 'fontHeading'), body: text(form, 'fontBody') },
+        visualStyle: text(form, 'visualStyle'),
+        imageRules: lines(form, 'imageRules'),
+      },
+    });
+  } catch (err) {
+    go(back, { error: message(err, 'Could not save the branding.') });
+  }
+  refresh();
+  go(back, { notice: 'Branding saved.' });
+}
+
 export async function saveStyleRules(form: FormData) {
   const brandId = text(form, 'brandId');
   const back = returnTo(form, `/brands/${brandId}/memory?section=style`);
@@ -221,6 +268,59 @@ export async function saveStyleRules(form: FormData) {
   }
   refresh();
   go(back, { notice: 'Style rules saved.' });
+}
+
+// ---- Social assistant ----
+
+export async function startAssistantChat(form: FormData) {
+  const brandId = text(form, 'brandId');
+  const platforms = form.getAll('platforms').map(String).filter(Boolean);
+  let chatId = '';
+  try {
+    const chat = await api<{ id: string }>(`/v1/brands/${brandId}/assistant/chats`, {
+      method: 'POST',
+      body: JSON.stringify({ message: text(form, 'message'), ...(platforms.length ? { platforms } : {}) }),
+    });
+    chatId = chat.id;
+  } catch (err) {
+    go(`/assistant?brand=${brandId}`, { error: message(err, 'The assistant could not answer that.') });
+  }
+  go(`/assistant?brand=${brandId}&chat=${chatId}`);
+}
+
+export async function sendAssistantMessage(form: FormData) {
+  const chatId = text(form, 'chatId');
+  const brandId = text(form, 'brandId');
+  const back = `/assistant?brand=${brandId}&chat=${chatId}`;
+  try {
+    await api(`/v1/assistant/chats/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ message: text(form, 'message') }) });
+  } catch (err) {
+    go(back, { error: message(err, 'The assistant could not answer that.') });
+  }
+  go(back);
+}
+
+export async function chooseAssistantOption(form: FormData) {
+  const chatId = text(form, 'chatId');
+  const brandId = text(form, 'brandId');
+  let ideaId = '';
+  try {
+    ideaId = (await api<{ ideaId: string }>(`/v1/assistant/chats/${chatId}/options/${text(form, 'optionId')}/use`, { method: 'POST' })).ideaId;
+  } catch (err) {
+    go(`/assistant?brand=${brandId}&chat=${chatId}`, { error: message(err, 'Could not open that option in Studio.') });
+  }
+  refresh();
+  go(`/studio/${ideaId}`, { notice: 'Drafts from the assistant are ready. Edit, then schedule or send for approval.' });
+}
+
+export async function deleteAssistantChat(form: FormData) {
+  const brandId = text(form, 'brandId');
+  try {
+    await api(`/v1/assistant/chats/${text(form, 'chatId')}`, { method: 'DELETE' });
+  } catch (err) {
+    go(`/assistant?brand=${brandId}`, { error: message(err, 'Could not delete that chat.') });
+  }
+  go(`/assistant?brand=${brandId}`);
 }
 
 // ---- Competitors ----

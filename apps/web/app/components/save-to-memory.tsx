@@ -12,14 +12,14 @@ const AS_LABEL: Record<As, { label: string; help: string }> = {
   avoid: { label: 'Avoid rule', help: 'Something drafts should stop doing.' },
 };
 
-/** "Save to Brand Memory" on any post, reply, theme, signal or draft (Jasper's "Add to Knowledge Base", with the source linked). */
+/** "Save to Business Memory" on any post, reply, theme, signal or draft (Jasper's "Add to Knowledge Base", with the source linked). */
 export function SaveToMemory({ brandId, kind, id, options, defaultText, compact = false }: { brandId: string; kind: 'post' | 'reply' | 'theme' | 'signal' | 'draft'; id: string; options: As[]; defaultText?: string; compact?: boolean }) {
   const [state, action, pending] = useActionState<SaveState, FormData>(saveToMemory, {});
   const [as, setAs] = useState<As>(options[0]!);
   const rule = as === 'do' || as === 'avoid';
   return (
     <details className="save-memory">
-      <summary className={compact ? 'link-button small' : 'button mono-button'}>{state.ok ? '✓ Saved' : 'Save to Brand Memory'}</summary>
+      <summary className={compact ? 'link-button small' : 'button mono-button'}>{state.ok ? '✓ Saved' : 'Save to Business Memory'}</summary>
       <form action={action} className="save-memory-panel stack">
         <input type="hidden" name="brandId" value={brandId} />
         <input type="hidden" name="kind" value={kind} />

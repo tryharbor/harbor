@@ -46,11 +46,11 @@ export async function applyProposal(form: FormData) {
   }
   refresh();
   go(returnTo(form, '/approvals?tab=memory'), {
-    notice: rejectAll || !accept.length ? 'Rejected. Brand Memory is unchanged.' : `Applied ${accept.length} change${accept.length === 1 ? '' : 's'} to Brand Memory, each linked to its evidence.`,
+    notice: rejectAll || !accept.length ? 'Rejected. Business Memory is unchanged.' : `Applied ${accept.length} change${accept.length === 1 ? '' : 's'} to Business Memory, each linked to its evidence.`,
   });
 }
 
-// ---- Save to Brand Memory ----
+// ---- Save to Business Memory ----
 
 export type SaveState = { ok?: string; error?: string };
 
@@ -69,14 +69,14 @@ export async function saveToMemory(_prev: SaveState, form: FormData): Promise<Sa
     revalidatePath(`/brands/${brandId}/memory`);
     return { ok: `Saved to ${TARGET[res.saved.target] ?? res.saved.target}.` };
   } catch (err) {
-    return { error: message(err, 'Could not save that to Brand Memory.') };
+    return { error: message(err, 'Could not save that to Business Memory.') };
   }
 }
 const TARGET: Record<string, string> = {
   knowledge: 'Knowledge', examplePosts: 'Example posts', excerpt: 'voice excerpts', 'voice.excerpts': 'voice excerpts', 'voice.do': 'the voice’s Do rules', 'voice.avoid': 'the voice’s Avoid rules', do: 'the voice’s Do rules', avoid: 'the voice’s Avoid rules', example: 'Example posts',
 };
 
-// ---- Preview Brand Memory ----
+// ---- Preview Business Memory ----
 
 export type PreviewState = { preview?: MemoryPreview; error?: string; brief?: string; ideaId?: string; platform?: Platform };
 

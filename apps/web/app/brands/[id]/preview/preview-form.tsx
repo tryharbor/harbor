@@ -12,7 +12,7 @@ const NAMES: Record<Platform, string> = { x: 'X', linkedin: 'LinkedIn', instagra
 const RULE: Record<AppliedRule['kind'], string> = { do: 'Do', avoid: 'Avoid', banned: 'Banned word', excerpt: 'Excerpt', term: 'Term', product: 'Product', audience: 'Audience', value: 'Value' };
 const SOURCE = { learned: 'learned from examples', refresh: 'from results', saved: 'saved by you', owner: 'written by you' } as const;
 
-/** Words in `text` that don't appear in `other`, so the with-memory column shows what Brand Memory changed. */
+/** Words in `text` that don't appear in `other`, so the with-memory column shows what Business Memory changed. */
 function marked(text: string, other: string) {
   const seen = new Set(other.toLowerCase().match(/[\p{L}\p{N}'’-]+/gu) ?? []);
   return text.split(/(\s+)/).map((tok, i) => {
@@ -56,18 +56,18 @@ export function PreviewForm({ brandId, brandName, ideas, platforms }: { brandId:
         <>
           <div className="compare">
             <section className="stack">
-              <span className="label">Without Brand Memory</span>
+              <span className="label">Without Business Memory</span>
               <div className="compare-text muted">{withoutText}</div>
               <span className="small dim">Same model, same brief, an empty memory.</span>
             </section>
             <section className="stack compare-with">
-              <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />With {brandName}'s Brand Memory</span>
+              <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />With {brandName}'s Business Memory</span>
               <div className="compare-text">{withMarked}</div>
               <span className="small dim"><mark>Highlighted</mark> words aren't in the version without memory.</span>
             </section>
           </div>
           <section className="stack">
-            <span className="label">What Brand Memory changed · {p.applied.length} rule{p.applied.length === 1 ? '' : 's'}</span>
+            <span className="label">What Business Memory changed · {p.applied.length} rule{p.applied.length === 1 ? '' : 's'}</span>
             {p.applied.length ? (
               <ul className="rule-evidence">
                 {p.applied.map((r, i) => (

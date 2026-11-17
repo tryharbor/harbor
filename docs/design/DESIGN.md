@@ -1,5 +1,7 @@
 # Harbor design direction
 
+> **2026-11-16: the app now follows the Trace product style guide** (light workspace, Inter 13px, shadow-ring cards, 8/12px radii, full-round chips, ink primary buttons, sentence-case labels). Harbor's pixel palette stays in the logo, pipeline stages and brand data. Where this document says square corners, mono uppercase labels, dotted grids or pink primary buttons, the Trace guide wins.
+
 Date: 2026-10-15. Applies to the app and, later, the marketing site.
 
 **One line:** Sanity's marketing site for the look, Jasper for the depth of the product, the original Harbor system for the mark, and the pixel-key palette for color.

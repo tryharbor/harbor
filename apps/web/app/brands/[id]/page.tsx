@@ -44,7 +44,7 @@ export default async function BrandOverview({ params, searchParams }: { params: 
         firstPost,
       ]
     : [
-        { done: m.products.length > 0 && m.audiences.length > 0, label: 'Describe it', why: 'What it is and who it’s for.', href: `/brands/new?brandId=${id}&step=audience`, cta: 'Add an audience' },
+        { done: !!m.business.oneLiner && m.audiences.length > 0, label: 'Describe it', why: 'What it is and who it’s for.', href: m.business.oneLiner ? `/brands/new?brandId=${id}&step=audience` : `/brands/${id}/memory?section=business`, cta: m.business.oneLiner ? 'Add an audience' : 'Describe it' },
         { done: !!m.voice.summary, label: 'Learn the voice', why: 'Pick a few posts that sound right.', href: `/brands/new?brandId=${id}&step=voice`, cta: 'Pick posts' },
         { done: connected.length > 0, label: 'Connect an account', why: 'X, LinkedIn, Instagram or Threads.', href: `/brands/${id}/channels`, cta: 'Connect' },
         firstPost,
@@ -200,7 +200,7 @@ export default async function BrandOverview({ params, searchParams }: { params: 
                   <li key={i.id} style={{ gridTemplateColumns: '1fr auto' }}><Link href={`/studio/${i.id}`} className="evidence-text">{i.title}</Link><span className={`pill s-${i.status}`}>{i.status}</span></li>
                 ))}
               </ul>
-            ) : <span className="small muted">No ideas yet. <Link href={`/hub?brand=${id}`}>Suggest some</Link> from {brand.name}'s Brand Memory.</span>}
+            ) : <span className="small muted">No ideas yet. <Link href={`/hub?brand=${id}`}>Suggest some</Link> from {brand.name}'s Business Memory.</span>}
           </section>
         </aside>
       </div>

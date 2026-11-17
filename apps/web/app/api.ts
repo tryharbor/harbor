@@ -48,7 +48,15 @@ export interface Audience { id: string; name: string; description: string; painP
 export interface Product { id: string; name: string; summary: string; url?: string; cta?: string; proofPoints: string[] }
 export interface KnowledgeItem { id: string; title: string; kind: 'note' | 'link'; body?: string; url?: string }
 export interface ExamplePost { id: string; platform?: Platform; text: string; url?: string; note?: string }
+export type BusinessType = 'service' | 'product' | 'software' | 'creator' | 'ecommerce' | 'other';
+export type BusinessStage = 'idea' | 'building' | 'launched' | 'growing';
+export interface Business { type?: BusinessType; oneLiner: string; stage?: BusinessStage; location: string; pricing: string; differentiators: string[]; goals: string[]; website?: string }
+export type BrandColorRole = 'primary' | 'secondary' | 'accent' | 'neutral';
+export interface BrandColor { name: string; hex: string; role: BrandColorRole }
+export interface Branding { tagline: string; colors: BrandColor[]; fonts: { heading: string; body: string }; visualStyle: string; imageRules: string[] }
 export interface BrandMemoryV2 {
+  business: Business;
+  branding: Branding;
   voice: BrandVoice;
   audiences: Audience[];
   products: Product[];
@@ -205,6 +213,24 @@ export const getChannels = (brandId?: string) => api<{ data: Channel[] }>(brandI
 export const getPosts = (params: { brandId?: string; status?: PostStatus; from?: string; to?: string; limit?: string } = {}) =>
   api<{ data: PostView[] }>(`/v1/posts${qs(params)}`).then(data);
 export const getPost = (id: string) => api<PostDetail>(`/v1/posts/${id}`);
+// ---- Social assistant ----
+export type DesignLayout = 'headline' | 'quote' | 'list';
+export interface PostOption {
+  id: string;
+  kind: string;
+  label: string;
+  title: string;
+  angle: string;
+  design: { layout: DesignLayout; headline: string; sub?: string };
+  drafts: { platform: Platform; parts: { text: string }[] }[];
+  ideaId?: string;
+}
+export interface ChatMessage { id: string; role: 'user' | 'assistant'; text: string; at: string; options?: PostOption[]; runId?: string; model?: string; simulated?: boolean }
+export interface Chat { id: string; brandId: string; title: string; platforms: Platform[]; messages: ChatMessage[]; createdAt: string; updatedAt: string }
+export interface ChatSummary { id: string; brandId: string; title: string; updatedAt: string; messageCount: number }
+export const getChats = (brandId?: string) => api<{ data: ChatSummary[] }>(`/v1/assistant/chats${qs(brandId ? { brandId } : {})}`).then(data);
+export const getChat = (id: string) => api<Chat>(`/v1/assistant/chats/${id}`);
+
 export const getIdeas = (params: { brandId?: string } = {}) => api<{ data: IdeaView[] }>(`/v1/ideas${qs(params)}`).then(data);
 export const getPlatforms = () => api<{ data: PlatformInfo[] }>('/v1/platforms').then(data);
 export const getCompetitors = (brandId: string) => api<{ data: Competitor[] }>(`/v1/brands/${brandId}/competitors`).then(data);
@@ -418,7 +444,7 @@ export const getAutomations = (brandId?: string) => api<{ data: Automation[] }>(
 export const getApiKeys = () => api<{ data: ApiKey[] }>('/v1/api-keys').then(data);
 export const getMcpInfo = () => api<McpInfo>('/v1/mcp');
 
-// ---- Brand Memory that learns (docs/design/memory-that-learns.md) ----
+// ---- Business Memory that learns (docs/design/memory-that-learns.md) ----
 
 export interface MemoryChange {
   id: string;

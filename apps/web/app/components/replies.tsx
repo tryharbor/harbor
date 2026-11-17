@@ -57,7 +57,7 @@ function ReplyControls({ r, postId, returnTo, actions, accountHandle, platformNa
   );
 }
 
-/** Replies on one post: themes first (what people keep saying), then every reply, each savable to Brand Memory and, where the platform allows, answerable, hideable and deletable. */
+/** Replies on one post: themes first (what people keep saying), then every reply, each savable to Business Memory and, where the platform allows, answerable, hideable and deletable. */
 export function Replies({ brandId, postId, replies, themes, supported, actions = NONE, accountHandle, platformName, returnTo, flash = {} }: { brandId: string; postId: string; replies: ReplyView[]; themes: Theme[]; supported: boolean; actions?: ReplyActions; accountHandle: string; platformName: string; returnTo: string; flash?: { notice?: string; error?: string; at?: string } }) {
   const manage = actions.respond || actions.hide || actions.remove;
   return (

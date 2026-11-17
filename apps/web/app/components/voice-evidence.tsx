@@ -68,7 +68,7 @@ export function VoiceEvidence({ brand, posts, proposals, returnTo }: { brand: Br
           ))}
         </ul>
       ) : (
-        <p className="small dim" style={{ margin: 0 }}>No rule is linked to evidence yet. Approved refresh changes and anything you save to Brand Memory show up here with their posts.</p>
+        <p className="small dim" style={{ margin: 0 }}>No rule is linked to evidence yet. Approved refresh changes and anything you save to Business Memory show up here with their posts.</p>
       )}
     </section>
   );

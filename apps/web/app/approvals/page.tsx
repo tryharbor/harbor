@@ -45,7 +45,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
       <PageHeader
         eyebrow="Approvals"
         title={counts.pending ? `${counts.pending} post${counts.pending === 1 ? '' : 's'} waiting for you` : 'Nothing waiting'}
-        sub="Agents propose; you decide. Each post comes with the slot it was given, why, and how it did against Brand Memory. Approving schedules it."
+        sub="Agents propose; you decide. Each post comes with the slot it was given, why, and how it did against Business Memory. Approving schedules it."
       />
       <Flash params={s} />
       <KindTabs posts={counts.pending} memory={memoryCounts.pending} current="posts" />
@@ -112,12 +112,12 @@ function KindTabs({ posts, memory, current }: { posts: number; memory: number; c
   return (
     <nav className="tabs" aria-label="What's waiting">
       <Link href="/approvals" aria-current={current === 'posts' ? 'page' : undefined}>Posts{posts ? ` · ${posts}` : ''}</Link>
-      <Link href="/approvals?tab=memory" aria-current={current === 'memory' ? 'page' : undefined}>Brand Memory{memory ? ` · ${memory}` : ''}</Link>
+      <Link href="/approvals?tab=memory" aria-current={current === 'memory' ? 'page' : undefined}>Business Memory{memory ? ` · ${memory}` : ''}</Link>
     </nav>
   );
 }
 
-/** Proposed Brand Memory changes from the voice refresh: same rule as posts, nothing changes until you apply it. */
+/** Proposed Business Memory changes from the voice refresh: same rule as posts, nothing changes until you apply it. */
 async function MemoryTab({ s }: { s: Params }) {
   const status = s.status === 'applied' || s.status === 'rejected' ? s.status : 'pending';
   const res = await loadAll<[{ data: MemoryProposal[]; counts: ProposalCounts }, { counts: ApprovalCounts }]>([
@@ -131,7 +131,7 @@ async function MemoryTab({ s }: { s: Params }) {
     <>
       <PageHeader
         eyebrow="Approvals"
-        title={counts.pending ? `${counts.pending} Brand Memory update${counts.pending === 1 ? '' : 's'} to review` : 'Brand Memory is up to date'}
+        title={counts.pending ? `${counts.pending} Business Memory update${counts.pending === 1 ? '' : 's'} to review` : 'Business Memory is up to date'}
         sub="The voice refresh compares what beat your median with what didn't, then proposes rules. Every change shows its numbers and the posts behind it."
       />
       <Flash params={s} />

@@ -44,7 +44,7 @@ export default async function AgentRunPage({ params, searchParams }: { params: P
         <form action={runAgent} className="agent-panel-form">
           <input type="hidden" name="agentId" value={agent.id} />
           <input type="hidden" name="returnTo" value={here} />
-          {brands.length === 0 ? <div className="empty"><span className="muted">Add a brand first; agents work from its Brand Memory.</span><Link className="button" href="/brands/new">Add brand</Link></div> : null}
+          {brands.length === 0 ? <div className="empty"><span className="muted">Add a brand first; agents work from its Business Memory.</span><Link className="button" href="/brands/new">Add brand</Link></div> : null}
 
           {agent.inputs.map((input) => {
             const name = `in.${input.key}`;

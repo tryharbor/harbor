@@ -16,7 +16,7 @@ export default async function AgentsPage({ searchParams }: { searchParams: Promi
       <PageHeader
         eyebrow="Agents"
         title="Agents that do the strategist's homework"
-        sub="Each one chains what Harbor already knows: Brand Memory, the digest, best times and every post's growth curve. Nothing posts on its own. What an agent drafts waits in Approvals until you say yes."
+        sub="Each one chains what Harbor already knows: Business Memory, the digest, best times and every post's growth curve. Nothing posts on its own. What an agent drafts waits in Approvals until you say yes."
         actions={
           <>
             <Link className="button" href="/settings#mcp">Connect Claude (MCP)</Link>
@@ -70,7 +70,7 @@ export default async function AgentsPage({ searchParams }: { searchParams: Promi
       <section className="stack staging dots" style={{ background: 'transparent' }}>
         <span className="label">Bring your own agent</span>
         <p className="muted small" style={{ margin: 0, maxWidth: '72ch' }}>
-          Claude, or any MCP client, can read Brand Memory, suggest ideas, draft and propose posts through Harbor's MCP server. The same rule applies: proposals land in Approvals.
+          Claude, or any MCP client, can read Business Memory, suggest ideas, draft and propose posts through Harbor's MCP server. The same rule applies: proposals land in Approvals.
         </p>
         <Link href="/settings#mcp" className="small">Create an API key and connect →</Link>
       </section>

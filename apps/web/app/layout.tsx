@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist_Mono, Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { getApprovals, getBrands, getMemoryProposals, getMode, type BrandView, type Mode } from './api';
 import { authEnabled, currentSession } from './auth';
@@ -12,14 +12,15 @@ import { type Theme } from './theme-toggle';
 import { BrandMark, HarborMark } from './ui';
 import './globals.css';
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-geist' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' });
 
-export const metadata = { title: 'Harbor', description: 'The open-source content strategist for builders who run more than one brand.' };
+export const metadata = { title: 'Harbor', description: 'Plan, build, market and run your business in one place.' };
 export const dynamic = 'force-dynamic';
 
 const NAV = [
   { href: '/', label: 'Home', icon: Icon.home, exact: true },
+  { href: '/assistant', label: 'Assistant', icon: Icon.assistant },
   { href: '/hub', label: 'Hub', icon: Icon.hub },
   { href: '/approvals', label: 'Approvals', icon: Icon.approvals, count: 'approvals' as const },
   { href: '/campaigns', label: 'Campaigns', icon: Icon.campaigns },
@@ -38,7 +39,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // Signed out (only the sign-in page gets this far): a bare page, and no API calls.
   if (!session) {
     return (
-      <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-theme={theme === 'dark' ? 'dark' : undefined}>
+      <html lang="en" className={`${inter.variable} ${geistMono.variable}`} data-theme={theme === 'dark' ? 'dark' : undefined}>
         <body>{children}</body>
       </html>
     );
@@ -63,7 +64,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const collapsed = jar.get('harbor-sidebar')?.value === 'collapsed';
 
   return (
-    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} data-theme={theme === 'dark' ? 'dark' : undefined}>
+    <html lang="en" className={`${inter.variable} ${geistMono.variable}`} data-theme={theme === 'dark' ? 'dark' : undefined}>
       <body>
         <div className={`shell${collapsed ? ' collapsed' : ''}`}>
           <aside className="sidebar" aria-label="Main">

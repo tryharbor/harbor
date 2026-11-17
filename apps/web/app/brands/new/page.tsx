@@ -62,7 +62,7 @@ export default async function NewBrandWizard({ searchParams }: { searchParams: P
     <>
       <PageHeader
         title={brand ? (you ? 'Set up your account' : `Set up ${brand.name}`) : you ? 'Add yourself' : 'Add a brand'}
-        sub={you ? 'Three short steps. Your account speaks for you, about the brands you build.' : 'Four short steps. Everything here can be edited later in Brand Memory.'}
+        sub={you ? 'Three short steps. Your account speaks for you, about the brands you build.' : 'Four short steps. Everything here can be edited later in Business Memory.'}
       />
       <nav className="steps" aria-label="Setup steps">
         {steps.map((x, i) => (
@@ -171,7 +171,7 @@ export default async function NewBrandWizard({ searchParams }: { searchParams: P
                 <div className="kv"><span className="label">Do</span><ul className="small" style={{ margin: 0, paddingLeft: 18 }}>{brand.memory.voice.do.slice(0, 6).map((d) => <li key={d}>{d}</li>)}</ul></div>
                 <div className="kv"><span className="label">Avoid</span><ul className="small" style={{ margin: 0, paddingLeft: 18 }}>{brand.memory.voice.avoid.slice(0, 6).map((d) => <li key={d}>{d}</li>)}</ul></div>
               </div>
-              <span className="small dim">Harbor keeps refining this from what actually performs. Edit it any time in Brand Memory.</span>
+              <span className="small dim">Harbor keeps refining this from what actually performs. Edit it any time in Business Memory.</span>
               <div className="row" style={{ gap: 6 }}>
                 <Link className="button primary" href={url(next?.key ?? 'done')}>Next: {next?.label ?? 'Done'} →</Link>
                 <Link className="button" href={`${url('voice')}&redo=1`}>Change it</Link>

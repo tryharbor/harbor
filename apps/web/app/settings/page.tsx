@@ -33,7 +33,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <span className="label row" style={{ gap: 8 }}><span className="pixels" aria-hidden="true" />MCP server</span>
           <h2 style={{ margin: 0 }}>Let Claude work in Harbor</h2>
           <p className="muted small" style={{ margin: 0, maxWidth: '72ch' }}>
-            Any MCP client can read Brand Memory, the digest and best times, suggest ideas, draft and propose posts. It can't publish:
+            Any MCP client can read Business Memory, the digest and best times, suggest ideas, draft and propose posts. It can't publish:
             proposals wait in Approvals like every agent's. Endpoint <code>{mcp.url}</code> ({mcp.transport}).
           </p>
         </div>

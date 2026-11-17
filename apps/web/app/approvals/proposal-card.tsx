@@ -15,7 +15,7 @@ export const TARGET_LABEL: Record<MemoryChange['target'], string> = {
   examplePosts: 'Example post',
 };
 
-/** A proposed set of Brand Memory changes. Each change shows its numbers and the posts behind it; tick the ones to keep. */
+/** A proposed set of Business Memory changes. Each change shows its numbers and the posts behind it; tick the ones to keep. */
 export function ProposalCard({ p, returnTo }: { p: MemoryProposal; returnTo: string }) {
   const pending = p.status === 'pending';
   const [checked, setChecked] = useState(() => new Set(p.changes.filter((c) => c.status !== 'rejected').map((c) => c.id)));
@@ -28,12 +28,12 @@ export function ProposalCard({ p, returnTo }: { p: MemoryProposal; returnTo: str
       <header className="spread" style={{ flexWrap: 'wrap', gap: 10 }}>
         <div className="stack" style={{ gap: 4 }}>
           <span className="label row" style={{ gap: 8 }}><span className="agent-glyph g-review" aria-hidden="true" />Voice refresh · {p.brandName}</span>
-          <strong style={{ fontWeight: 500 }}>{p.changes.length} proposed change{p.changes.length === 1 ? '' : 's'} to Brand Memory</strong>
+          <strong style={{ fontWeight: 500 }}>{p.changes.length} proposed change{p.changes.length === 1 ? '' : 's'} to Business Memory</strong>
         </div>
         <span className="small dim">
           {new Date(p.createdAt).toLocaleDateString('en-US', { timeZone: TZ, month: 'short', day: 'numeric' })}
           {p.runId ? <> · <Link href={`/agents/runs/${p.runId}`}>run log</Link></> : null}
-          {' · '}<Link href={`/brands/${p.brandId}/memory`}>open Brand Memory</Link>
+          {' · '}<Link href={`/brands/${p.brandId}/memory`}>open Business Memory</Link>
         </span>
       </header>
 
@@ -77,7 +77,7 @@ export function ProposalCard({ p, returnTo }: { p: MemoryProposal; returnTo: str
           <span className="small dim">{checked.size} of {p.changes.length} selected. Unticked changes are rejected.</span>
           <span className="row" style={{ gap: 6 }}>
             <button type="submit" name="intent" value="reject" className="link-button">Reject all</button>
-            <button type="submit" name="intent" value="apply" className="primary" disabled={!checked.size}>Apply {checked.size} to Brand Memory</button>
+            <button type="submit" name="intent" value="apply" className="primary" disabled={!checked.size}>Apply {checked.size} to Business Memory</button>
           </span>
         </footer>
       ) : (

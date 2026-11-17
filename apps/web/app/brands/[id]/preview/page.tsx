@@ -17,7 +17,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   return (
     <div className="stack-lg">
       <div className="stack" style={{ gap: 6 }}>
-        <h2 style={{ margin: 0 }}>Preview Brand Memory</h2>
+        <h2 style={{ margin: 0 }}>Preview Business Memory</h2>
         <p className="muted small" style={{ margin: 0, maxWidth: '72ch' }}>
           Draft the same thing twice: once as {brand.name}, once with an empty memory. See what the voice, rules and knowledge actually change, and where each rule came from. Nothing is saved.
         </p>

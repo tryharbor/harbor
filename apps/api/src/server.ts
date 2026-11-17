@@ -3,6 +3,7 @@ import { createApp, createDeps } from './app.ts';
 import { openDb } from './db/client.ts';
 import { startWorker } from './worker.ts';
 import { applySavedModel } from './services/models.ts';
+import { failInterruptedBuilds } from './services/projects.ts';
 
 // HARBOR_API_PORT wins; hosts like Railway set PORT.
 const port = Number(process.env.HARBOR_API_PORT || process.env.PORT || 4800);
@@ -11,6 +12,8 @@ const db = await openDb();
 const deps = createDeps(db);
 // The workspace's saved model choice (provider, model, whose key) wins over HARBOR_MODEL once it's been set in the app.
 await applySavedModel(deps);
+// A build can't survive a restart; mark any left "running" as failed so its project isn't stuck.
+await failInterruptedBuilds(db);
 const app = createApp(db, { corsOrigins: [deps.webUrl] }, deps);
 
 // The worker publishes scheduled posts, takes growth-curve snapshots and runs automations. It needs the token key.

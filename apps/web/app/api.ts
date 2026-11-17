@@ -238,6 +238,17 @@ export const getSite = (brandId: string) => api<Site | null>(`/v1/brands/${brand
 export const getSiteDirections = () => api<{ data: { id: SiteDirection; name: string; note: string }[] }>('/v1/sites/directions').then(data);
 export const getSiteLeads = (siteId: string) => api<{ data: SiteLead[] }>(`/v1/sites/${siteId}/leads`).then(data);
 
+// ---- Build: Full app ----
+export interface Project { id: string; brandId: string; name: string; budgetCents: number; spentCents: number; createdAt: string; updatedAt: string }
+export interface BuildStep { at: string; kind: 'message' | 'action' | 'result' | 'error'; text: string; tool?: string; path?: string }
+export interface BuildRun { id: string; projectId: string; request: string; status: 'running' | 'succeeded' | 'failed' | 'budget' | 'stopped' | 'steps'; steps: BuildStep[]; summary?: string; model?: string; inputTokens: number; outputTokens: number; costCents: number; commitSha?: string; createdAt: string; finishedAt?: string }
+export interface ProjectView { project: Project; runs: BuildRun[]; sandbox: { kind: 'none' | 'docker'; available: boolean } }
+export const getProjects = (brandId: string) => api<{ data: Project[] }>(`/v1/brands/${brandId}/projects`).then(data);
+export const getProject = (id: string) => api<ProjectView>(`/v1/projects/${id}`);
+export const getProjectFiles = (id: string) => api<{ data: { path: string; bytes: number }[] }>(`/v1/projects/${id}/files`).then(data);
+export const getProjectFile = (id: string, path: string) => api<{ path: string; content: string }>(`/v1/projects/${id}/file?path=${encodeURIComponent(path)}`);
+export const getProjectHistory = (id: string) => api<{ data: { sha: string; message: string; at: string }[] }>(`/v1/projects/${id}/history`).then(data);
+
 // ---- Money ----
 export interface MoneyEntry { id: string; brandId: string; kind: 'revenue' | 'expense'; amountCents: number; currency: string; occurredOn: string; category?: string; note?: string; source: 'manual' | 'stripe'; createdAt: string }
 export interface MoneySettings { brandId: string; currency: string; cashCents?: number; cashAsOf?: string; stripe?: { label: string; connectedAt: string; syncedAt?: string } }

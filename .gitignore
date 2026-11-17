@@ -26,3 +26,6 @@ docs/research/
 # Vercel CLI link
 .vercel
 .env*
+
+# Full app project workspaces (HARBOR_PROJECTS_DIR)
+apps/api/.projects/

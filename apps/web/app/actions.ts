@@ -380,6 +380,70 @@ export async function siteAction(form: FormData) {
   go(back, { notice: notices[what]! });
 }
 
+// ---- Build: Full app ----
+
+export async function createProject(form: FormData) {
+  const brandId = text(form, 'brandId');
+  let id = '';
+  try {
+    id = (await api<{ id: string }>(`/v1/brands/${brandId}/projects`, { method: 'POST', body: JSON.stringify({ name: text(form, 'name') }) })).id;
+  } catch (err) {
+    go(`/build?brand=${brandId}&mode=app`, { error: message(err, 'Could not create the app.') });
+  }
+  go(`/build/apps/${id}`, { notice: 'Your app is set up with the starter. Tell Harbor what to build first.' });
+}
+
+export async function startBuild(form: FormData) {
+  const id = text(form, 'projectId');
+  try {
+    await api(`/v1/projects/${id}/builds`, { method: 'POST', body: JSON.stringify({ request: text(form, 'request') }) });
+  } catch (err) {
+    go(`/build/apps/${id}`, { error: message(err, 'Could not start the build.') });
+  }
+  go(`/build/apps/${id}`);
+}
+
+export async function stopBuild(form: FormData) {
+  const id = text(form, 'projectId');
+  try {
+    await api(`/v1/builds/${text(form, 'runId')}/stop`, { method: 'POST' });
+  } catch (err) {
+    go(`/build/apps/${id}`, { error: message(err, 'Could not stop the build.') });
+  }
+  go(`/build/apps/${id}`, { notice: 'Stopping after the current step.' });
+}
+
+export async function restoreVersion(form: FormData) {
+  const id = text(form, 'projectId');
+  try {
+    await api(`/v1/projects/${id}/restore`, { method: 'POST', body: JSON.stringify({ sha: text(form, 'sha') }) });
+  } catch (err) {
+    go(`/build/apps/${id}?tab=history`, { error: message(err, 'Could not restore that version.') });
+  }
+  go(`/build/apps/${id}?tab=history`, { notice: 'Restored. Your later versions are still in the history.' });
+}
+
+export async function setBuildCap(form: FormData) {
+  const id = text(form, 'projectId');
+  const dollars = Number(text(form, 'cap'));
+  try {
+    await api(`/v1/projects/${id}`, { method: 'PATCH', body: JSON.stringify({ budgetCents: Math.round(dollars * 100) }) });
+  } catch (err) {
+    go(`/build/apps/${id}`, { error: message(err, 'Could not change the cap.') });
+  }
+  go(`/build/apps/${id}`, { notice: 'Cost cap per build changed.' });
+}
+
+export async function deleteProject(form: FormData) {
+  const brandId = text(form, 'brandId');
+  try {
+    await api(`/v1/projects/${text(form, 'projectId')}`, { method: 'DELETE' });
+  } catch (err) {
+    go(`/build/apps/${text(form, 'projectId')}`, { error: message(err, 'Could not delete the app.') });
+  }
+  go(`/build?brand=${brandId}&mode=app`, { notice: 'App deleted.' });
+}
+
 // ---- Money ----
 
 const moneyBack = (form: FormData) => `/money?brand=${encodeURIComponent(text(form, 'brandId'))}`;

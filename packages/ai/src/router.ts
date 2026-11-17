@@ -49,6 +49,10 @@ export class ModelRouter implements ContentModel {
   get active(): { provider: ModelMode; model: string } {
     return { provider: this.config.provider, model: this.current.name };
   }
+  /** The active real provider and model, for features that talk to it directly (the app builder); none when simulated. */
+  get llm(): { provider: LlmProvider; model: string } | undefined {
+    return this.current instanceof PromptedModel ? { provider: this.current.llm, model: this.current.model } : undefined;
+  }
   get name() {
     return this.current.name;
   }

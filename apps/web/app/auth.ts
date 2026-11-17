@@ -64,6 +64,28 @@ export const sessionCookieOptions = () => ({
 export const newState = () => randomBytes(24).toString('base64url');
 
 /** The signed-in person, or null. With sign-in off, everyone counts as signed in. */
+/**
+ * A capability to view one Full app project's preview: `<projectId>.<exp>.<sig>`, valid for 6 hours. The preview runs in
+ * a sandboxed (unique) origin, so its requests carry no Harbor cookie; the token in the path is what lets it load its own
+ * files, and only that project's. With sign-in off the app is open anyway, so a fixed local key signs it.
+ */
+const PREVIEW_HOURS = 6;
+const previewSign = (payload: string) => createHmac('sha256', authEnabled() ? secret() : 'harbor-local-preview').update(`preview:${payload}`).digest('base64url');
+export function previewToken(projectId: string, now = Date.now()): string {
+  const payload = `${projectId}.${(now + PREVIEW_HOURS * 3_600_000).toString(36)}`;
+  return `${payload}.${previewSign(payload)}`;
+}
+/** The project a preview token is for, if its signature holds and it hasn't expired. */
+export function readPreviewToken(token: string, now = Date.now()): string | null {
+  const parts = token.split('.');
+  if (parts.length !== 3 || !/^prj_[a-z0-9]+$/.test(parts[0]!)) return null;
+  const payload = `${parts[0]}.${parts[1]}`;
+  const want = Buffer.from(previewSign(payload));
+  const got = Buffer.from(parts[2]!);
+  if (want.length !== got.length || !timingSafeEqual(want, got)) return null;
+  return parseInt(parts[1]!, 36) > now ? parts[0]! : null;
+}
+
 export async function currentSession(): Promise<Session | null> {
   if (!authEnabled()) return { login: 'local', exp: Number.MAX_SAFE_INTEGER };
   return readSessionValue((await cookies()).get(SESSION_COOKIE)?.value);

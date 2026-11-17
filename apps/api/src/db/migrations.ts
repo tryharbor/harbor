@@ -13,6 +13,7 @@ import { assistant0012 } from './migrations/0012_assistant.ts';
 import { money0013 } from './migrations/0013_money.ts';
 import { models0014 } from './migrations/0014_models.ts';
 import { sites0015 } from './migrations/0015_sites.ts';
+import { projects0016 } from './migrations/0016_projects.ts';
 
 export interface Migration {
   /** Never rename or edit a migration once it has run anywhere; add a new one instead. */
@@ -21,4 +22,4 @@ export interface Migration {
 }
 
 /** Applied in order by migrate() in client.ts. */
-export const MIGRATIONS: Migration[] = [init0001, publishing0002, studio0003, canvas0004, insights0005, agents0006, learning0007, media0008, people0009, metaCallbacks0010, replyActions0011, assistant0012, money0013, models0014, sites0015];
+export const MIGRATIONS: Migration[] = [init0001, publishing0002, studio0003, canvas0004, insights0005, agents0006, learning0007, media0008, people0009, metaCallbacks0010, replyActions0011, assistant0012, money0013, models0014, sites0015, projects0016];

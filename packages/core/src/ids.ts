@@ -28,6 +28,8 @@ export const ID_PREFIX = {
   moneyEntry: 'mny',
   site: 'sit',
   siteLead: 'led',
+  project: 'prj',
+  buildRun: 'bld',
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIX;

@@ -59,7 +59,7 @@ export class PromptedModel implements ContentModel {
   readonly simulated = false;
   readonly name: string;
 
-  constructor(private readonly llm: LlmProvider, private readonly model: string, private readonly now: () => Date = () => new Date()) {
+  constructor(readonly llm: LlmProvider, readonly model: string, private readonly now: () => Date = () => new Date()) {
     this.name = model;
   }
 

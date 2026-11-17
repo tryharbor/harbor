@@ -14,6 +14,9 @@ import { registerAssistant } from './routes/assistant.ts';
 import { registerMoney } from './routes/money.ts';
 import { registerModels } from './routes/models.ts';
 import { registerSites } from './routes/sites.ts';
+import { registerProjects } from './routes/projects.ts';
+import { projectsDirFromEnv } from './build/workspace.ts';
+import { sandboxesFromEnv, type SandboxProvider } from './build/sandbox.ts';
 import { registerApiKeys } from './routes/api-keys.ts';
 import { registerApprovals } from './routes/approvals.ts';
 import { registerAutomations } from './routes/automations.ts';
@@ -57,6 +60,10 @@ export interface AppOptions {
   mediaStore?: MediaStore;
   /** Used to import media from a URL. Tests inject a fake; defaults to the global fetch. */
   fetch?: typeof fetch;
+  /** Where Full app projects run their code. Defaults to Docker when present (HARBOR_SANDBOX=none turns it off). */
+  sandboxes?: SandboxProvider;
+  /** Full app project folders. Defaults to HARBOR_PROJECTS_DIR or apps/api/.projects. */
+  projectsDir?: string;
   /** Bearer token every /v1 request must carry (production). Defaults to HARBOR_INTERNAL_TOKEN; unset = local-only gate. */
   internalToken?: string;
   /** Secrets that sign Meta's deauthorize and data deletion callbacks. Defaults to INSTAGRAM_APP_SECRET / THREADS_APP_SECRET. */
@@ -75,6 +82,8 @@ export interface AppDeps {
   secrets: () => SecretStore;
   webUrl: string;
   mediaStore: MediaStore;
+  sandboxes: SandboxProvider;
+  projectsDir: string;
   fetch: typeof fetch;
   /** Checks a from-url host is public. Tests that inject `fetch` get a stand-in that only rejects private literals. */
   resolveHost: HostResolver;
@@ -103,6 +112,8 @@ export function createDeps(db: Db, opts: AppOptions = {}): AppDeps {
     secrets,
     webUrl: opts.webUrl ?? process.env.HARBOR_WEB_URL ?? 'http://localhost:4801',
     mediaStore: opts.mediaStore ?? new LocalDiskStore(),
+    sandboxes: opts.sandboxes ?? sandboxesFromEnv(),
+    projectsDir: opts.projectsDir ?? projectsDirFromEnv(),
     fetch: opts.fetch ?? ((input, init) => globalThis.fetch(input, init)),
     resolveHost: opts.fetch ? offlineResolveHost : resolvePublicHost,
     publishDeps: () => ({ db, registry, secrets: secrets() }),
@@ -176,6 +187,7 @@ export function createApp(db: Db, opts: AppOptions = {}, deps: AppDeps = createD
   registerMoney(app, deps);
   registerModels(app, deps);
   registerSites(app, deps);
+  registerProjects(app, deps);
   registerReplies(app, deps);
   registerMedia(app, deps);
   registerMcp(app, deps);

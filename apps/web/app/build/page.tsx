@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { createWebsite, saveWebsite, setSiteDirection, siteAction } from '../actions';
-import { API_BROWSER_URL, getBrands, getMode, getSite, getSiteDirections, getSiteLeads, loadAll, type BrandView, type Mode, type Site, type SiteDirection, type SiteLead, type SiteSection } from '../api';
+import { createProject, createWebsite, saveWebsite, setSiteDirection, siteAction } from '../actions';
+import { API_BROWSER_URL, getBrands, getMode, getProjects, getSite, getSiteDirections, getSiteLeads, loadAll, type BrandView, type Mode, type Project, type Site, type SiteDirection, type SiteLead, type SiteSection } from '../api';
 import { BrandFilter } from '../components/brand-filter';
 import { SubmitButton } from '../components/submit-button';
 import { Flash, LoadError, PageHeader, when } from '../ui';
@@ -12,13 +12,37 @@ const MODES = [
   { key: 'app', name: 'Full app', line: 'Build the product itself.', uses: 'For when the product is software, or you need what a site can’t do: accounts, a database, your own features. An agent writes real code you own.' },
 ] as const;
 
-function Mode({ m, active }: { m: (typeof MODES)[number]; active: boolean }) {
+function Mode({ m, active, href }: { m: (typeof MODES)[number]; active: boolean; href: string }) {
   return (
-    <div className={`build-mode${active ? ' active' : ''}`}>
-      <div className="spread"><strong>{m.name}</strong>{m.key === 'app' ? <span className="pill plain">Coming next</span> : <span className="pill s-connected">Available</span>}</div>
+    <Link href={href} className={`build-mode${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
+      <div className="spread"><strong>{m.name}</strong>{active ? <span className="pill s-connected">Selected</span> : null}</div>
       <span className="build-line">{m.line}</span>
       <span className="small muted">{m.uses}</span>
-    </div>
+    </Link>
+  );
+}
+
+function Apps({ brand, projects }: { brand: BrandView; projects: Project[] }) {
+  return (
+    <section className="stack">
+      <h2 style={{ margin: 0 }}>Your apps</h2>
+      {projects.length ? (
+        <ul className="list">
+          {projects.map((p) => (
+            <li key={p.id} style={{ gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
+              <Link href={`/build/apps/${p.id}`}><strong style={{ fontWeight: 500 }}>{p.name}</strong></Link>
+              <span className="small dim">${(p.spentCents / 100).toFixed(2)} spent</span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="small muted">No apps yet. Start one; Harbor sets it up with a starter in your brand’s colours, then builds what you ask for.</p>}
+      <form action={createProject} className="row" style={{ gap: 6 }}>
+        <input type="hidden" name="brandId" value={brand.id} />
+        <input name="name" required maxLength={80} placeholder="Name it, e.g. Order tracker" aria-label="App name" style={{ maxWidth: 320 }} />
+        <SubmitButton className="primary" pending="Setting up…">New app</SubmitButton>
+      </form>
+      <span className="small dim">Keep the first builds small and basic. Each build stops at its cost cap ($5 by default).</span>
+    </section>
   );
 }
 
@@ -141,7 +165,7 @@ function WebsiteEditor({ brand, site, directions, leads }: { brand: BrandView; s
   );
 }
 
-export default async function BuildPage({ searchParams }: { searchParams: Promise<{ brand?: string; notice?: string; error?: string }> }) {
+export default async function BuildPage({ searchParams }: { searchParams: Promise<{ brand?: string; mode?: string; notice?: string; error?: string }> }) {
   const s = await searchParams;
   const base = await loadAll<[BrandView[], Mode, { id: SiteDirection; name: string; note: string }[]]>([getBrands(), getMode(), getSiteDirections()]);
   if (!base.ok) return <LoadError message={base.error} />;
@@ -156,25 +180,26 @@ export default async function BuildPage({ searchParams }: { searchParams: Promis
       </>
     );
   }
-  const res = await loadAll<[Site | null]>([getSite(brand.id)]);
+  const mode2 = s.mode === 'app' ? 'app' : 'website';
+  const res = await loadAll<[Site | null, Project[]]>([getSite(brand.id), mode2 === 'app' ? getProjects(brand.id) : Promise.resolve([])]);
   if (!res.ok) return <LoadError message={res.error} />;
-  const [site] = res.data;
+  const [site, projects] = res.data;
   const leads = site ? await getSiteLeads(site.id).catch(() => []) : [];
-  const hrefs = Object.fromEntries(businesses.map((b) => [b.id, `/build?brand=${b.id}`]));
+  const hrefs = Object.fromEntries(businesses.map((b) => [b.id, `/build?brand=${b.id}${mode2 === 'app' ? '&mode=app' : ''}`]));
   const thin = !brand.memory.business.oneLiner;
 
   return (
     <>
       <PageHeader
         eyebrow="Build"
-        title={site ? `${brand.name.replace(/\s*\(demo\)$/, '')}'s website` : 'What do you want to build?'}
+        title={mode2 === 'app' ? `${brand.name.replace(/\s*\(demo\)$/, '')}'s apps` : site ? `${brand.name.replace(/\s*\(demo\)$/, '')}'s website` : 'What do you want to build?'}
         sub="Everything starts from Business Memory, so it already knows your offer, customers and brand."
         actions={<BrandFilter brands={businesses} current={brand.id} hrefs={hrefs} allHref={`/build?brand=${brand.id}`} width={220} />}
       />
       <Flash params={s} />
-      <div className="build-modes">{MODES.map((m) => <Mode key={m.key} m={m} active={m.key === 'website'} />)}</div>
+      <div className="build-modes">{MODES.map((m) => <Mode key={m.key} m={m} active={m.key === mode2} href={`/build?brand=${brand.id}${m.key === 'app' ? '&mode=app' : ''}`} />)}</div>
 
-      {site ? (
+      {mode2 === 'app' ? <Apps brand={brand} projects={projects} /> : site ? (
         <WebsiteEditor brand={brand} site={site} directions={directions} leads={leads} />
       ) : (
         <section className="stack">

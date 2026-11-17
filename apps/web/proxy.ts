@@ -18,6 +18,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except the sign-in flow, Next's own assets and the icon.
-  matcher: ['/((?!login|auth/|_next/static|_next/image|icon.svg|favicon.ico).*)'],
+  // Everything except the sign-in flow, previews, Next's own assets and the icon.
+  // /p/ is a Full app preview: its route checks a signed, project-scoped token instead (the sandboxed page has no cookie).
+  matcher: ['/((?!login|auth/|p/|_next/static|_next/image|icon.svg|favicon.ico).*)'],
 };

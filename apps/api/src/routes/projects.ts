@@ -3,7 +3,7 @@ import type { App, AppDeps } from '../app.ts';
 import { body, check } from '../lib/http.ts';
 import { loadBrand } from '../services/brands.ts';
 import {
-  createProject, deleteProject, history, listProjects, listRuns, livePreview, loadProject, restore, startBuild, stopBuild, updateProject, workspaceFor,
+  appSettings, createProject, deleteProject, history, listProjects, listRuns, livePreview, loadProject, removeStripeKey, setStripeKey, restore, startBuild, stopBuild, updateProject, workspaceFor,
 } from '../services/projects.ts';
 
 const TYPES: Record<string, string> = {
@@ -37,6 +37,14 @@ export function registerProjects(app: App, deps: AppDeps) {
     const [runs, available] = await Promise.all([listRuns(db, project.id), deps.sandboxes.available().catch(() => false)]);
     return c.json({ project, runs, sandbox: { kind: deps.sandboxes.kind, available } });
   });
+
+  /** The app's own settings: whether it has a Stripe key (test or live, last four characters). Never the key itself. */
+  app.get('/v1/projects/:id/settings', async (c) => c.json(await appSettings(deps, await loadProject(db, c.req.param('id')))));
+  app.put('/v1/projects/:id/settings/stripe', async (c) => {
+    const input = await body(c, z.object({ key: z.string().trim().min(1).max(300) }).strict());
+    return c.json(await setStripeKey(deps, await loadProject(db, c.req.param('id')), input.key));
+  });
+  app.delete('/v1/projects/:id/settings/stripe', async (c) => c.json(await removeStripeKey(deps, await loadProject(db, c.req.param('id')))));
 
   /** Run the app in its sandbox; `url` is the live preview's public address, or null for a static site. */
   app.post('/v1/projects/:id/live', async (c) => c.json(await livePreview(deps, await loadProject(db, c.req.param('id')))));

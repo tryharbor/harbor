@@ -383,6 +383,19 @@ export async function siteAction(form: FormData) {
 
 // ---- Build: Full app ----
 
+/** Save or remove the app's Stripe secret key. Harbor stores it encrypted and never shows it again. */
+export async function saveStripeKey(form: FormData) {
+  const id = text(form, 'projectId');
+  const remove = text(form, 'remove') === '1';
+  try {
+    if (remove) await api(`/v1/projects/${id}/settings/stripe`, { method: 'DELETE' });
+    else await api(`/v1/projects/${id}/settings/stripe`, { method: 'PUT', body: JSON.stringify({ key: text(form, 'key') }) });
+  } catch (err) {
+    go(`/build/apps/${id}`, { error: message(err, 'Could not save the Stripe key.') });
+  }
+  go(`/build/apps/${id}`, { notice: remove ? 'Stripe key removed. Payments are off once the app restarts (Run live).' : 'Stripe key saved. Press Run live to restart the app with payments on.' });
+}
+
 /** Start the app's dev server in its sandbox and show the live preview (its address rides in the URL). */
 export async function runLive(form: FormData) {
   const id = text(form, 'projectId');

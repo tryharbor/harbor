@@ -11,7 +11,7 @@ import { loadBrand } from './brands.ts';
 
 /** Full app projects: create from the starter, build by request (in the background), history and restore, preview. */
 
-export type BuildDeps = Pick<AppDeps, 'db' | 'models' | 'sandboxes' | 'projectsDir'>;
+export type BuildDeps = Pick<AppDeps, 'db' | 'models' | 'sandboxes' | 'projectsDir' | 'secrets'>;
 
 export interface Project { id: string; brandId: string; name: string; budgetCents: number; spentCents: number; createdAt: string; updatedAt: string }
 export interface BuildRun {
@@ -65,6 +65,7 @@ export async function deleteProject(deps: BuildDeps, id: string): Promise<void> 
   const p = await loadProject(deps.db, id);
   if (await runningRun(deps.db, p.id)) throw new HarborError('CONFLICT', 'Stop the build first.');
   await deps.sandboxes.release?.(p.id).catch(() => undefined);
+  await Promise.resolve().then(() => deps.secrets().delete(appSecretsRef(p.id))).catch(() => undefined);
   await deps.db.query('DELETE FROM projects WHERE id = $1', [p.id]);
   await rm(join(deps.projectsDir, p.id), { recursive: true, force: true });
 }
@@ -121,7 +122,7 @@ async function runBuild(deps: BuildDeps, project: Project, run: BuildRun): Promi
   const canRun = await deps.sandboxes.available().catch(() => false);
   const ctx = {
     brand, projectName: project.name, request: run.request, earlier, workspace: ws, canRun,
-    sandbox: () => deps.sandboxes.forProject(project.id, ws.root),
+    sandbox: async () => sandboxFor(deps, project.id, ws.root, await readAppSecrets(deps, project.id)),
     budgetCents: project.budgetCents,
     onStep: async (s: BuildStep) => {
       await db.query('UPDATE build_runs SET steps = steps || $2::jsonb WHERE id = $1', [run.id, JSON.stringify([s])]);
@@ -162,7 +163,62 @@ export async function livePreview(deps: BuildDeps, project: Project): Promise<{ 
     throw new HarborError('CONFLICT', 'Live previews need a sandbox. Connect Vercel Sandbox to run apps.');
   }
   const ws = await workspaceFor(deps, project.id);
-  const url = await (await deps.sandboxes.forProject(project.id, ws.root)).preview();
+  const secrets = await readAppSecrets(deps, project.id);
+  const env = Object.fromEntries(Object.entries(secrets).filter(([, v]) => !!v)) as Record<string, string>;
+  const url = await (await sandboxFor(deps, project.id, ws.root, secrets)).preview({ env });
   return { url: url ?? null };
+}
+
+// ---- The app's own settings: its Stripe key ----
+
+/**
+ * Each app's secrets live in Harbor's encrypted store (the same one as owners' AI keys), under the app's id. They go
+ * only to the app's running server, never into its files, its history or the agent's commands, and they're blanked out
+ * of anything the agent sees. Only the last four characters are ever shown back.
+ */
+const appSecretsRef = (projectId: string) => `app-secrets:${projectId}`;
+interface AppSecrets { STRIPE_SECRET_KEY?: string }
+export interface AppSettings { stripe: { mode: 'test' | 'live'; last4: string } | null; canStore: boolean }
+
+async function readAppSecrets(deps: BuildDeps, projectId: string): Promise<AppSecrets> {
+  try {
+    return (await deps.secrets().get<AppSecrets>(appSecretsRef(projectId))) ?? {};
+  } catch {
+    return {}; // no HARBOR_SECRET_KEY: nothing can be stored
+  }
+}
+
+export async function appSettings(deps: BuildDeps, project: Project): Promise<AppSettings> {
+  let canStore = true;
+  try {
+    deps.secrets();
+  } catch {
+    canStore = false;
+  }
+  const key = (await readAppSecrets(deps, project.id)).STRIPE_SECRET_KEY;
+  return { stripe: key ? { mode: key.includes('_live_') ? 'live' : 'test', last4: key.slice(-4) } : null, canStore };
+}
+
+/** A Stripe secret or restricted key: sk_test_…, sk_live_…, rk_test_…, rk_live_…. Publishable keys (pk_) are refused. */
+export async function setStripeKey(deps: BuildDeps, project: Project, key: string): Promise<AppSettings> {
+  const k = key.trim();
+  if (/^pk_/.test(k)) throw new HarborError('INVALID_REQUEST', 'That’s a publishable key (pk_…). Paste the secret key (sk_…) from Stripe → Developers → API keys.');
+  if (!/^(sk|rk)_(test|live)_[A-Za-z0-9]{16,}$/.test(k)) throw new HarborError('INVALID_REQUEST', 'That doesn’t look like a Stripe secret key. It starts with sk_test_ (or sk_live_).');
+  await deps.secrets().put(appSecretsRef(project.id), { ...(await readAppSecrets(deps, project.id)), STRIPE_SECRET_KEY: k } satisfies AppSecrets);
+  return appSettings(deps, project);
+}
+
+export async function removeStripeKey(deps: BuildDeps, project: Project): Promise<AppSettings> {
+  const { STRIPE_SECRET_KEY: _gone, ...rest } = await readAppSecrets(deps, project.id);
+  if (Object.keys(rest).length) await deps.secrets().put(appSecretsRef(project.id), rest);
+  else await deps.secrets().delete(appSecretsRef(project.id)).catch(() => undefined);
+  return appSettings(deps, project);
+}
+
+/** The project's sandbox, told which values to keep from the agent. */
+async function sandboxFor(deps: BuildDeps, projectId: string, root: string, secrets: AppSecrets) {
+  const sb = await deps.sandboxes.forProject(projectId, root);
+  sb.redact?.(Object.values(secrets).filter((v): v is string => !!v));
+  return sb;
 }
 

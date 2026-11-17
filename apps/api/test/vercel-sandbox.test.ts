@@ -15,6 +15,8 @@ class FakeBox implements RemoteBox {
   files = new Map<string, Buffer>();
   commands: string[] = [];
   started: string[] = [];
+  startedEnv: (Record<string, string> | undefined)[] = [];
+  settings = '';
   serverUp = false;
   stopped = false;
   onRun: (cmd: string, box: FakeBox) => { exitCode: number; stdout: string; stderr: string } | undefined = () => undefined;
@@ -36,11 +38,18 @@ class FakeBox implements RemoteBox {
       this.serverUp = false;
       return { exitCode: 0, stdout: '', stderr: '' };
     }
+    if (command === 'cat /tmp/harbor-dev.settings 2>/dev/null') return { exitCode: 0, stdout: this.settings, stderr: '' };
+    const fp = /^echo (\w+) > \/tmp\/harbor-dev\.settings$/.exec(command);
+    if (fp) {
+      this.settings = `${fp[1]}\n`;
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
     if (command.startsWith('curl')) return { exitCode: 0, stdout: this.serverUp ? 'up' : '', stderr: '' };
     return this.onRun(command, this) ?? { exitCode: 0, stdout: `ran ${command}`, stderr: '' };
   }
-  async start(command: string) {
+  async start(command: string, opts: { env?: Record<string, string> }) {
     this.started.push(command);
+    this.startedEnv.push(opts.env);
     this.serverUp = true;
   }
   async writeFiles(files: { path: string; content: Buffer }[]) {
@@ -267,6 +276,31 @@ describe('a project on Vercel Sandbox', () => {
     await sb.exec('true');
     expect(box.files.has('orders.json')).toBe(true);
     expect((await ws.list()).map((f) => f.path)).toEqual(['server.js']);
+  });
+
+  it('gives the app its Stripe key, restarts when the key changes, and hides it from the agent', async () => {
+    const { box, boxes } = fakeBoxes();
+    const key = 'sk_test_51AbCdEfGhIjKlMnOpQrStUvWx1234';
+    await ws.write('package.json', JSON.stringify({ scripts: { dev: 'node server.js' } }));
+    const sb = await vercelSandboxes(boxes).forProject('prj_test1', ws.root);
+    sb.redact!([key]);
+
+    await sb.preview({ env: { STRIPE_SECRET_KEY: key } });
+    expect(box.startedEnv.at(-1)).toMatchObject({ STRIPE_SECRET_KEY: key, PORT: '3000' });
+    expect(box.settings).not.toContain(key); // only a fingerprint is kept in the sandbox
+    await sb.preview({ env: { STRIPE_SECRET_KEY: key } });
+    expect(box.started.length).toBe(1); // same key, nothing changed: no restart
+
+    await sb.preview({ env: {} }); // key removed: restart without it
+    expect(box.started.length).toBe(2);
+    expect(box.startedEnv.at(-1)).not.toHaveProperty('STRIPE_SECRET_KEY');
+
+    // The agent's commands never get the key, and output that contains it is blanked.
+    box.onRun = (cmd) => (cmd === 'printenv; cat /proc/*/environ' ? { exitCode: 0, stdout: `STRIPE_SECRET_KEY=${key}\nPATH=/usr/bin`, stderr: `oops ${key}` } : undefined);
+    const r = await sb.exec('printenv; cat /proc/*/environ');
+    expect(r.stdout).toBe('STRIPE_SECRET_KEY=[hidden]\nPATH=/usr/bin');
+    expect(r.stderr).toBe('oops [hidden]');
+    expect(JSON.stringify(box.commands)).not.toContain(key);
   });
 
   it('deletes the sandbox when the project goes', async () => {

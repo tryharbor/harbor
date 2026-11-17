@@ -35,6 +35,7 @@ describe('the starter app', () => {
   let stripe: Server;
   let base: string;
   const stripeCalls: { method: string; path: string; body: string; auth: string }[] = [];
+  let failNext = false;
 
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), 'harbor-starter-'));
@@ -51,6 +52,11 @@ describe('the starter app', () => {
       req.on('end', () => {
         stripeCalls.push({ method: req.method!, path: req.url!, body, auth: String(req.headers.authorization) });
         res.setHeader('content-type', 'application/json');
+        if (req.method === 'POST' && req.url === '/v1/checkout/sessions' && failNext) {
+          failNext = false;
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: { message: 'Invalid API Key provided: sk_test_****0000' } }));
+        }
         if (req.method === 'POST' && req.url === '/v1/checkout/sessions') return res.end(JSON.stringify({ id: 'cs_test_1', url: 'https://checkout.stripe.test/c/cs_test_1' }));
         if (req.url === '/v1/checkout/sessions/cs_test_1') {
           const ref = new URLSearchParams(stripeCalls.find((c) => c.method === 'POST')?.body).get('client_reference_id');
@@ -164,6 +170,12 @@ describe('the starter app', () => {
     expect(await (await go('/checkout', { method: 'POST', cookie, accept: 'application/json' })).json()).toEqual({ url: 'https://checkout.stripe.test/c/cs_test_1' });
 
     expect((await go('/checkout/return?session_id=not-a-session')).status).toBe(400);
+
+    // Stripe refusing (a wrong key) sends the customer back calmly, not to an error page.
+    failNext = true;
+    const refused = await go('/checkout', { method: 'POST', cookie });
+    expect(refused.headers.get('location')).toBe('/account?m=payfail');
+    expect(await (await go('/account?m=payfail', { cookie })).text()).toContain('Nothing was charged');
     expect(await (await go('/checkout/return?session_id=cs_test_1')).text()).toContain('you’re all set');
     expect(await (await go('/account', { cookie })).text()).toContain('Paid · since');
   });

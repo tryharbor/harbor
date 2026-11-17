@@ -14,8 +14,10 @@ export interface ExecResult { exitCode: number; stdout: string; stderr: string; 
 export interface Sandbox {
   /** Run a shell command in the project folder. Output is capped; the command is killed at the timeout. */
   exec(command: string, opts?: { timeoutMs?: number }): Promise<ExecResult>;
-  /** Start the dev server (if any) and return the URL that shows it. */
-  preview(): Promise<string | undefined>;
+  /** Start the dev server (if any) with the app's own settings (e.g. its Stripe key) and return the URL that shows it. */
+  preview(opts?: { env?: Record<string, string> }): Promise<string | undefined>;
+  /** Values that must never reach the agent: blanked out of every command's output from now on. */
+  redact?(values: string[]): void;
   stop(): Promise<void>;
 }
 

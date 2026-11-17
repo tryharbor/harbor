@@ -98,7 +98,20 @@ class VercelProjectSandbox implements Sandbox {
    */
   private sandboxOnly = new Set<string>();
 
+  /** The app's secrets (its Stripe key): never shown to the agent. */
+  private hidden: string[] = [];
+
   constructor(private readonly boxes: RemoteBoxes, private readonly name: string, private box: RemoteBox, private readonly ws: Workspace) {}
+
+  redact(values: string[]): void {
+    this.hidden = values.filter((v) => v.length >= 8);
+  }
+
+  private scrub(text: string): string {
+    let out = text;
+    for (const v of this.hidden) out = out.split(v).join('[hidden]');
+    return out;
+  }
 
   private async list(): Promise<Map<string, string>> {
     const r = await this.box.run(LIST_COMMAND, { cwd: REMOTE_ROOT, timeoutMs: 60_000 });
@@ -162,14 +175,14 @@ class VercelProjectSandbox implements Sandbox {
     const r = await this.box.run(command, { cwd: REMOTE_ROOT, timeoutMs, env: { PORT: String(PREVIEW_PORT), HOST: '0.0.0.0', NPM_CONFIG_UPDATE_NOTIFIER: 'false' } });
     const timedOut = r.exitCode !== 0 && Date.now() - t0 >= timeoutMs - 1000;
     const notes = await this.pull();
-    return { exitCode: r.exitCode, stdout: cap(r.stdout), stderr: cap(r.stderr + (notes.length ? `\n[harbor] ${notes.join('\n[harbor] ')}` : '')), timedOut };
+    return { exitCode: r.exitCode, stdout: cap(this.scrub(r.stdout)), stderr: cap(this.scrub(r.stderr) + (notes.length ? `\n[harbor] ${notes.join('\n[harbor] ')}` : '')), timedOut };
   }
 
   /**
    * Start the app's dev server (package.json "dev", else "start") on the preview port and return its public address.
    * Undefined when the project has no server to run (a static site: the static preview shows it).
    */
-  async preview(): Promise<string | undefined> {
+  async preview(opts?: { env?: Record<string, string> }): Promise<string | undefined> {
     let pkg: { scripts?: Record<string, string> } = {};
     try {
       pkg = JSON.parse(await this.ws.read('package.json'));
@@ -183,8 +196,12 @@ class VercelProjectSandbox implements Sandbox {
     const env = { PORT: String(PREVIEW_PORT), HOST: '0.0.0.0', NPM_CONFIG_UPDATE_NOTIFIER: 'false' };
     const isUp = async () => (await this.box.run(`curl -s -o /dev/null -m 2 http://127.0.0.1:${PREVIEW_PORT}/ && echo up`, { cwd: REMOTE_ROOT, timeoutMs: 10_000 })).stdout.includes('up');
     let up = await isUp();
-    // Files changed since it started (a build, a restore): restart it so the preview shows the current version.
-    if (up && changed > 0) {
+    // The app's settings, as a fingerprint kept in the sandbox (never the values themselves).
+    const secrets = opts?.env ?? {};
+    const fingerprint = createHash('sha256').update(JSON.stringify(Object.entries(secrets).sort())).digest('hex').slice(0, 16);
+    const runningWith = up ? (await this.box.run('cat /tmp/harbor-dev.settings 2>/dev/null', { cwd: REMOTE_ROOT, timeoutMs: 10_000 })).stdout.trim() : '';
+    // Files or settings changed since it started (a build, a restore, a new key): restart so the preview is current.
+    if (up && (changed > 0 || runningWith !== fingerprint)) {
       await this.box.run(stopServer(), { cwd: REMOTE_ROOT, timeoutMs: 20_000 });
       up = false;
     }
@@ -192,7 +209,8 @@ class VercelProjectSandbox implements Sandbox {
       // Install only when the app lists packages and they aren't there yet (the starter has none).
       const install = await this.box.run(INSTALL_IF_NEEDED, { cwd: REMOTE_ROOT, timeoutMs: 300_000, env });
       if (install.exitCode !== 0) throw new HarborError('UPSTREAM_ERROR', `Installing the app's packages failed: ${install.stderr.slice(-300)}`);
-      await this.box.start(startServer(script), { cwd: REMOTE_ROOT, env });
+      await this.box.run(`echo ${fingerprint} > /tmp/harbor-dev.settings`, { cwd: REMOTE_ROOT, timeoutMs: 10_000 });
+      await this.box.start(startServer(script), { cwd: REMOTE_ROOT, env: { ...secrets, ...env } });
       for (let i = 0; i < 45 && !up; i++) {
         await new Promise((r) => setTimeout(r, 2000));
         up = await isUp();
@@ -317,6 +335,9 @@ export function realVercelBoxes(creds: VercelAuth): RemoteBoxes {
         networkPolicy: { allow: ALLOWED_HOSTS },
         tags: { app: 'harbor' },
       } as Parameters<typeof Sandbox.getOrCreate>[0]);
+      // A sandbox made before the allowed hosts changed keeps its old rules: bring them up to date.
+      const allow = (sb.networkPolicy as { allow?: unknown } | undefined)?.allow;
+      if (JSON.stringify(allow) !== JSON.stringify(ALLOWED_HOSTS)) await sb.updateNetworkPolicy({ allow: ALLOWED_HOSTS });
       return wrap(sb, name);
     },
     async destroy(name) {

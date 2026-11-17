@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { deleteProject, restoreVersion, runLive, setBuildCap, startBuild, stopBuild } from '../../../actions';
-import { getMode, getProject, getProjectFile, getProjectFiles, getProjectHistory, loadAll, type BuildRun, type Mode, type ProjectView } from '../../../api';
+import { deleteProject, restoreVersion, runLive, saveStripeKey, setBuildCap, startBuild, stopBuild } from '../../../actions';
+import { getMode, getProject, getProjectFile, getProjectFiles, getProjectHistory, getProjectSettings, loadAll, type AppSettings, type BuildRun, type Mode, type ProjectView } from '../../../api';
 import { previewToken } from '../../../auth';
 import { AutoRefresh } from '../../../components/auto-refresh';
 import { SubmitButton } from '../../../components/submit-button';
@@ -74,9 +74,9 @@ export default async function AppProject({ params, searchParams }: { params: Pro
   const { id } = await params;
   const s = await searchParams;
   const tab = s.tab === 'files' || s.tab === 'history' ? s.tab : 'preview';
-  const res = await loadAll<[ProjectView, Mode]>([getProject(id), getMode()]);
+  const res = await loadAll<[ProjectView, Mode, AppSettings]>([getProject(id), getMode(), getProjectSettings(id)]);
   if (!res.ok) return <LoadError message={res.error} />;
-  const [{ project, runs, sandbox }, mode] = res.data;
+  const [{ project, runs, sandbox }, mode, settings] = res.data;
   const running = runs.some((r) => r.status === 'running');
   const extra = await loadAll<[{ path: string; bytes: number }[], { sha: string; message: string; at: string }[], { path: string; content: string } | undefined]>([
     tab === 'files' ? getProjectFiles(id) : Promise.resolve([]),
@@ -107,6 +107,24 @@ export default async function AppProject({ params, searchParams }: { params: Pro
                 <input id="cap" name="cap" type="number" min={0.5} max={100} step={0.5} defaultValue={(project.budgetCents / 100).toFixed(2)} style={{ width: 80 }} />
                 <SubmitButton pending="…">Save</SubmitButton>
               </form>
+              <div className="divider" />
+              <strong className="small">Payments (Stripe)</strong>
+              {settings.stripe ? (
+                <form action={saveStripeKey} className="row" style={{ gap: 6, justifyContent: 'space-between' }}>
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <input type="hidden" name="remove" value="1" />
+                  <span className="small"><span className={`pill ${settings.stripe.mode === 'live' ? 's-published' : 'plain'}`}>{settings.stripe.mode === 'live' ? 'Live key' : 'Test key'}</span> ending {settings.stripe.last4}</span>
+                  <button type="submit" className="link-button small">Remove</button>
+                </form>
+              ) : settings.canStore ? (
+                <form action={saveStripeKey} className="stack" style={{ gap: 6 }}>
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <input name="key" type="password" required autoComplete="off" placeholder="sk_test_…" aria-label="Stripe secret key" />
+                  <span className="small dim">Your Stripe secret key, from Stripe → Developers → API keys. Start with a test key. Stored encrypted; only this app gets it.</span>
+                  <SubmitButton pending="Saving…">Save key</SubmitButton>
+                </form>
+              ) : <span className="small dim">Harbor can’t store keys on this server yet (HARBOR_SECRET_KEY isn’t set).</span>}
+              <div className="divider" />
               <form action={deleteProject}>
                 <input type="hidden" name="projectId" value={project.id} />
                 <input type="hidden" name="brandId" value={project.brandId} />

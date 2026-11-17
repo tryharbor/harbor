@@ -247,6 +247,8 @@ export const getProjects = (brandId: string) => api<{ data: Project[] }>(`/v1/br
 export const getProject = (id: string) => api<ProjectView>(`/v1/projects/${id}`);
 export const getProjectFiles = (id: string) => api<{ data: { path: string; bytes: number }[] }>(`/v1/projects/${id}/files`).then(data);
 export const getProjectFile = (id: string, path: string) => api<{ path: string; content: string }>(`/v1/projects/${id}/file?path=${encodeURIComponent(path)}`);
+export interface AppSettings { stripe: { mode: 'test' | 'live'; last4: string } | null; canStore: boolean }
+export const getProjectSettings = (id: string) => api<AppSettings>(`/v1/projects/${id}/settings`);
 export const getProjectHistory = (id: string) => api<{ data: { sha: string; message: string; at: string }[] }>(`/v1/projects/${id}/history`).then(data);
 
 // ---- Money ----

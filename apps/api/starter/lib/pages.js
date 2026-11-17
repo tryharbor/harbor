@@ -75,7 +75,8 @@ export function signIn({ email = '', error, next } = {}) {
 }
 
 export function account(user, { message } = {}) {
-  const note = message === 'nopay' ? '<p class="notice">Payments aren’t switched on yet. The owner adds their Stripe key in Harbor to turn them on.</p>' : '';
+  const note = message === 'nopay' ? '<p class="notice">Payments aren’t switched on yet. The owner adds their Stripe key in Harbor to turn them on.</p>'
+    : message === 'payfail' ? '<p class="error">Payments couldn’t start just now. Nothing was charged; please try again later.</p>' : '';
   const price = config.price.label ? ` (${esc(config.price.label)})` : '';
   const plan = user.paid_at
     ? `<p class="pill">Paid · since ${esc(user.paid_at.slice(0, 10))}</p>`

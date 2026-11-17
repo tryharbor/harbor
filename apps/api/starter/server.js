@@ -87,7 +87,13 @@ const ROUTES = {
   'POST /checkout': async (req, res, { user }) => {
     if (!user) return redirect(res, '/signin?next=/account');
     if (!payments.enabled()) return redirect(res, '/account?m=nopay');
-    const url = await payments.checkout(user, origin(req));
+    let url;
+    try {
+      url = await payments.checkout(user, origin(req));
+    } catch (err) {
+      console.error('Stripe Checkout failed:', err.message); // details for the owner, in the app's log
+      return redirect(res, '/account?m=payfail');
+    }
     // Pages inside a frame ask for JSON and open Stripe in a new tab (Stripe can't be shown in a frame).
     if (String(req.headers.accept).includes('application/json')) return json(res, 200, { url });
     redirect(res, url);

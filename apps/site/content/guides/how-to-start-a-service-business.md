@@ -18,6 +18,7 @@ Trade guides so far:
 
 - [How to start a cleaning business](/guides/how-to-start-a-cleaning-business)
 - [How to start a lawn care business](/guides/how-to-start-a-lawn-care-business)
+- [How to start a dog grooming business](/guides/how-to-start-a-dog-grooming-business)
 
 ## 2. Work out what it costs to start
 
@@ -27,20 +28,23 @@ Service businesses are cheap to start because most of the cost is equipment you 
 |---|---|---|
 | House cleaning | about $369 | about $1,196 |
 | Lawn care | about $1,052 | about $3,131 |
+| Dog grooming | about $1,420 | about $4,500 (home salon) |
 
 The lean budgets assume you use your own vehicle and start as a sole proprietor. The typical budgets add commercial-grade equipment, a bond or extra insurance, and an LLC.
 
 - [Cleaning business startup costs](/guides/cleaning-business-startup-costs)
 - [Lawn care business startup costs](/guides/lawn-care-business-startup-costs)
+- [Dog grooming business startup costs](/guides/dog-grooming-business-startup-costs)
 
 ## 3. Set your prices
 
-Start from what customers already pay, then check that each job covers your pay, your costs and your taxes. In late 2026, a standard house clean typically went for $146–$202 (Thumbtack, October 2026), and a lawn mowing visit for $44–$71 (LawnStarter, November 2026).
+Start from what customers already pay, then check that each job covers your pay, your costs and your taxes. In late 2026, a standard house clean typically went for $146–$202 (Thumbtack, October 2026), a lawn mowing visit for $44–$71 (LawnStarter, November 2026), and a dog grooming visit for $95–$160 (Thumbtack, October 2026).
 
 A simple way to price one job: **your hourly pay × hours, plus driving and supplies, then add room for card fees.** The IRS business mileage rate (76¢ a mile from July 1, 2026) is a fair stand-in for what driving costs you. In both trades, this formula comes out below the going rate, so new owners rarely need to undercut anyone.
 
 - [How much to charge for house cleaning](/guides/how-much-to-charge-for-house-cleaning)
 - [How much to charge for lawn mowing](/guides/how-much-to-charge-for-lawn-mowing)
+- [How much to charge for dog grooming](/guides/how-much-to-charge-for-dog-grooming)
 
 ## 4. Register the business
 
@@ -65,6 +69,7 @@ Liability insurance covers damage you might cause in a customer's home or yard, 
 |---|---|
 | House cleaning | about $42–$51 (Simply Business; Insureon) |
 | Lawn care | about $57 (Insureon); most Next Insurance customers pay $18–$55 |
+| Dog grooming | about $50 (Insureon); $65 for mobile groomers |
 
 Cleaners often add a janitorial bond (about $112–$175 a year), and lawn care businesses often insure their tools and equipment (about $42 a month).
 
@@ -91,6 +96,7 @@ Trade-specific plans:
 
 - [Your first 10 cleaning clients](/guides/get-your-first-cleaning-clients)
 - [Your first 10 lawn care customers](/guides/get-your-first-lawn-care-customers)
+- [Your first 10 dog grooming clients](/guides/get-your-first-dog-grooming-clients)
 
 ## 10. Get a simple website
 
@@ -125,11 +131,11 @@ Of the two priced here, house cleaning: about $369 for a lean start, against abo
 - LLC filing fees: Texas Secretary of State (Form 205); Florida Division of Corporations; New York Department of State.
 - Certification standards for pesticide applicators, U.S. EPA. epa.gov, updated March 6, 2026.
 - C-27 landscaping classification, and "Gardener or landscaper: what's the difference?", California Contractors State License Board. cslb.ca.gov.
-- Insurance costs: Insureon (house cleaners, updated September 1, 2026; lawn care, updated September 28, 2026); Simply Business (janitorial, modified October 28, 2026); Next Insurance (lawn care, data updated October 2026).
-- House cleaning prices, Thumbtack (thumbtack.com, updated October 20, 2026); lawn mowing prices, LawnStarter (lawnstarter.com, updated November 4, 2026).
+- Insurance costs: Insureon (house cleaners, updated September 1, 2026; lawn care, updated September 28, 2026; groomers, updated July 10–11, 2025); Simply Business (janitorial, modified October 28, 2026); Next Insurance (lawn care, data updated October 2026).
+- House cleaning prices, Thumbtack (thumbtack.com, updated October 20, 2026); lawn mowing prices, LawnStarter (lawnstarter.com, updated November 4, 2026); dog grooming prices, Thumbtack (updated October 28, 2026).
 - Standard mileage rates, IRS. irs.gov.
 - Pricing, Stripe (stripe.com/pricing); payment fees, Square (squareup.com).
 - Self-employment tax (irs.gov, reviewed October 30, 2026) and estimated taxes FAQ (irs.gov, updated October 2, 2026), IRS.
 - Manage your service areas, Google Business Profile Help. support.google.com.
 - Advertise with Nextdoor. business.nextdoor.com.
-- Startup budgets: Harbor's itemized cleaning and lawn care cost guides, with prices seen November 17, 2026.
+- Startup budgets: Harbor's itemized cleaning, lawn care and dog grooming cost guides, with prices seen November 17, 2026.

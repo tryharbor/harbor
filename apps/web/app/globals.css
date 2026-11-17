@@ -869,3 +869,6 @@ img.avatar { object-fit: cover; padding: 0; }
 .seg-radio:has(input:checked) { background: var(--panel); color: var(--ink); box-shadow: var(--shadow-low); }
 .seg-radio:has(input:focus-visible) { outline: 2px solid var(--signal); outline-offset: 2px; }
 @media (max-width: 860px) { .stat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Section tabs: a pillar's pages (Market: Hub, Studio, …) across the top of the content. */
+.section-tabs { margin-top: -12px; margin-bottom: -4px; }

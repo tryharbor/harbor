@@ -6,6 +6,7 @@ import { getApprovals, getBrands, getMemoryProposals, getMode, type BrandView, t
 import { authEnabled, currentSession } from './auth';
 import { Icon } from './icons';
 import { NavLink } from './nav-link';
+import { MARKET_PATHS, SectionTabs } from './section-tabs';
 import { SidebarToggle } from './sidebar-toggle';
 import { ProfileMenu } from './profile-menu';
 import { type Theme } from './theme-toggle';
@@ -18,17 +19,15 @@ const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono'
 export const metadata = { title: 'Harbor', description: 'Plan, build, market and run your business in one place.' };
 export const dynamic = 'force-dynamic';
 
-const NAV = [
+/**
+ * One item per pillar, plus the two things that cut across them: the Assistant and Approvals (everything waiting on
+ * you). A pillar's own pages are tabs at the top of the page (section-tabs.tsx). Plan and Build join here when built.
+ */
+const NAV: { href: string; label: string; icon: () => ReactNode; exact?: boolean; count?: 'approvals'; match?: readonly string[] }[] = [
   { href: '/', label: 'Home', icon: Icon.home, exact: true },
   { href: '/assistant', label: 'Assistant', icon: Icon.assistant },
-  { href: '/hub', label: 'Hub', icon: Icon.hub },
-  { href: '/approvals', label: 'Approvals', icon: Icon.approvals, count: 'approvals' as const },
-  { href: '/campaigns', label: 'Campaigns', icon: Icon.campaigns },
-  { href: '/studio', label: 'Studio', icon: Icon.studio },
-  { href: '/agents', label: 'Agents', icon: Icon.agents },
-  { href: '/media', label: 'Media', icon: Icon.media },
-  { href: '/performance', label: 'Performance', icon: Icon.performance },
-  { href: '/insights', label: 'Insights', icon: Icon.insights },
+  { href: '/approvals', label: 'Approvals', icon: Icon.approvals, count: 'approvals' },
+  { href: '/hub', label: 'Market', icon: Icon.campaigns, match: MARKET_PATHS },
   { href: '/money', label: 'Money', icon: Icon.money },
 ];
 
@@ -76,7 +75,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <Link href="/compose" className="button primary new-post" title="New post"><Icon.plus /><span className="nav-text">New post</span></Link>
             <nav className="nav-group" aria-label="Workspace">
               {NAV.map((n) => (
-                <NavLink key={n.href} href={n.href} exact={n.exact} title={n.count && pending ? `${n.label} · ${pending} waiting` : n.label}>
+                <NavLink key={n.href} href={n.href} exact={n.exact} match={n.match} title={n.count && pending ? `${n.label} · ${pending} waiting` : n.label}>
                   <n.icon /><span className="nav-text">{n.label}</span>
                   {n.count && pending ? <span className="nav-count" aria-label={`${pending} waiting`}>{pending}</span> : null}
                 </NavLink>
@@ -91,15 +90,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 </NavLink>
               </nav>
             ) : null}
-            <nav className="nav-group" aria-label="Brands">
-              <div className="nav-label nav-text">Brands</div>
+            <nav className="nav-group" aria-label="Businesses">
+              <div className="nav-label nav-text">Businesses</div>
               {brands.filter((b) => b.kind !== 'person').map((b) => (
                 <NavLink key={b.id} href={`/brands/${b.id}`} title={b.name}>
                   <BrandMark name={b.name} logoUrl={b.logoUrl} size={20} />
                   <span className="nav-text">{b.name}</span>
                 </NavLink>
               ))}
-              <NavLink href="/brands/new" title="Add brand"><Icon.plus /><span className="nav-text">Add brand</span></NavLink>
+              <NavLink href="/brands/new" title="Add business"><Icon.plus /><span className="nav-text">Add business</span></NavLink>
             </nav>
             <div className="nav-group nav-bottom">
               {mode ? (
@@ -120,7 +119,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               />
             </div>
           </aside>
-          <main className="content">{children}</main>
+          <main className="content"><SectionTabs />{children}</main>
         </div>
       </body>
     </html>

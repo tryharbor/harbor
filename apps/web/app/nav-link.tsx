@@ -14,10 +14,15 @@ export function TabLink({ href, children }: { href: string; children: ReactNode 
   );
 }
 
-/** Sidebar link that marks itself current. `exact` for Home, prefix match for everything else. */
-export function NavLink({ href, children, exact = false, title }: { href: string; children: ReactNode; exact?: boolean; title?: string }) {
+const under = (path: string, prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
+
+/**
+ * Sidebar link that marks itself current. `exact` for Home, prefix match for everything else; `match` adds more
+ * prefixes (Market is current on every page in its section).
+ */
+export function NavLink({ href, children, exact = false, title, match }: { href: string; children: ReactNode; exact?: boolean; title?: string; match?: readonly string[] }) {
   const path = usePathname();
-  const active = exact ? path === href : path === href || path.startsWith(`${href}/`);
+  const active = exact ? path === href : under(path, href) || (match ?? []).some((m) => under(path, m));
   return (
     <Link href={href} className="nav-link" aria-current={active ? 'page' : undefined} title={title}>
       {children}
